@@ -1,6 +1,7 @@
 export const config = {
   port: Number(process.env.PORT ?? 4000),
   host: process.env.HOST ?? "0.0.0.0",
+  databaseUrl: process.env.DATABASE_URL ?? "",
   jwtSecret: process.env.JWT_SECRET ?? "divido-dev-secret-change-me",
   jwtExpiresIn: "30d",
   googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",

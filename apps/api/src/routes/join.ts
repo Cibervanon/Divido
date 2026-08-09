@@ -13,10 +13,10 @@ import { requireAuth } from "../plugins.js";
 export const joinRoutes: FastifyPluginAsync = async (app) => {
   app.get("/api/join/:token", async (request) => {
     const { token } = request.params as { token: string };
-    const group = getGroupByInviteToken(request.db, token);
+    const group = await getGroupByInviteToken(request.db, token);
     if (!group) throw notFound("Enlace de invitación inválido o caducado");
-    const memberCount = listMembers(request.db, group.id).filter((m) => m.status === "active").length;
-    const existingMember = Boolean(request.user && getMemberRow(request.db, group.id, request.user.id));
+    const memberCount = (await listMembers(request.db, group.id)).filter((m) => m.status === "active").length;
+    const existingMember = Boolean(request.user && (await getMemberRow(request.db, group.id, request.user.id)));
     const preview: InvitePreview = {
       groupId: group.id,
       groupName: group.name,
@@ -30,17 +30,17 @@ export const joinRoutes: FastifyPluginAsync = async (app) => {
   app.post("/api/join/:token", async (request) => {
     const { token } = request.params as { token: string };
     const user = requireAuth(request);
-    const group = getGroupByInviteToken(request.db, token);
+    const group = await getGroupByInviteToken(request.db, token);
     if (!group) throw notFound("Enlace de invitación inválido o caducado");
-    const existing = getMemberRow(request.db, group.id, user.id);
+    const existing = await getMemberRow(request.db, group.id, user.id);
     if (existing) {
       if (existing.status === "ex_member") {
-        setMemberStatus(request.db, group.id, user.id, "active", null, null);
+        await setMemberStatus(request.db, group.id, user.id, "active", null, null);
         return { groupId: group.id, rejoin: true };
       }
       return { groupId: group.id, alreadyMember: true };
     }
-    addMember(request.db, {
+    await addMember(request.db, {
       groupId: group.id,
       userId: user.id,
       role: "member",

@@ -38,7 +38,7 @@ export const userRoutes: FastifyPluginAsync = async (app) => {
     }
 
     if (Object.keys(patch).length === 0) throw badRequest("Sin cambios");
-    const updated = updateUser(request.db, user.id, patch);
+    const updated = await updateUser(request.db, user.id, patch);
     return { user: toPublicUser(updated) };
   });
 
@@ -48,7 +48,7 @@ export const userRoutes: FastifyPluginAsync = async (app) => {
     if (!user.email) throw badRequest("Tu cuenta no tiene email asociado");
     const token = randomBytes(32).toString("hex");
     const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    setVerifyToken(request.db, user.id, token, expires);
+    await setVerifyToken(request.db, user.id, token, expires);
     return {
       verificationUrl: `${config.webOrigin}/verify-email?token=${token}`,
       expiresAt: expires,

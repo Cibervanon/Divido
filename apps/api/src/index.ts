@@ -1,6 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
-import { openDb } from "./db.js";
+import { createDb, initDb } from "./db.js";
 import { config } from "./config.js";
 import { authPlugin } from "./plugins.js";
 import { HttpError } from "./errors.js";
@@ -13,10 +13,12 @@ import { requestRoutes } from "./routes/requests.js";
 import { balanceRoutes } from "./routes/balances.js";
 import { userRoutes } from "./routes/users.js";
 
-export function buildApp(db = openDb()) {
+export async function buildApp(db = createDb(config.databaseUrl)) {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? "info" } });
 
   app.decorateRequest("db", { getter: () => db });
+
+  await initDb(db);
 
   app.register(cors, {
     origin: config.corsOrigin,
@@ -25,7 +27,10 @@ export function buildApp(db = openDb()) {
 
   app.register(authPlugin);
 
-  app.get("/api/health", async () => ({ ok: true, time: new Date().toISOString() }));
+  app.get("/api/health", async () => {
+    await db.ping();
+    return { ok: true, time: new Date().toISOString() };
+  });
 
   app.register(authRoutes);
   app.register(joinRoutes);
@@ -44,13 +49,15 @@ export function buildApp(db = openDb()) {
     return reply.code(500).send({ error: "Error interno del servidor", code: "INTERNAL" });
   });
 
-  app.addHook("onClose", () => db.close());
+  app.addHook("onClose", async () => {
+    await db.close();
+  });
 
   return app;
 }
 
 async function main() {
-  const app = buildApp();
+  const app = await buildApp();
   try {
     await app.listen({ port: config.port, host: config.host });
   } catch (err) {

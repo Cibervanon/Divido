@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyPluginAsync } from "fastify";
+import type { Db } from "../db.js";
 import {
   createGroup,
   getGroup,
@@ -24,21 +25,23 @@ const VALID_CURRENCIES = new Set([
 export const groupRoutes: FastifyPluginAsync = async (app) => {
   app.get("/api/groups", async (request) => {
     const user = requireAuth(request);
-    const groups = listGroupsForUser(request.db, user.id);
+    const groups = await listGroupsForUser(request.db, user.id);
     return {
-      groups: groups.map((g) => {
-        const b = getGroupBalances(request.db, g.id);
-        const mine = b.balances.find((x) => x.userId === user.id);
-        return {
-          ...g,
-          membership: undefined,
-          myRole: g.membership.role,
-          myBalance: mine?.net ?? 0,
-          totalOwedToMe: b.totalOwedToMe,
-          totalOwedByMe: b.totalOwedByMe,
-          memberCount: b.balances.length + b.exMembers.length,
-        };
-      }),
+      groups: await Promise.all(
+        groups.map(async (g) => {
+          const b = await getGroupBalances(request.db, g.id);
+          const mine = b.balances.find((x) => x.userId === user.id);
+          return {
+            ...g,
+            membership: undefined,
+            myRole: g.membership.role,
+            myBalance: mine?.net ?? 0,
+            totalOwedToMe: b.totalOwedToMe,
+            totalOwedByMe: b.totalOwedByMe,
+            memberCount: b.balances.length + b.exMembers.length,
+          };
+        })
+      ),
     };
   });
 
@@ -53,7 +56,7 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     const cur = (currency ?? "EUR").toUpperCase();
     if (!VALID_CURRENCIES.has(cur)) throw badRequest("Moneda no soportada");
     const t: GroupType = type === "closed" ? "closed" : "open";
-    const group = createGroup(request.db, {
+    const group = await createGroup(request.db, {
       name: name.trim(),
       currency: cur,
       type: t,
@@ -65,8 +68,8 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
   app.get("/api/groups/:groupId", async (request, reply) => {
     const user = requireAuth(request);
     const { groupId } = request.params as { groupId: string };
-    const group = requireGroup(request, groupId);
-    const membership = getMemberRow(request.db, groupId, user.id);
+    const group = await requireGroup(request, groupId);
+    const membership = await getMemberRow(request.db, groupId, user.id);
     if (!membership) {
       return reply.code(200).send({
         group: groupToPublic(group),
@@ -79,7 +82,7 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
 
   app.patch("/api/groups/:groupId", async (request) => {
     const { groupId } = request.params as { groupId: string };
-    requireAdmin(request, groupId);
+    await requireAdmin(request, groupId);
     const { name, currency, type } = request.body as {
       name?: string;
       currency?: string;
@@ -92,70 +95,70 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     if (cur) patch.currency = cur;
     if (type === "open" || type === "closed") patch.type = type;
     if (Object.keys(patch).length === 0) throw badRequest("Sin cambios");
-    const group = updateGroup(request.db, groupId, patch);
+    const group = await updateGroup(request.db, groupId, patch);
     return { group: await groupDetail(request.db, group, requireAuth(request).id) };
   });
 
   app.get("/api/groups/:groupId/invite", async (request) => {
     const { groupId } = request.params as { groupId: string };
-    const group = requireGroup(request, groupId);
-    requireAdmin(request, groupId);
+    const group = await requireGroup(request, groupId);
+    await requireAdmin(request, groupId);
     return { inviteToken: group.inviteToken, inviteUrl: buildInviteUrl(group.inviteToken) };
   });
 
   app.post("/api/groups/:groupId/invite", async (request) => {
     const user = requireAuth(request);
     const { groupId } = request.params as { groupId: string };
-    const group = requireGroup(request, groupId);
-    const member = getMemberRow(request.db, groupId, user.id);
+    const group = await requireGroup(request, groupId);
+    const member = await getMemberRow(request.db, groupId, user.id);
     if (!member || member.status !== "active") throw forbidden("Debes ser miembro activo");
     if (group.type === "closed" && member.role !== "admin") {
       throw forbidden("Solo administradores pueden invitar en grupos cerrados");
     }
     const token = randomUUID().replace(/-/g, "").slice(0, 16);
-    request.db.prepare("UPDATE groups SET invite_token = ? WHERE id = ?").run(token, groupId);
+    await request.db.prepare("UPDATE groups SET invite_token = ? WHERE id = ?").run(token, groupId);
     return { inviteToken: token, inviteUrl: buildInviteUrl(token) };
   });
 
   app.post("/api/groups/:groupId/members/:userId/role", async (request) => {
     const { groupId, userId } = request.params as { groupId: string; userId: string };
-    requireAdmin(request, groupId);
+    await requireAdmin(request, groupId);
     const { role } = request.body as { role?: string };
     if (role !== "admin" && role !== "member") throw badRequest("Rol inválido");
-    const target = getMemberRow(request.db, groupId, userId);
+    const target = await getMemberRow(request.db, groupId, userId);
     if (!target || target.status !== "active") throw notFound("Miembro no encontrado");
-    setRole(request.db, groupId, userId, role);
+    await setRole(request.db, groupId, userId, role);
     return { ok: true };
   });
 
   app.delete("/api/groups/:groupId/members/:userId", async (request) => {
     const { groupId, userId } = request.params as { groupId: string; userId: string };
-    const admin = requireAdmin(request, groupId);
+    const admin = await requireAdmin(request, groupId);
     if (admin.user_id === userId) throw badRequest("No puedes expulsarte a ti mismo; usa abandonar grupo");
-    const group = requireGroup(request, groupId);
+    const group = await requireGroup(request, groupId);
     if (userId === group.creatorId) throw forbidden("No puedes expulsar al creador del grupo");
-    const target = getMemberRow(request.db, groupId, userId);
+    const target = await getMemberRow(request.db, groupId, userId);
     if (!target) throw notFound("Miembro no encontrado");
-    const bal = getGroupBalances(request.db, groupId);
+    const bal = await getGroupBalances(request.db, groupId);
     const frozen = bal.balances.find((b) => b.userId === userId)?.net ?? null;
-    setMemberStatus(request.db, groupId, userId, "ex_member", new Date().toISOString(), frozen);
+    await setMemberStatus(request.db, groupId, userId, "ex_member", new Date().toISOString(), frozen);
     return { ok: true };
   });
 
   app.post("/api/groups/:groupId/leave", async (request) => {
     const { groupId } = request.params as { groupId: string };
     const user = requireAuth(request);
-    const { member } = requireActiveMember(request, groupId);
-    const bal = getGroupBalances(request.db, groupId);
+    const { member } = await requireActiveMember(request, groupId);
+    const bal = await getGroupBalances(request.db, groupId);
     const frozen = bal.balances.find((b) => b.userId === user.id)?.net ?? null;
-    const admins = listMembers(request.db, groupId).filter(
+    const admins = (await listMembers(request.db, groupId)).filter(
       (m) => m.status === "active" && m.role === "admin" && m.user_id !== user.id
     );
-    setMemberStatus(request.db, groupId, user.id, "ex_member", new Date().toISOString(), frozen);
+    await setMemberStatus(request.db, groupId, user.id, "ex_member", new Date().toISOString(), frozen);
     if (member.role === "admin" && admins.length === 0) {
-      const remaining = listMembers(request.db, groupId).filter((m) => m.status === "active");
+      const remaining = (await listMembers(request.db, groupId)).filter((m) => m.status === "active");
       if (remaining.length > 0) {
-        setRole(request.db, groupId, remaining[0].user_id, "admin");
+        await setRole(request.db, groupId, remaining[0].user_id, "admin");
       }
     }
     return { ok: true };
@@ -164,9 +167,9 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
   app.delete("/api/groups/:groupId", async (request) => {
     const { groupId } = request.params as { groupId: string };
     const user = requireAuth(request);
-    const group = requireGroup(request, groupId);
+    const group = await requireGroup(request, groupId);
     if (group.creatorId !== user.id) throw forbidden("Solo el creador puede eliminar el grupo");
-    request.db.prepare("DELETE FROM groups WHERE id = ?").run(groupId);
+    await request.db.prepare("DELETE FROM groups WHERE id = ?").run(groupId);
     return { ok: true };
   });
 };
@@ -187,13 +190,13 @@ function groupToPublic(group: Group) {
 }
 
 async function groupDetail(
-  db: import("node:sqlite").DatabaseSync,
+  db: Db,
   group: Group,
   userId: string,
   membership?: { role: string; status: string }
 ) {
-  const members = listMembers(db, group.id);
-  const balances = getGroupBalances(db, group.id);
+  const members = await listMembers(db, group.id);
+  const balances = await getGroupBalances(db, group.id);
   const isAdmin = (membership?.role ?? "admin") === "admin";
   return {
     group: groupToPublic(group),

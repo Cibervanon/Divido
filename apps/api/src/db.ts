@@ -1,14 +1,60 @@
-import { DatabaseSync } from "node:sqlite";
-import { mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { Pool } from "pg";
 
-export const DB_PATH =
-  process.env.DB_PATH ?? join(process.cwd(), "data", "divido.db");
+export type SqlValue = string | number | boolean | null | undefined;
 
-function ensureDir() {
-  if (DB_PATH !== ":memory:") {
-    mkdirSync(dirname(DB_PATH), { recursive: true });
+export interface PreparedStatement {
+  get(...params: SqlValue[]): Promise<Record<string, unknown> | undefined>;
+  all(...params: SqlValue[]): Promise<Record<string, unknown>[]>;
+  run(...params: SqlValue[]): Promise<{ changes: number }>;
+}
+
+export interface Db {
+  prepare(sql: string): PreparedStatement;
+  ping(): Promise<void>;
+  close(): Promise<void>;
+}
+
+function toPostgresSql(sql: string): string {
+  let i = 0;
+  return sql.replace(/\?/g, () => `$${++i}`);
+}
+
+export function createDb(connectionString: string): Db {
+  if (!connectionString) {
+    throw new Error("DATABASE_URL no está configurada");
   }
+  const pool = new Pool({
+    connectionString,
+    max: 10,
+    ssl: /neon\.tech|sslmode=require/i.test(connectionString)
+      ? { rejectUnauthorized: false }
+      : undefined,
+  });
+  return {
+    prepare(sql) {
+      const text = toPostgresSql(sql);
+      return {
+        async get(...params) {
+          const res = await pool.query(text, params);
+          return res.rows[0] as Record<string, unknown> | undefined;
+        },
+        async all(...params) {
+          const res = await pool.query(text, params);
+          return res.rows as Record<string, unknown>[];
+        },
+        async run(...params) {
+          const res = await pool.query(text, params);
+          return { changes: res.rowCount ?? 0 };
+        },
+      };
+    },
+    async ping() {
+      await pool.query("SELECT 1");
+    },
+    async close() {
+      await pool.end();
+    },
+  };
 }
 
 const SCHEMA = `
@@ -101,27 +147,14 @@ CREATE INDEX IF NOT EXISTS idx_requests_expense ON modification_requests(expense
 `;
 
 const MIGRATIONS = [
-  "ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0",
-  "ALTER TABLE users ADD COLUMN verify_token TEXT",
-  "ALTER TABLE users ADD COLUMN verify_token_expires TEXT",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS verify_token TEXT",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS verify_token_expires TEXT",
 ];
 
-function migrate(db: DatabaseSync) {
+export async function initDb(db: Db): Promise<void> {
+  await db.prepare(SCHEMA).run();
   for (const sql of MIGRATIONS) {
-    try {
-      db.exec(sql);
-    } catch {
-      // La columna ya existe en bases de datos creadas con versiones anteriores.
-    }
+    await db.prepare(sql).run();
   }
-}
-
-export function openDb(): DatabaseSync {
-  ensureDir();
-  const db = new DatabaseSync(DB_PATH);
-  db.exec("PRAGMA journal_mode = WAL;");
-  db.exec("PRAGMA foreign_keys = ON;");
-  db.exec(SCHEMA);
-  migrate(db);
-  return db;
 }

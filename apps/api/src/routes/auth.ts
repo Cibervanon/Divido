@@ -32,8 +32,8 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (!password || password.length < 6) throw badRequest("La contraseña debe tener al menos 6 caracteres");
     if (!name?.trim()) throw badRequest("El nombre es obligatorio");
     const normalized = email.toLowerCase().trim();
-    if (findUserByEmail(request.db, normalized)) throw conflict("Ya existe una cuenta con ese email");
-    const user = createUser(request.db, {
+    if (await findUserByEmail(request.db, normalized)) throw conflict("Ya existe una cuenta con ese email");
+    const user = await createUser(request.db, {
       email: normalized,
       passwordHash: hashPassword(password),
       name: name.trim(),
@@ -44,7 +44,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post("/api/auth/login", async (request) => {
     const { email, password } = request.body as { email?: string; password?: string };
     if (!email || !password) throw badRequest("Email y contraseña son obligatorios");
-    const user = findUserByEmail(request.db, email.toLowerCase().trim());
+    const user = await findUserByEmail(request.db, email.toLowerCase().trim());
     if (!user || !user.password_hash || !verifyPassword(password, user.password_hash)) {
       throw unauthorized("Credenciales incorrectas");
     }
@@ -59,11 +59,11 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post("/api/auth/verify-email", async (request) => {
     const { token } = request.body as { token?: string };
     if (!token) throw badRequest("Falta el token de verificación");
-    const user = findUserByVerifyToken(request.db, token);
+    const user = await findUserByVerifyToken(request.db, token);
     if (!user || !user.verify_token_expires || new Date(user.verify_token_expires).getTime() < Date.now()) {
       throw badRequest("Enlace de verificación inválido o expirado");
     }
-    markEmailVerified(request.db, user.id);
+    await markEmailVerified(request.db, user.id);
     return { ok: true };
   });
 
@@ -78,24 +78,24 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const { code, redirect_uri } = request.body as { code?: string; redirect_uri?: string };
     if (!code) throw badRequest("Falta el código de autorización");
     const profile = await exchangeGoogleCode(code, redirect_uri ?? `${config.webOrigin}/auth/google/callback`);
-    const existingBySub = findUserByGoogleSub(request.db, profile.sub);
+    const existingBySub = await findUserByGoogleSub(request.db, profile.sub);
     if (existingBySub) {
-      const user = markEmailVerified(request.db, existingBySub.id);
+      const user = await markEmailVerified(request.db, existingBySub.id);
       return { token: signToken(toAuthUser(user)), user: toAuthUser(user) };
     }
-    const existingByEmail = profile.email ? findUserByEmail(request.db, profile.email) : undefined;
+    const existingByEmail = profile.email ? await findUserByEmail(request.db, profile.email) : undefined;
     if (existingByEmail) {
-      linkGoogleToUser(request.db, existingByEmail.id, profile.sub, profile.picture);
-      const user = markEmailVerified(request.db, existingByEmail.id);
+      await linkGoogleToUser(request.db, existingByEmail.id, profile.sub, profile.picture);
+      const user = await markEmailVerified(request.db, existingByEmail.id);
       return { token: signToken(toAuthUser(user)), user: toAuthUser(user) };
     }
-    const created = createUser(request.db, {
+    const created = await createUser(request.db, {
       email: profile.email,
       name: profile.name ?? profile.email.split("@")[0],
       avatarUrl: profile.picture,
       googleSub: profile.sub,
     });
-    const user = markEmailVerified(request.db, created.id);
+    const user = await markEmailVerified(request.db, created.id);
     return { token: signToken(toAuthUser(user)), user: toAuthUser(user) };
   });
 };

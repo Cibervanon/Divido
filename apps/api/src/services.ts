@@ -1,4 +1,4 @@
-import type { DatabaseSync } from "node:sqlite";
+import type { Db } from "./db.js";
 import {
   computeNetBalances,
   simplifyDebts,
@@ -52,15 +52,17 @@ export interface PersonBreakdownItem {
 
 const isActive = (m: MemberRow) => m.status === "active";
 
-function expensePairs(db: DatabaseSync, groupId: string) {
-  return listExpenses(db, groupId).map((e) => ({
-    ...e,
-    participants: expenseParticipantIds(db, e.id),
-  }));
+async function expensePairs(db: Db, groupId: string) {
+  const expenses = await listExpenses(db, groupId);
+  const result: Array<ExpenseRow & { participants: string[] }> = [];
+  for (const e of expenses) {
+    result.push({ ...e, participants: await expenseParticipantIds(db, e.id) });
+  }
+  return result;
 }
 
-export function getGroupBalances(db: DatabaseSync, groupId: string): GroupBalances {
-  const members = listMembers(db, groupId);
+export async function getGroupBalances(db: Db, groupId: string): Promise<GroupBalances> {
+  const members = await listMembers(db, groupId);
   const active = members.filter(isActive);
   const ex = members.filter((m) => m.status === "ex_member");
   const activeIds = new Set(active.map((m) => m.user_id));
@@ -68,13 +70,13 @@ export function getGroupBalances(db: DatabaseSync, groupId: string): GroupBalanc
   const names: Record<string, string> = {};
   for (const m of members) names[m.user_id] = m.name;
 
-  const expenses = expensePairs(db, groupId).map((e) => ({
+  const expenses = (await expensePairs(db, groupId)).map((e) => ({
     payerId: e.payer_id,
     amountGroup: e.amount_group,
     participants: e.participants,
     deleted: Boolean(e.deleted),
   }));
-  const payments = listPayments(db, groupId).map((p) => ({
+  const payments = (await listPayments(db, groupId)).map((p) => ({
     fromUserId: p.from_user_id,
     toUserId: p.to_user_id,
     amount: p.amount,
@@ -113,10 +115,10 @@ export function getGroupBalances(db: DatabaseSync, groupId: string): GroupBalanc
   };
 }
 
-export function getPersonBreakdown(db: DatabaseSync, groupId: string, userId: string): PersonBreakdownItem[] {
-  const members = listMembers(db, groupId).filter(isActive);
-  const expenses: Array<ExpenseRow & { participants: string[] }> = expensePairs(db, groupId);
-  const payments = listPayments(db, groupId);
+export async function getPersonBreakdown(db: Db, groupId: string, userId: string): Promise<PersonBreakdownItem[]> {
+  const members = (await listMembers(db, groupId)).filter(isActive);
+  const expenses = await expensePairs(db, groupId);
+  const payments = await listPayments(db, groupId);
 
   const others = members.filter((m) => m.user_id !== userId);
   const result: PersonBreakdownItem[] = others.map((m) => ({

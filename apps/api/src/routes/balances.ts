@@ -7,28 +7,28 @@ import { getGroupBalances, getPersonBreakdown } from "../services.js";
 export const balanceRoutes: FastifyPluginAsync = async (app) => {
   app.get("/api/groups/:groupId/balances", async (request) => {
     const { groupId } = request.params as { groupId: string };
-    requireActiveMember(request, groupId);
+    await requireActiveMember(request, groupId);
     return getGroupBalances(request.db, groupId);
   });
 
   app.get("/api/groups/:groupId/members/:userId/breakdown", async (request) => {
     const { groupId, userId } = request.params as { groupId: string; userId: string };
-    requireActiveMember(request, groupId);
-    const member = listMembers(request.db, groupId).find((m) => m.user_id === userId);
+    await requireActiveMember(request, groupId);
+    const member = (await listMembers(request.db, groupId)).find((m) => m.user_id === userId);
     if (!member || member.status !== "active") throw notFound("Miembro no encontrado");
-    return { breakdown: getPersonBreakdown(request.db, groupId, userId) };
+    return { breakdown: await getPersonBreakdown(request.db, groupId, userId) };
   });
 
   app.get("/api/groups/:groupId/history", async (request) => {
     const { groupId } = request.params as { groupId: string };
-    requireActiveMember(request, groupId);
-    const expenses = listExpenses(request.db, groupId, true);
-    const payments = listPayments(request.db, groupId);
+    await requireActiveMember(request, groupId);
+    const expenses = await listExpenses(request.db, groupId, true);
+    const payments = await listPayments(request.db, groupId);
 
     const events: Array<Record<string, unknown>> = [];
 
     for (const e of expenses) {
-      const participantIds = expenseParticipantIds(request.db, e.id);
+      const participantIds = await expenseParticipantIds(request.db, e.id);
       events.push({
         type: "expense",
         id: e.id,

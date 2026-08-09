@@ -16,28 +16,28 @@ import { EDIT_WINDOW_MS } from "../config.js";
 export const expenseRoutes: FastifyPluginAsync = async (app) => {
   app.get("/api/groups/:groupId/expenses", async (request) => {
     const { groupId } = request.params as { groupId: string };
-    requireActiveMember(request, groupId);
+    await requireActiveMember(request, groupId);
     const user = requireAuth(request);
-    const member = getMemberRow(request.db, groupId, user.id);
+    const member = await getMemberRow(request.db, groupId, user.id);
     const includeDeleted = member?.role === "admin";
-    const expenses = listExpenses(request.db, groupId, includeDeleted).map((e) => ({
-      ...toExpenseDto(request, e),
+    const expenses = (await listExpenses(request.db, groupId, includeDeleted)).map(async (e) => ({
+      ...(await toExpenseDto(request, e)),
       editable: isEditable(e.created_at),
     }));
-    return { expenses };
+    return { expenses: await Promise.all(expenses) };
   });
 
   app.get("/api/expenses/:expenseId", async (request) => {
     const { expenseId } = request.params as { expenseId: string };
-    const expense = getExpense(request.db, expenseId);
+    const expense = await getExpense(request.db, expenseId);
     if (!expense) throw notFound("Gasto no encontrado");
-    requireActiveMember(request, expense.group_id);
-    return { expense: toExpenseDto(request, expense) };
+    await requireActiveMember(request, expense.group_id);
+    return { expense: await toExpenseDto(request, expense) };
   });
 
   app.post("/api/groups/:groupId/expenses", async (request) => {
     const { groupId } = request.params as { groupId: string };
-    const { member, group } = requireActiveMember(request, groupId);
+    const { member, group } = await requireActiveMember(request, groupId);
     const user = requireAuth(request);
     const body = request.body as {
       description?: string;
@@ -52,7 +52,7 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
     if (!description) throw badRequest("La descripción es obligatoria");
     if (!Number.isFinite(amount) || amount <= 0) throw badRequest("Importe inválido");
     const activeIds = new Set(
-      listMembers(request.db, groupId)
+      (await listMembers(request.db, groupId))
         .filter((m) => m.status === "active")
         .map((m) => m.user_id)
     );
@@ -71,7 +71,7 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       throw badRequest("Indica el tipo de cambio congelado para la moneda extranjera");
     }
     const amountGroup = round2(amount * exchangeRate);
-    const expense = createExpense(request.db, {
+    const expense = await createExpense(request.db, {
       groupId,
       payerId,
       description,
@@ -82,15 +82,15 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       createdById: user.id,
       participants: [...new Set(participants)],
     });
-    return { expense: toExpenseDto(request, expense), editable: true };
+    return { expense: await toExpenseDto(request, expense), editable: true };
   });
 
   app.patch("/api/expenses/:expenseId", async (request) => {
     const { expenseId } = request.params as { expenseId: string };
     const user = requireAuth(request);
-    const expense = getExpense(request.db, expenseId);
+    const expense = await getExpense(request.db, expenseId);
     if (!expense) throw notFound("Gasto no encontrado");
-    const { member, group } = requireActiveMember(request, expense.group_id);
+    const { member, group } = await requireActiveMember(request, expense.group_id);
     if (!isEditable(expense.created_at)) {
       throw conflict(
         "El gasto tiene más de 24 horas. Solicita una modificación que un administrador debe aprobar."
@@ -108,13 +108,13 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       payerId?: string;
     };
     const activeIds = new Set(
-      listMembers(request.db, group.id)
+      (await listMembers(request.db, group.id))
         .filter((m) => m.status === "active")
         .map((m) => m.user_id)
     );
     const payerId = body.payerId ?? expense.payer_id;
     if (!activeIds.has(payerId)) throw badRequest("El pagador debe ser un miembro activo");
-    const participants = body.participants ?? expenseParticipantIds(request.db, expenseId);
+    const participants = body.participants ?? (await expenseParticipantIds(request.db, expenseId));
     for (const p of participants) {
       if (!activeIds.has(p)) throw badRequest("Hay participantes que no son miembros activos");
     }
@@ -131,7 +131,7 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
     if (expenseCurrency !== group.currency && (!Number.isFinite(exchangeRate) || exchangeRate <= 0)) {
       throw badRequest("Tipo de cambio inválido");
     }
-    const updated = updateExpense(request.db, expenseId, {
+    const updated = await updateExpense(request.db, expenseId, {
       description,
       amount,
       currency: expenseCurrency,
@@ -140,15 +140,15 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       payerId,
       participants,
     });
-    return { expense: toExpenseDto(request, updated), editable: false };
+    return { expense: await toExpenseDto(request, updated), editable: false };
   });
 
   app.delete("/api/expenses/:expenseId", async (request) => {
     const { expenseId } = request.params as { expenseId: string };
     const user = requireAuth(request);
-    const expense = getExpense(request.db, expenseId);
+    const expense = await getExpense(request.db, expenseId);
     if (!expense) throw notFound("Gasto no encontrado");
-    const { member } = requireActiveMember(request, expense.group_id);
+    const { member } = await requireActiveMember(request, expense.group_id);
     if (!isEditable(expense.created_at)) {
       throw conflict(
         "El gasto tiene más de 24 horas. Solicita la eliminación y un administrador deberá aprobarla."
@@ -157,7 +157,7 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
     if (expense.payer_id !== user.id && member.role !== "admin") {
       throw forbidden("Solo puedes eliminar gastos que hayas creado (o siendo administrador)");
     }
-    deleteExpense(request.db, expenseId);
+    await deleteExpense(request.db, expenseId);
     return { ok: true };
   });
 };
@@ -166,7 +166,7 @@ function isEditable(createdAt: string): boolean {
   return Date.now() - new Date(createdAt).getTime() < EDIT_WINDOW_MS;
 }
 
-function toExpenseDto(
+async function toExpenseDto(
   request: import("fastify").FastifyRequest,
   e: {
     id: string;
@@ -184,7 +184,7 @@ function toExpenseDto(
     payer_name?: string;
   }
 ) {
-  const participantIds = expenseParticipantIds(request.db, e.id);
+  const participantIds = await expenseParticipantIds(request.db, e.id);
   const share = participantIds.length ? round2(e.amount_group / participantIds.length) : 0;
   return {
     id: e.id,

@@ -13,15 +13,15 @@ import { EDIT_WINDOW_MS } from "../config.js";
 export const paymentRoutes: FastifyPluginAsync = async (app) => {
   app.get("/api/groups/:groupId/payments", async (request) => {
     const { groupId } = request.params as { groupId: string };
-    requireActiveMember(request, groupId);
-    const payments = listPayments(request.db, groupId);
+    await requireActiveMember(request, groupId);
+    const payments = await listPayments(request.db, groupId);
     return { payments };
   });
 
   app.post("/api/groups/:groupId/payments", async (request) => {
     const { groupId } = request.params as { groupId: string };
     const user = requireAuth(request);
-    requireActiveMember(request, groupId);
+    await requireActiveMember(request, groupId);
     const { toUserId, amount, note } = request.body as {
       toUserId?: string;
       amount?: number;
@@ -31,9 +31,9 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
     if (toUserId === user.id) throw badRequest("No puedes pagarte a ti mismo");
     const num = Number(amount);
     if (!Number.isFinite(num) || num <= 0) throw badRequest("Importe inválido");
-    const target = getMemberRow(request.db, groupId, toUserId);
+    const target = await getMemberRow(request.db, groupId, toUserId);
     if (!target || target.status !== "active") throw badRequest("El destinatario debe ser miembro activo");
-    const payment = createPayment(request.db, {
+    const payment = await createPayment(request.db, {
       groupId,
       fromUserId: user.id,
       toUserId,
@@ -47,9 +47,9 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
   app.delete("/api/payments/:paymentId", async (request) => {
     const { paymentId } = request.params as { paymentId: string };
     const user = requireAuth(request);
-    const payment = getPayment(request.db, paymentId);
+    const payment = await getPayment(request.db, paymentId);
     if (!payment) throw notFound("Pago no encontrado");
-    const { member } = requireActiveMember(request, payment.group_id);
+    const { member } = await requireActiveMember(request, payment.group_id);
     const editable =
       payment.from_user_id === user.id || member.role === "admin";
     const withinWindow = Date.now() - new Date(payment.created_at).getTime() < EDIT_WINDOW_MS;
@@ -57,7 +57,7 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
     if (!withinWindow && member.role !== "admin") {
       throw forbidden("Solo puedes eliminar un pago dentro de las primeras 24 horas");
     }
-    deletePayment(request.db, paymentId);
+    await deletePayment(request.db, paymentId);
     return { ok: true };
   });
 };
