@@ -4,3 +4,5 @@ dist/
 .env
 data/
 .DS_Store
+# Credenciales de Google OAuth (NUNCA subir este archivo)
+*googleusercontent.com.json

@@ -9,6 +9,11 @@ export function setToken(token: string | null): void {
   else localStorage.removeItem(TOKEN_KEY);
 }
 
+// URL base del backend. En local se deja vacío (usa el proxy de Vite).
+// En Vercel se define la variable de entorno VITE_API_BASE, ej:
+//   https://divido-433u.onrender.com
+const API_BASE = (import.meta.env.VITE_API_BASE ?? "").replace(/\/+$/, "");
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -25,8 +30,6 @@ export function setOnUnauthorized(fn: () => void): void {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const API_URL = "https://divido-433u.onrender.com";
-
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> | undefined),
   };
@@ -38,7 +41,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   let res: Response;
   try {
-    res = await fetch(`${API_URL}${path}`, { ...options, headers });
+    res = await fetch(`${API_BASE}/api${path}`, { ...options, headers });
   } catch {
     throw new ApiError("No se pudo conectar con el servidor", 0);
   }

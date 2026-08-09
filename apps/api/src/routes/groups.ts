@@ -15,6 +15,7 @@ import type { Group, GroupType } from "@divido/shared";
 import { badRequest, conflict, forbidden, notFound } from "../errors.js";
 import { requireActiveMember, requireAdmin, requireAuth, requireGroup } from "../plugins.js";
 import { getGroupBalances } from "../services.js";
+import { config } from "../config.js";
 
 const VALID_CURRENCIES = new Set([
   "EUR", "USD", "GBP", "JPY", "MXN", "ARS", "COP", "CLP", "PEN", "BRL", "CHF", "CAD", "AUD", "CNY", "INR",
@@ -171,8 +172,7 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
 };
 
 function buildInviteUrl(token: string): string {
-  const base = process.env.WEB_ORIGIN ?? "http://localhost:5173";
-  return `${base}/join/${token}`;
+  return `${config.webOrigin}/join/${token}`;
 }
 
 function groupToPublic(group: Group) {

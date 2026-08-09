@@ -10,8 +10,12 @@
     "dev:api": "npm run dev -w @divido/api",
     "dev:web": "npm run dev -w @divido/web",
     "build:shared": "npm run build -w @divido/shared",
+    "build:api": "npm run build -w @divido/shared && npm run build -w @divido/api",
     "build:web": "npm run build -w @divido/web",
     "build": "npm run build -w @divido/shared && npm run build -w @divido/web",
     "start:api": "npm run start -w @divido/api"
+  },
+  "dependencies": {
+    "cors": "^2.8.6"
   }
 }

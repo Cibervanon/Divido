@@ -15,6 +15,7 @@ import {
 } from "../auth.js";
 import { badRequest, conflict, unauthorized } from "../errors.js";
 import { requireAuth } from "../plugins.js";
+import { config } from "../config.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -56,14 +57,14 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.get("/api/auth/google/url", async (request) => {
     const redirectUri =
       ((request.query as { redirect_uri?: string }).redirect_uri) ??
-      "http://localhost:5173/auth/google/callback";
+      `${config.webOrigin}/auth/google/callback`;
     return { url: googleAuthUrl(redirectUri) };
   });
 
   app.post("/api/auth/google", async (request) => {
     const { code, redirect_uri } = request.body as { code?: string; redirect_uri?: string };
     if (!code) throw badRequest("Falta el código de autorización");
-    const profile = await exchangeGoogleCode(code, redirect_uri ?? "http://localhost:5173/auth/google/callback");
+    const profile = await exchangeGoogleCode(code, redirect_uri ?? `${config.webOrigin}/auth/google/callback`);
     const existingBySub = findUserByGoogleSub(request.db, profile.sub);
     if (existingBySub) {
       return { token: signToken(toAuthUser(existingBySub)), user: toAuthUser(existingBySub) };

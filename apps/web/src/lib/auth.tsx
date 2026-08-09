@@ -80,7 +80,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function googleLogin() {
-    const { url } = await api.get<{ url: string }>("/auth/google/url");
+    const redirectUri = `${window.location.origin}/auth/google/callback`;
+    const { url } = await api.get<{ url: string }>(
+      `/auth/google/url?redirect_uri=${encodeURIComponent(redirectUri)}`
+    );
     window.location.href = url;
   }
 
