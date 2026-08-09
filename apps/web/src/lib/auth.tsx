@@ -12,6 +12,7 @@ export interface Me {
   email: string;
   name: string;
   avatarUrl: string | null;
+  emailVerified: boolean;
 }
 
 interface AuthContextValue {
@@ -22,6 +23,7 @@ interface AuthContextValue {
   logout: () => void;
   googleLogin: () => void;
   exchangeGoogleCode: (code: string, redirectUri: string) => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -79,6 +81,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
+  async function refreshUser() {
+    const { user: fresh } = await api.get<{ user: Me }>("/auth/me");
+    setUser(fresh);
+  }
+
   async function googleLogin() {
     const redirectUri = `${window.location.origin}/auth/google/callback`;
     const { url } = await api.get<{ url: string }>(
@@ -97,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, register, logout, googleLogin, exchangeGoogleCode }}
+      value={{ user, loading, login, register, logout, googleLogin, exchangeGoogleCode, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

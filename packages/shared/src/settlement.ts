@@ -60,8 +60,8 @@ export function computeNetBalances(
 
   for (const pay of input.payments) {
     if (shouldInclude && !shouldInclude(pay.fromUserId, pay.toUserId)) continue;
-    net[pay.fromUserId] = (net[pay.fromUserId] ?? 0) - pay.amount;
-    net[pay.toUserId] = (net[pay.toUserId] ?? 0) + pay.amount;
+    net[pay.fromUserId] = (net[pay.fromUserId] ?? 0) + pay.amount;
+    net[pay.toUserId] = (net[pay.toUserId] ?? 0) - pay.amount;
   }
 
   return input.memberIds.map((id) => ({

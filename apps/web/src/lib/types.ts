@@ -49,9 +49,10 @@ export interface GroupDetail {
     name: string;
     currency: string;
     type: GroupType;
+    creatorId: string;
     createdAt: string;
   };
-  inviteUrl: string;
+  inviteUrl: string | null;
   membership: { role: string; status: string } | null;
   myRole: "admin" | "member";
   members: MemberInfo[];

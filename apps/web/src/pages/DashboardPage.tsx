@@ -4,6 +4,7 @@ import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Avatar, Button, Input, Modal, Money, Select, Spinner, EmptyState } from "../components/ui";
 import { ExpenseModal } from "../components/ExpenseModal";
+import { ProfileModal } from "../components/ProfileModal";
 import type { GroupDetail, GroupSummary } from "../lib/types";
 
 export default function DashboardPage() {
@@ -13,6 +14,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [name, setName] = useState("");
   const [currency, setCurrency] = useState("EUR");
   const [type, setType] = useState<"open" | "closed">("open");
@@ -68,10 +70,16 @@ export default function DashboardPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-lg font-black text-white">
               €
             </div>
-            <div>
-              <p className="text-sm font-bold leading-tight text-slate-100">Divido</p>
-              <p className="text-[11px] text-slate-500">{user?.name}</p>
-            </div>
+            <button
+              onClick={() => setProfileOpen(true)}
+              className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-left transition hover:bg-slate-800"
+            >
+              <Avatar name={user?.name ?? ""} url={user?.avatarUrl} size="sm" />
+              <span>
+                <p className="text-sm font-bold leading-tight text-slate-100">Divido</p>
+                <p className="text-[11px] text-slate-500">{user?.name}</p>
+              </span>
+            </button>
           </div>
           <button
             onClick={logout}
@@ -181,6 +189,8 @@ export default function DashboardPage() {
           }}
         />
       ) : null}
+
+      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
     </div>
   );
 }

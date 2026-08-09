@@ -7,6 +7,7 @@ import DashboardPage from "./pages/DashboardPage";
 import GroupPage from "./pages/GroupPage";
 import JoinPage from "./pages/JoinPage";
 import GoogleCallbackPage from "./pages/GoogleCallbackPage";
+import VerifyEmailPage from "./pages/VerifyEmailPage";
 
 function Protected({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -29,6 +30,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/join/:token" element={<JoinPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
       <Route
         path="/"

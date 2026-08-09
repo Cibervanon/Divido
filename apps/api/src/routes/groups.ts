@@ -97,11 +97,9 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.get("/api/groups/:groupId/invite", async (request) => {
-    const user = requireAuth(request);
     const { groupId } = request.params as { groupId: string };
     const group = requireGroup(request, groupId);
-    const member = getMemberRow(request.db, groupId, user.id);
-    if (!member || member.status !== "active") throw forbidden("Debes ser miembro activo");
+    requireAdmin(request, groupId);
     return { inviteToken: group.inviteToken, inviteUrl: buildInviteUrl(group.inviteToken) };
   });
 
@@ -134,6 +132,8 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     const { groupId, userId } = request.params as { groupId: string; userId: string };
     const admin = requireAdmin(request, groupId);
     if (admin.user_id === userId) throw badRequest("No puedes expulsarte a ti mismo; usa abandonar grupo");
+    const group = requireGroup(request, groupId);
+    if (userId === group.creatorId) throw forbidden("No puedes expulsar al creador del grupo");
     const target = getMemberRow(request.db, groupId, userId);
     if (!target) throw notFound("Miembro no encontrado");
     const bal = getGroupBalances(request.db, groupId);
@@ -181,6 +181,7 @@ function groupToPublic(group: Group) {
     name: group.name,
     currency: group.currency,
     type: group.type,
+    creatorId: group.creatorId,
     createdAt: group.createdAt,
   };
 }
@@ -193,9 +194,10 @@ async function groupDetail(
 ) {
   const members = listMembers(db, group.id);
   const balances = getGroupBalances(db, group.id);
+  const isAdmin = (membership?.role ?? "admin") === "admin";
   return {
     group: groupToPublic(group),
-    inviteUrl: buildInviteUrl(group.inviteToken),
+    inviteUrl: isAdmin ? buildInviteUrl(group.inviteToken) : null,
     membership: membership ?? { role: "admin", status: "active" },
     myRole: membership?.role ?? "admin",
     members: members.map((m) => ({

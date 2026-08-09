@@ -187,3 +187,12 @@ export function Tabs({
     </div>
   );
 }
+
+export function Toast({ show, children }: { show: boolean; children: ReactNode }) {
+  if (!show) return null;
+  return (
+    <div className="pointer-events-none fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-100 shadow-2xl">
+      {children}
+    </div>
+  );
+}

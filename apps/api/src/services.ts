@@ -175,8 +175,8 @@ export function getPersonBreakdown(db: DatabaseSync, groupId: string, userId: st
     if (!involvedOther) continue;
     const item = index.get(involvedOther);
     if (!item) continue;
-    if (pay.from_user_id === userId) item.net -= pay.amount;
-    if (pay.to_user_id === userId) item.net += pay.amount;
+    if (pay.from_user_id === userId) item.net += pay.amount;
+    if (pay.to_user_id === userId) item.net -= pay.amount;
     item.payments.push({
       id: pay.id,
       amount: pay.amount,

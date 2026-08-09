@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { Avatar, Button, EmptyState, Input, Modal, Money, Select, Spinner, Tabs } from "../components/ui";
+import { Avatar, Button, EmptyState, Input, Modal, Money, Select, Spinner, Tabs, Toast } from "../components/ui";
 import { ExpenseModal } from "../components/ExpenseModal";
 import { PaymentModal } from "../components/PaymentModal";
 import type {
@@ -36,6 +36,14 @@ export default function GroupPage() {
   const [breakdownTarget, setBreakdownTarget] = useState<MemberInfo | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [memberDetail, setMemberDetail] = useState<{ member: MemberInfo; data: BreakdownItem[] } | null>(null);
+  const [toast, setToast] = useState("");
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showToast(msg: string) {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(""), 2200);
+  }
 
   const isAdmin = detail?.myRole === "admin";
 
@@ -92,11 +100,13 @@ export default function GroupPage() {
   const balanceColor = positive ? "text-emerald-400" : negative ? "text-rose-400" : "text-slate-400";
 
   async function copyInvite() {
+    if (!g.inviteUrl) return;
     try {
       await navigator.clipboard.writeText(g.inviteUrl);
     } catch {
       window.prompt("Copia este enlace de invitación:", g.inviteUrl);
     }
+    showToast("Enlace de invitación copiado");
   }
 
   async function leaveGroup() {
@@ -336,6 +346,8 @@ export default function GroupPage() {
         onClose={() => setMemberDetail(null)}
         currency={group.currency}
       />
+
+      <Toast show={Boolean(toast)}>{toast}</Toast>
     </div>
   );
 }
@@ -617,15 +629,17 @@ function MembersTab({
 
   return (
     <div className="space-y-5">
-      <button
-        onClick={onCopyInvite}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-500/50 bg-indigo-500/5 px-4 py-3 text-sm font-semibold text-indigo-300 transition hover:bg-indigo-500/10"
-      >
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-        </svg>
-        Copiar enlace de invitación
-      </button>
+      {isAdmin ? (
+        <button
+          onClick={onCopyInvite}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-500/50 bg-indigo-500/5 px-4 py-3 text-sm font-semibold text-indigo-300 transition hover:bg-indigo-500/10"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+          </svg>
+          Copiar enlace de invitación
+        </button>
+      ) : null}
 
       <div className="space-y-2">
         {active.map((m) => {
@@ -642,10 +656,10 @@ function MembersTab({
                   {m.name} {isMe ? <span className="text-[10px] text-indigo-400">tú</span> : null}
                 </p>
                 <p className="text-[11px] text-slate-500">
-                  {m.role === "admin" ? "Administrador" : "Miembro"}
+                  {m.userId === group.creatorId ? "Creador" : m.role === "admin" ? "Administrador" : "Miembro"}
                 </p>
               </div>
-              {isAdmin && !isMe ? (
+              {isAdmin && !isMe && m.userId !== group.creatorId ? (
                 <div className="flex shrink-0 gap-1.5" onClick={(e) => e.stopPropagation()}>
                   {m.role === "admin" ? (
                     <Button variant="ghost" className="!px-2 !py-1 text-[11px]" onClick={() => setRole(m.userId, "member")}>

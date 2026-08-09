@@ -28,6 +28,7 @@ export const authPlugin = fp(async (app: FastifyInstance) => {
           email: row.email ?? "",
           name: row.name,
           avatarUrl: row.avatar_url,
+          emailVerified: Boolean(row.email_verified),
         };
       }
     } catch {

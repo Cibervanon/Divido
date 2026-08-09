@@ -11,6 +11,7 @@ import { expenseRoutes } from "./routes/expenses.js";
 import { paymentRoutes } from "./routes/payments.js";
 import { requestRoutes } from "./routes/requests.js";
 import { balanceRoutes } from "./routes/balances.js";
+import { userRoutes } from "./routes/users.js";
 
 export function buildApp(db = openDb()) {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? "info" } });
@@ -33,6 +34,7 @@ export function buildApp(db = openDb()) {
   app.register(paymentRoutes);
   app.register(requestRoutes);
   app.register(balanceRoutes);
+  app.register(userRoutes);
 
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof HttpError) {

@@ -17,6 +17,9 @@ export interface UserRow {
   name: string;
   avatar_url: string | null;
   google_sub: string | null;
+  email_verified: number;
+  verify_token: string | null;
+  verify_token_expires: string | null;
   created_at: string;
 }
 
@@ -125,6 +128,44 @@ export function findUserByEmail(db: DatabaseSync, email: string): UserRow | unde
 
 export function findUserByGoogleSub(db: DatabaseSync, sub: string): UserRow | undefined {
   return db.prepare("SELECT * FROM users WHERE google_sub = ?").get(sub) as UserRow | undefined;
+}
+
+export function findUserByVerifyToken(db: DatabaseSync, token: string): UserRow | undefined {
+  return db.prepare("SELECT * FROM users WHERE verify_token = ?").get(token) as UserRow | undefined;
+}
+
+export function updateUser(
+  db: DatabaseSync,
+  userId: string,
+  patch: { name?: string; avatarUrl?: string | null }
+): UserRow {
+  const current = findUserById(db, userId)!;
+  db.prepare("UPDATE users SET name = ?, avatar_url = ? WHERE id = ?").run(
+    patch.name?.trim() ?? current.name,
+    patch.avatarUrl === undefined ? current.avatar_url : patch.avatarUrl,
+    userId
+  );
+  return findUserById(db, userId)!;
+}
+
+export function setVerifyToken(
+  db: DatabaseSync,
+  userId: string,
+  token: string,
+  expires: string
+): void {
+  db.prepare("UPDATE users SET verify_token = ?, verify_token_expires = ? WHERE id = ?").run(
+    token,
+    expires,
+    userId
+  );
+}
+
+export function markEmailVerified(db: DatabaseSync, userId: string): UserRow {
+  db.prepare("UPDATE users SET email_verified = 1, verify_token = NULL, verify_token_expires = NULL WHERE id = ?").run(
+    userId
+  );
+  return findUserById(db, userId)!;
 }
 
 export function createUser(

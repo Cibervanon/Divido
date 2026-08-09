@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL,
   avatar_url TEXT,
   google_sub TEXT UNIQUE,
+  email_verified INTEGER NOT NULL DEFAULT 0,
+  verify_token TEXT,
+  verify_token_expires TEXT,
   created_at TEXT NOT NULL
 );
 
@@ -97,11 +100,28 @@ CREATE INDEX IF NOT EXISTS idx_requests_group ON modification_requests(group_id)
 CREATE INDEX IF NOT EXISTS idx_requests_expense ON modification_requests(expense_id);
 `;
 
+const MIGRATIONS = [
+  "ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE users ADD COLUMN verify_token TEXT",
+  "ALTER TABLE users ADD COLUMN verify_token_expires TEXT",
+];
+
+function migrate(db: DatabaseSync) {
+  for (const sql of MIGRATIONS) {
+    try {
+      db.exec(sql);
+    } catch {
+      // La columna ya existe en bases de datos creadas con versiones anteriores.
+    }
+  }
+}
+
 export function openDb(): DatabaseSync {
   ensureDir();
   const db = new DatabaseSync(DB_PATH);
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA foreign_keys = ON;");
   db.exec(SCHEMA);
+  migrate(db);
   return db;
 }
