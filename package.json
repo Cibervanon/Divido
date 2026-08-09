@@ -1,0 +1,17 @@
+{
+  "name": "divido",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w @divido/api",
+    "dev:web": "npm run dev -w @divido/web",
+    "build:shared": "npm run build -w @divido/shared",
+    "build:web": "npm run build -w @divido/web",
+    "build": "npm run build -w @divido/shared && npm run build -w @divido/web",
+    "start:api": "npm run start -w @divido/api"
+  }
+}
