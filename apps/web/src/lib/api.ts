@@ -25,6 +25,8 @@ export function setOnUnauthorized(fn: () => void): void {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const API_URL = "https://divido-433u.onrender.com";
+
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> | undefined),
   };
@@ -36,7 +38,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   let res: Response;
   try {
-    res = await fetch(`/api${path}`, { ...options, headers });
+    res = await fetch(`${API_URL}${path}`, { ...options, headers });
   } catch {
     throw new ApiError("No se pudo conectar con el servidor", 0);
   }
