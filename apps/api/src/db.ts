@@ -68,6 +68,8 @@ CREATE TABLE IF NOT EXISTS users (
   email_verified INTEGER NOT NULL DEFAULT 0,
   verify_token TEXT,
   verify_token_expires TEXT,
+  reset_token TEXT,
+  reset_token_expires TEXT,
   created_at TEXT NOT NULL
 );
 
@@ -151,6 +153,8 @@ const MIGRATIONS = [
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS verify_token TEXT",
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS verify_token_expires TEXT",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TEXT",
   "ALTER TABLE groups ADD COLUMN IF NOT EXISTS logo_url TEXT",
 ];
 

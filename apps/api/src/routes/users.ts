@@ -1,9 +1,8 @@
-import { randomBytes } from "node:crypto";
 import type { FastifyPluginAsync } from "fastify";
-import { setVerifyToken, updateUser } from "../store.js";
+import { updateUser } from "../store.js";
 import { badRequest } from "../errors.js";
 import { requireAuth } from "../plugins.js";
-import { config } from "../config.js";
+import { sendVerificationEmail } from "../email.js";
 
 const HTTP_URL_RE = /^https?:\/\//i;
 const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
@@ -46,12 +45,12 @@ export const userRoutes: FastifyPluginAsync = async (app) => {
     const user = requireAuth(request);
     if (user.emailVerified) return { alreadyVerified: true };
     if (!user.email) throw badRequest("Tu cuenta no tiene email asociado");
-    const token = randomBytes(32).toString("hex");
-    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    await setVerifyToken(request.db, user.id, token, expires);
+    const result = await sendVerificationEmail(request.db, user.email);
     return {
-      verificationUrl: `${config.webOrigin}/verify-email?token=${token}`,
-      expiresAt: expires,
+      alreadyVerified: result.alreadyVerified,
+      sent: result.sent,
+      verificationUrl: result.verificationUrl,
+      expiresAt: result.expiresAt,
     };
   });
 };

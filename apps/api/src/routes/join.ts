@@ -1,13 +1,14 @@
 import type { FastifyPluginAsync } from "fastify";
 import {
   addMember,
+  countActiveMemberships,
   getGroupByInviteToken,
   getMemberRow,
   listMembers,
   setMemberStatus,
 } from "../store.js";
 import type { InvitePreview } from "@divido/shared";
-import { notFound } from "../errors.js";
+import { forbidden, notFound } from "../errors.js";
 import { requireAuth } from "../plugins.js";
 
 export const joinRoutes: FastifyPluginAsync = async (app) => {
@@ -39,6 +40,12 @@ export const joinRoutes: FastifyPluginAsync = async (app) => {
         return { groupId: group.id, rejoin: true };
       }
       return { groupId: group.id, alreadyMember: true };
+    }
+    if (!user.emailVerified) {
+      const active = await countActiveMemberships(request.db, user.id);
+      if (active >= 3) {
+        throw forbidden("Verifica tu email para unirte a más de 3 grupos");
+      }
     }
     await addMember(request.db, {
       groupId: group.id,

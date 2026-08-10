@@ -4,9 +4,11 @@ import {
   findUserByEmail,
   findUserByGoogleSub,
   findUserById,
+  findUserByResetToken,
   findUserByVerifyToken,
   linkGoogleToUser,
   markEmailVerified,
+  updatePassword,
 } from "../store.js";
 import {
   exchangeGoogleCode,
@@ -18,6 +20,7 @@ import {
 import { badRequest, conflict, unauthorized } from "../errors.js";
 import { requireAuth } from "../plugins.js";
 import { config } from "../config.js";
+import { sendPasswordResetEmail, sendVerificationEmail } from "../email.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -38,7 +41,13 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       passwordHash: hashPassword(password),
       name: name.trim(),
     });
-    return { token: signToken(toAuthUser(user)), user: toAuthUser(user) };
+    const verification = await sendVerificationEmail(request.db, normalized);
+    return {
+      token: signToken(toAuthUser(user)),
+      user: toAuthUser(user),
+      emailSent: verification.sent,
+      verificationUrl: verification.verificationUrl,
+    };
   });
 
   app.post("/api/auth/login", async (request) => {
@@ -49,6 +58,27 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       throw unauthorized("Credenciales incorrectas");
     }
     return { token: signToken(toAuthUser(user)), user: toAuthUser(user) };
+  });
+
+  app.post("/api/auth/forgot-password", async (request) => {
+    const { email } = request.body as { email?: string };
+    if (!email) throw badRequest("El email es obligatorio");
+    await sendPasswordResetEmail(request.db, email.toLowerCase().trim());
+    return { ok: true };
+  });
+
+  app.post("/api/auth/reset-password", async (request) => {
+    const { token, password } = request.body as { token?: string; password?: string };
+    if (!token) throw badRequest("Falta el token de restablecimiento");
+    if (!password || password.length < 6) {
+      throw badRequest("La contraseña debe tener al menos 6 caracteres");
+    }
+    const user = await findUserByResetToken(request.db, token);
+    if (!user || !user.reset_token_expires || new Date(user.reset_token_expires).getTime() < Date.now()) {
+      throw badRequest("Enlace de restablecimiento inválido o expirado");
+    }
+    await updatePassword(request.db, user.id, hashPassword(password));
+    return { ok: true };
   });
 
   app.get("/api/auth/me", async (request) => {

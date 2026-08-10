@@ -20,6 +20,8 @@ export interface UserRow {
   email_verified: number;
   verify_token: string | null;
   verify_token_expires: string | null;
+  reset_token: string | null;
+  reset_token_expires: string | null;
   created_at: string;
 }
 
@@ -136,6 +138,10 @@ export async function findUserByVerifyToken(db: Db, token: string): Promise<User
   return (await db.prepare("SELECT * FROM users WHERE verify_token = ?").get(token)) as UserRow | undefined;
 }
 
+export async function findUserByResetToken(db: Db, token: string): Promise<UserRow | undefined> {
+  return (await db.prepare("SELECT * FROM users WHERE reset_token = ?").get(token)) as UserRow | undefined;
+}
+
 export async function updateUser(
   db: Db,
   userId: string,
@@ -161,6 +167,25 @@ export async function setVerifyToken(
     expires,
     userId
   );
+}
+
+export async function setResetToken(
+  db: Db,
+  userId: string,
+  token: string,
+  expires: string
+): Promise<void> {
+  await db.prepare("UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?").run(
+    token,
+    expires,
+    userId
+  );
+}
+
+export async function updatePassword(db: Db, userId: string, passwordHash: string): Promise<void> {
+  await db
+    .prepare("UPDATE users SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?")
+    .run(passwordHash, userId);
 }
 
 export async function markEmailVerified(db: Db, userId: string): Promise<UserRow> {
@@ -356,6 +381,15 @@ export async function setMemberStatus(
 
 export async function removeMember(db: Db, groupId: string, userId: string): Promise<void> {
   await db.prepare("DELETE FROM group_members WHERE group_id = ? AND user_id = ?").run(groupId, userId);
+}
+
+export async function countActiveMemberships(db: Db, userId: string): Promise<number> {
+  const row = (await db
+    .prepare(
+      `SELECT COUNT(*) AS count FROM group_members WHERE user_id = ? AND status = 'active'`
+    )
+    .get(userId)) as { count: number | string } | undefined;
+  return Number(row?.count ?? 0);
 }
 
 // ---------- Expenses ----------

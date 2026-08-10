@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
-import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth, ApiError } from "../lib/auth";
-import { Button, Input } from "../components/ui";
+import { Button, Input, PasswordField } from "../components/ui";
 
 export default function LoginPage() {
   const { user, login, register, googleLogin } = useAuth();
@@ -80,15 +80,27 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
             />
-            <Input
-              label="Contraseña"
-              type="password"
-              placeholder={mode === "register" ? "Mínimo 6 caracteres" : "••••••••"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-            />
+            <div>
+              <PasswordField
+                label="Contraseña"
+                placeholder={mode === "register" ? "Mínimo 6 caracteres" : "••••••••"}
+                value={password}
+                onChange={setPassword}
+                required
+                minLength={6}
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+              />
+              {mode === "login" ? (
+                <div className="mt-1.5 text-right">
+                  <Link
+                    to="/forgot-password"
+                    className="text-xs font-medium text-indigo-400 hover:text-indigo-300"
+                  >
+                    ¿Has olvidado tu contraseña?
+                  </Link>
+                </div>
+              ) : null}
+            </div>
             {error ? (
               <p className="rounded-lg bg-rose-500/10 px-3 py-2 text-xs font-medium text-rose-400">{error}</p>
             ) : null}

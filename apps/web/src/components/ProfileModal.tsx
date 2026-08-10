@@ -11,6 +11,7 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
   const [error, setError] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [verificationUrl, setVerificationUrl] = useState("");
+  const [sent, setSent] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -19,6 +20,7 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
       setAvatarUrl(user.avatarUrl ?? "");
       setError("");
       setVerificationUrl("");
+      setSent(false);
     }
   }, [open, user]);
 
@@ -56,13 +58,16 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
     setVerifying(true);
     setError("");
     try {
-      const res = await api.post<{ verificationUrl?: string; alreadyVerified?: boolean }>(
-        "/users/me/send-verification-email"
-      );
+      const res = await api.post<{
+        verificationUrl?: string | null;
+        sent?: boolean;
+        alreadyVerified?: boolean;
+      }>("/users/me/send-verification-email");
       if (res.alreadyVerified) {
         await refreshUser();
-      } else if (res.verificationUrl) {
-        setVerificationUrl(res.verificationUrl);
+      } else {
+        setSent(Boolean(res.sent));
+        setVerificationUrl(res.verificationUrl ?? "");
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al enviar verificación");
@@ -134,10 +139,14 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
                   Enviar enlace de verificación
                 </Button>
               </div>
-              {verificationUrl ? (
+              {sent ? (
+                <p className="rounded-xl bg-emerald-500/10 p-3 text-xs text-emerald-300">
+                  Te hemos enviado un email con el enlace de verificación.
+                </p>
+              ) : verificationUrl ? (
                 <div className="rounded-xl bg-slate-950 p-3 text-xs">
                   <p className="text-slate-400">
-                    (Demo: este enlace se enviaría por email). Haz clic para verificar:
+                    (Demo: no se pudo enviar el email. Haz clic para verificar):
                   </p>
                   <a
                     href={verificationUrl}

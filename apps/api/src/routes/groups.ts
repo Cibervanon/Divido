@@ -63,6 +63,9 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/api/groups", async (request) => {
     const user = requireAuth(request);
+    if (!user.emailVerified) {
+      throw forbidden("Verifica tu email para poder crear grupos");
+    }
     const { name, currency, type } = request.body as {
       name?: string;
       currency?: string;

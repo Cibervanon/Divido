@@ -99,14 +99,35 @@ export default function DashboardPage() {
       </header>
 
       <main className="mx-auto max-w-2xl px-4 pb-24 pt-6">
+        {user && !user.emailVerified ? (
+          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+            <span className="mt-0.5 text-lg">⚠️</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-300">Verifica tu email</p>
+              <p className="mt-0.5 text-xs text-amber-400/80">
+                Hasta que verifiques tu email no podrás crear grupos ni unirte a más de 3.
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              className="!px-3 !py-1.5 text-xs"
+              onClick={() => setProfileOpen(true)}
+            >
+              Verificar
+            </Button>
+          </div>
+        ) : null}
+
         <div className="mb-5 flex items-center justify-between">
           <h1 className="text-xl font-extrabold text-slate-100">Mis grupos</h1>
-          <Button onClick={() => setCreateOpen(true)} className="!py-2">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Nuevo grupo
-          </Button>
+          {user?.emailVerified ? (
+            <Button onClick={() => setCreateOpen(true)} className="!py-2">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Nuevo grupo
+            </Button>
+          ) : null}
         </div>
 
         {loading ? (
