@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { getStoredTheme, setStoredTheme, THEMES, type ThemeId } from "../lib/theme";
 import { Avatar, Button, Input, Modal, VerifiedBadge } from "./ui";
 
 export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -12,17 +13,24 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
   const [verifying, setVerifying] = useState(false);
   const [verificationUrl, setVerificationUrl] = useState("");
   const [sent, setSent] = useState(false);
+  const [theme, setTheme] = useState<ThemeId>(getStoredTheme);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open && user) {
       setName(user.name);
       setAvatarUrl(user.avatarUrl ?? "");
+      setTheme(getStoredTheme());
       setError("");
       setVerificationUrl("");
       setSent(false);
     }
   }, [open, user]);
+
+  function selectTheme(id: ThemeId) {
+    setTheme(id);
+    setStoredTheme(id);
+  }
 
   if (!user) return null;
 
@@ -161,6 +169,60 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
               ) : null}
             </div>
           )}
+        </div>
+
+        <div>
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-slate-400">
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 0c0 3.314-2.017 6-4.5 6S3 6.314 3 9a9 9 0 009 9c2.76 0 5-1.79 5-4 0-2.21-2.24-4-5-4s-5-1.79-5-4 2.24-4 5-4z"
+              />
+            </svg>
+            Tema de color
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {THEMES.map((t) => {
+              const active = t.id === theme;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => selectTheme(t.id)}
+                  aria-pressed={active}
+                  className={`flex flex-col items-center gap-2 rounded-2xl border px-3 py-3 transition ${
+                    active
+                      ? "border-indigo-500 bg-indigo-500/10"
+                      : "border-slate-800 bg-slate-900 hover:border-slate-700"
+                  }`}
+                >
+                  <span className="relative flex h-8 w-8 items-center justify-center">
+                    <span
+                      className="h-8 w-8 rounded-full"
+                      style={{ background: `linear-gradient(135deg, ${t.swatch}, ${t.accent})` }}
+                    />
+                    {active ? (
+                      <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-slate-950 text-indigo-400 ring-1 ring-slate-700">
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="text-center">
+                    <span className={`block text-[11px] font-semibold ${active ? "text-slate-100" : "text-slate-300"}`}>
+                      {t.name}
+                    </span>
+                    <span className="block text-[10px] text-slate-500">{t.description}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[11px] text-slate-500">
+            El tema se guarda en este dispositivo y se aplica en toda la app.
+          </p>
         </div>
 
         {error ? <p className="text-xs text-rose-400">{error}</p> : null}

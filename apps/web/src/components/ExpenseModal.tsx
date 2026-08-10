@@ -114,16 +114,30 @@ export function ExpenseModal({
 
   function balanceCustom(ids: string[]) {
     if (splitMode === "percent") {
-      const each = ids.length ? 100 / ids.length : 0;
-      const next: Record<string, string> = {};
-      for (const id of ids) next[id] = each.toFixed(2);
-      setPercents(next);
+      setPercents(equalPercentSplit(ids));
     } else if (splitMode === "amount" && totalGroup > 0) {
       const each = ids.length ? totalGroup / ids.length : 0;
       const next: Record<string, string> = {};
       for (const id of ids) next[id] = each.toFixed(2);
       setAmounts(next);
     }
+  }
+
+  function equalPercentSplit(ids: string[]): Record<string, string> {
+    const next: Record<string, string> = {};
+    if (ids.length === 0) return next;
+    const base = Math.floor(100 / ids.length);
+    let remainder = 100 - base * ids.length;
+    for (const id of ids) {
+      next[id] = String(remainder > 0 ? base + 1 : base);
+      if (remainder > 0) remainder -= 1;
+    }
+    return next;
+  }
+
+  function fmtPct(v: number): string {
+    const r = Math.round(v * 100) / 100;
+    return Number.isInteger(r) ? String(r) : r.toFixed(2);
   }
 
   function buildShares(): Record<string, number> | null {
@@ -144,7 +158,7 @@ export function ExpenseModal({
       const remainder = totalGroup - sum;
       const remainingLabel =
         splitMode === "percent"
-          ? `${(remainder / (totalGroup || 1) * 100).toFixed(1)}%`
+          ? `${fmtPct((remainder / (totalGroup || 1)) * 100)}%`
           : `${remainder.toFixed(2)} ${groupCurrency}`;
       throw new Error(
         `El reparto no suma el total (quedan ${remainingLabel}). Reparte a partes iguales o ajusta las cantidades.`
@@ -339,7 +353,7 @@ export function ExpenseModal({
                           type="number"
                           min="0"
                           max="100"
-                          step="0.1"
+                          step="any"
                           value={percents[m.userId] ?? ""}
                           onChange={(e) =>
                             setPercents((prev) => ({ ...prev, [m.userId]: e.target.value }))
@@ -378,7 +392,7 @@ export function ExpenseModal({
           {splitMode === "percent" ? (
             <div className="mt-2 flex items-center justify-between rounded-xl bg-slate-800/60 px-3 py-2 text-xs">
               <span className={Math.abs(percentSum - 100) < 0.01 ? "text-emerald-400" : "text-amber-400"}>
-                Suma: {percentSum.toFixed(1)}%
+                Suma: {fmtPct(percentSum)}%
               </span>
               <button
                 type="button"

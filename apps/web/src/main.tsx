@@ -3,10 +3,13 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { AuthProvider } from "./lib/auth";
+import { applyTheme, getStoredTheme } from "./lib/theme";
 import "./index.css";
 import { registerSW } from "virtual:pwa-register";
 
 registerSW({ immediate: true });
+
+applyTheme(getStoredTheme());
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
