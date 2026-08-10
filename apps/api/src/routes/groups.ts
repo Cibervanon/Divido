@@ -3,6 +3,7 @@ import type { FastifyPluginAsync } from "fastify";
 import type { Db } from "../db.js";
 import {
   createGroup,
+  createGroupEvent,
   getGroup,
   getMemberRow,
   listGroupsForUser,
@@ -163,6 +164,12 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     const bal = await getGroupBalances(request.db, groupId);
     const frozen = bal.balances.find((b) => b.userId === userId)?.net ?? null;
     await setMemberStatus(request.db, groupId, userId, "ex_member", new Date().toISOString(), frozen);
+    await createGroupEvent(request.db, {
+      groupId,
+      type: "member_left",
+      userId,
+      userName: target.name,
+    });
     return { ok: true };
   });
 
@@ -176,6 +183,12 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
       (m) => m.status === "active" && m.role === "admin" && m.user_id !== user.id
     );
     await setMemberStatus(request.db, groupId, user.id, "ex_member", new Date().toISOString(), frozen);
+    await createGroupEvent(request.db, {
+      groupId,
+      type: "member_left",
+      userId: user.id,
+      userName: user.name,
+    });
     if (member.role === "admin" && admins.length === 0) {
       const remaining = (await listMembers(request.db, groupId)).filter((m) => m.status === "active");
       if (remaining.length > 0) {

@@ -125,7 +125,7 @@ export interface ModificationRequestDto {
 }
 
 export interface HistoryEvent {
-  type: "expense" | "payment";
+  type: "expense" | "payment" | "member_joined" | "member_left";
   id: string;
   date: string;
   description?: string;
@@ -143,6 +143,8 @@ export interface HistoryEvent {
   toUserId?: string;
   toName?: string;
   note?: string | null;
+  userId?: string;
+  userName?: string;
 }
 
 export interface BreakdownItem {

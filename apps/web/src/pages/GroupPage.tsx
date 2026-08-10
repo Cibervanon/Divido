@@ -855,45 +855,70 @@ function HistoryTab({
       {events.length === 0 ? (
         <EmptyState title="Sin actividad" subtitle="Aquí aparecerán gastos y pagos saldados en orden cronológico" />
       ) : (
-        events.map((e, i) => (
-          <div key={`${e.type}-${e.id}-${i}`} className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-slate-900">
-            <div
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                e.type === "payment" ? "bg-emerald-500/15 text-emerald-400" : "bg-indigo-500/15 text-indigo-400"
-              }`}
-            >
-              {e.type === "payment" ? (
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.518l2.74-1.22m0 0l-5.94-2.281m5.94 2.28l-2.28 5.941" />
-                </svg>
-              ) : (
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm text-slate-200">
-                {e.type === "payment" ? (
-                  <>
-                    <strong>{e.fromName}</strong> pagó a <strong>{e.toName}</strong>
-                    {e.note ? ` · ${e.note}` : ""}
-                  </>
+        events.map((e, i) => {
+          const isMemberEvent = e.type === "member_joined" || e.type === "member_left";
+          const isExpense = e.type === "expense";
+          const isPayment = e.type === "payment";
+          const iconColor = isMemberEvent
+            ? e.type === "member_joined"
+              ? "bg-emerald-500/15 text-emerald-400"
+              : "bg-rose-500/15 text-rose-400"
+            : isPayment
+              ? "bg-emerald-500/15 text-emerald-400"
+              : "bg-indigo-500/15 text-indigo-400";
+          return (
+            <div key={`${e.type}-${e.id}-${i}`} className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-slate-900">
+              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconColor}`}>
+                {isMemberEvent ? (
+                  e.type === "member_joined" ? (
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM3 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.766z" />
+                    </svg>
+                  ) : (
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M22 10.5h-6m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.766z" />
+                    </svg>
+                  )
+                ) : isPayment ? (
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.518l2.74-1.22m0 0l-5.94-2.281m5.94 2.28l-2.28 5.941" />
+                  </svg>
                 ) : (
-                  <>
-                    <strong>{e.payerName}</strong> pagó {e.description}
-                    {e.deleted ? <span className="ml-1.5 text-[10px] text-rose-400">(eliminado)</span> : null}
-                    {e.edited ? <span className="ml-1.5 text-[10px] text-amber-400">(modificado)</span> : null}
-                  </>
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
                 )}
-              </p>
-              <p className="text-[11px] text-slate-500">{fmtDate(e.date)}</p>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm text-slate-200">
+                  {isMemberEvent ? (
+                    <>
+                      <strong>{e.userName}</strong>{" "}
+                      {e.type === "member_joined" ? "se unió al grupo" : "abandonó el grupo"}
+                    </>
+                  ) : isPayment ? (
+                    <>
+                      <strong>{e.fromName}</strong> pagó a <strong>{e.toName}</strong>
+                      {e.note ? ` · ${e.note}` : ""}
+                    </>
+                  ) : (
+                    <>
+                      <strong>{e.payerName}</strong> pagó {e.description}
+                      {e.deleted ? <span className="ml-1.5 text-[10px] text-rose-400">(eliminado)</span> : null}
+                      {e.edited ? <span className="ml-1.5 text-[10px] text-amber-400">(modificado)</span> : null}
+                    </>
+                  )}
+                </p>
+                <p className="text-[11px] text-slate-500">{fmtDate(e.date)}</p>
+              </div>
+              {isPayment || isExpense ? (
+                <span className={`shrink-0 text-sm font-bold ${isPayment ? "text-emerald-400" : "text-slate-100"}`}>
+                  <Money amount={isPayment ? (e.amount ?? 0) : (e.amountGroup ?? 0)} currency={isPayment ? currency : (e.currency ?? currency)} />
+                </span>
+              ) : null}
             </div>
-            <span className={`shrink-0 text-sm font-bold ${e.type === "payment" ? "text-emerald-400" : "text-slate-100"}`}>
-              <Money amount={e.type === "payment" ? (e.amount ?? 0) : (e.amountGroup ?? 0)} currency={e.type === "payment" ? currency : (e.currency ?? currency)} />
-            </span>
-          </div>
-        ))
+          );
+        })
       )}
     </div>
   );

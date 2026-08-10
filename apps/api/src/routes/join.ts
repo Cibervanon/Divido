@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import {
   addMember,
   countActiveMemberships,
+  createGroupEvent,
   getGroupByInviteToken,
   getMemberRow,
   listMembers,
@@ -37,6 +38,12 @@ export const joinRoutes: FastifyPluginAsync = async (app) => {
     if (existing) {
       if (existing.status === "ex_member") {
         await setMemberStatus(request.db, group.id, user.id, "active", null, null);
+        await createGroupEvent(request.db, {
+          groupId: group.id,
+          type: "member_joined",
+          userId: user.id,
+          userName: user.name,
+        });
         return { groupId: group.id, rejoin: true };
       }
       return { groupId: group.id, alreadyMember: true };
@@ -52,6 +59,12 @@ export const joinRoutes: FastifyPluginAsync = async (app) => {
       userId: user.id,
       role: "member",
       status: "active",
+    });
+    await createGroupEvent(request.db, {
+      groupId: group.id,
+      type: "member_joined",
+      userId: user.id,
+      userName: user.name,
     });
     return { groupId: group.id };
   });

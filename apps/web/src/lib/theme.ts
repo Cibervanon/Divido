@@ -5,22 +5,27 @@ export interface ThemeOption {
   name: string;
   swatch: string;
   accent: string;
+  chrome: string;
   description: string;
 }
 
 export const THEMES: ThemeOption[] = [
-  { id: "indigo", name: "Índigo", swatch: "#6366f1", accent: "#4f46e5", description: "Por defecto" },
-  { id: "emerald", name: "Esmeralda", swatch: "#10b981", accent: "#059669", description: "Verde natural" },
-  { id: "violet", name: "Violeta", swatch: "#8b5cf6", accent: "#7c3aed", description: "Morado intenso" },
-  { id: "rose", name: "Rosa", swatch: "#f43f5e", accent: "#e11d48", description: "Cálido" },
-  { id: "sky", name: "Cielo", swatch: "#0ea5e9", accent: "#0284c7", description: "Azul claro" },
-  { id: "amber", name: "Ámbar", swatch: "#f59e0b", accent: "#d97706", description: "Dorado" },
+  { id: "indigo", name: "Índigo", swatch: "#6366f1", accent: "#4f46e5", chrome: "#4f46e5", description: "Por defecto" },
+  { id: "emerald", name: "Esmeralda", swatch: "#10b981", accent: "#059669", chrome: "#059669", description: "Verde natural" },
+  { id: "violet", name: "Violeta", swatch: "#8b5cf6", accent: "#7c3aed", chrome: "#7c3aed", description: "Morado intenso" },
+  { id: "rose", name: "Rosa", swatch: "#f43f5e", accent: "#e11d48", chrome: "#e11d48", description: "Cálido" },
+  { id: "sky", name: "Cielo", swatch: "#0ea5e9", accent: "#0284c7", chrome: "#0284c7", description: "Azul claro" },
+  { id: "amber", name: "Ámbar", swatch: "#f59e0b", accent: "#d97706", chrome: "#d97706", description: "Dorado" },
 ];
 
 const STORAGE_KEY = "divido-theme";
 
 export function isThemeId(value: unknown): value is ThemeId {
   return typeof value === "string" && THEMES.some((t) => t.id === value);
+}
+
+export function getThemeOption(id: ThemeId): ThemeOption {
+  return THEMES.find((t) => t.id === id) ?? THEMES[0];
 }
 
 export function getStoredTheme(): ThemeId {
@@ -33,8 +38,14 @@ export function getStoredTheme(): ThemeId {
   return "indigo";
 }
 
+function setChromeColor(color: string) {
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", color);
+}
+
 export function applyTheme(id: ThemeId) {
   document.documentElement.dataset.theme = id;
+  setChromeColor(getThemeOption(id).chrome);
 }
 
 export function setStoredTheme(id: ThemeId) {

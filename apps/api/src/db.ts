@@ -149,6 +149,15 @@ CREATE TABLE IF NOT EXISTS modification_requests (
   decided_by TEXT
 );
 
+CREATE TABLE IF NOT EXISTS group_events (
+  id TEXT PRIMARY KEY,
+  group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  user_name TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_members_user ON group_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_members_group ON group_members(group_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_group ON expenses(group_id);
@@ -157,6 +166,7 @@ CREATE INDEX IF NOT EXISTS idx_comments_expense ON expense_comments(expense_id);
 CREATE INDEX IF NOT EXISTS idx_payments_group ON payments(group_id);
 CREATE INDEX IF NOT EXISTS idx_requests_group ON modification_requests(group_id);
 CREATE INDEX IF NOT EXISTS idx_requests_expense ON modification_requests(expense_id);
+CREATE INDEX IF NOT EXISTS idx_events_group ON group_events(group_id);
 `;
 
 const MIGRATIONS = [

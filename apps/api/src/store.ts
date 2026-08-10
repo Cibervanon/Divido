@@ -393,6 +393,33 @@ export async function countActiveMemberships(db: Db, userId: string): Promise<nu
   return Number(row?.count ?? 0);
 }
 
+export interface GroupEventRow {
+  id: string;
+  group_id: string;
+  type: "member_joined" | "member_left";
+  user_id: string;
+  user_name: string;
+  created_at: string;
+}
+
+export async function createGroupEvent(
+  db: Db,
+  input: { groupId: string; type: "member_joined" | "member_left"; userId: string; userName: string }
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO group_events (id, group_id, type, user_id, user_name, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    )
+    .run(randomUUID(), input.groupId, input.type, input.userId, input.userName, new Date().toISOString());
+}
+
+export async function listGroupEvents(db: Db, groupId: string): Promise<GroupEventRow[]> {
+  return (await db
+    .prepare("SELECT * FROM group_events WHERE group_id = ? ORDER BY created_at ASC")
+    .all(groupId)) as unknown as GroupEventRow[];
+}
+
 // ---------- Expenses ----------
 
 export interface CreateExpenseInput {

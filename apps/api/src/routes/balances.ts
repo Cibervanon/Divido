@@ -1,5 +1,11 @@
 import type { FastifyPluginAsync } from "fastify";
-import { expenseParticipantIds, listExpenses, listMembers, listPayments } from "../store.js";
+import {
+  expenseParticipantIds,
+  listExpenses,
+  listGroupEvents,
+  listMembers,
+  listPayments,
+} from "../store.js";
 import { notFound } from "../errors.js";
 import { requireActiveMember } from "../plugins.js";
 import { getGroupBalances, getPersonBreakdown } from "../services.js";
@@ -57,6 +63,17 @@ export const balanceRoutes: FastifyPluginAsync = async (app) => {
         toName: p.to_name,
         amount: p.amount,
         note: p.note,
+      });
+    }
+
+    const memberEvents = await listGroupEvents(request.db, groupId);
+    for (const g of memberEvents) {
+      events.push({
+        type: g.type,
+        id: g.id,
+        date: g.created_at,
+        userId: g.user_id,
+        userName: g.user_name,
       });
     }
 
