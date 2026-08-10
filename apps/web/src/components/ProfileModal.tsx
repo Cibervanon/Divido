@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { Avatar, Button, Input, Modal } from "./ui";
+import { Avatar, Button, Input, Modal, VerifiedBadge } from "./ui";
 
 export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user, refreshUser } = useAuth();
@@ -119,7 +119,10 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
 
         <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
           <p className="text-xs font-medium text-slate-400">Email</p>
-          <p className="mt-0.5 text-sm text-slate-200">{user.email}</p>
+          <p className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-200">
+            <span className="truncate">{user.email}</span>
+            {user.emailVerified ? <VerifiedBadge /> : null}
+          </p>
           {user.emailVerified ? (
             <span className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400">
               Verificado

@@ -1,10 +1,15 @@
 import type { FastifyPluginAsync } from "fastify";
 import {
   createExpense,
+  createExpenseComment,
   deleteExpense,
+  deleteExpenseComment,
   expenseParticipantIds,
+  expenseParticipantShares,
   getExpense,
+  getExpenseComment,
   getMemberRow,
+  listExpenseComments,
   listExpenses,
   listMembers,
   updateExpense,
@@ -46,6 +51,7 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       exchangeRate?: number;
       participants?: string[];
       payerId?: string;
+      shares?: Record<string, number>;
     };
     const description = body.description?.trim();
     const amount = Number(body.amount);
@@ -71,6 +77,7 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       throw badRequest("Indica el tipo de cambio congelado para la moneda extranjera");
     }
     const amountGroup = round2(amount * exchangeRate);
+    const uniqueParticipants = [...new Set(participants)];
     const expense = await createExpense(request.db, {
       groupId,
       payerId,
@@ -80,7 +87,8 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       exchangeRate,
       amountGroup,
       createdById: user.id,
-      participants: [...new Set(participants)],
+      participants: uniqueParticipants,
+      shares: parseShares(body.shares, uniqueParticipants, amountGroup),
     });
     return { expense: await toExpenseDto(request, expense), editable: true };
   });
@@ -106,6 +114,7 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       exchangeRate?: number;
       participants?: string[];
       payerId?: string;
+      shares?: Record<string, number> | null;
     };
     const activeIds = new Set(
       (await listMembers(request.db, group.id))
@@ -131,14 +140,20 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
     if (expenseCurrency !== group.currency && (!Number.isFinite(exchangeRate) || exchangeRate <= 0)) {
       throw badRequest("Tipo de cambio inválido");
     }
+    const amountGroup = round2(amount * exchangeRate);
+    const hasShares =
+      body.shares === undefined || body.shares === null
+        ? undefined
+        : parseShares(body.shares, participants, amountGroup);
     const updated = await updateExpense(request.db, expenseId, {
       description,
       amount,
       currency: expenseCurrency,
       exchangeRate,
-      amountGroup: round2(amount * exchangeRate),
+      amountGroup,
       payerId,
       participants,
+      shares: hasShares,
     });
     return { expense: await toExpenseDto(request, updated), editable: false };
   });
@@ -158,6 +173,37 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       throw forbidden("Solo puedes eliminar gastos que hayas creado (o siendo administrador)");
     }
     await deleteExpense(request.db, expenseId);
+    return { ok: true };
+  });
+
+  app.post("/api/groups/:groupId/expenses/:expenseId/comments", async (request) => {
+    const { groupId, expenseId } = request.params as { groupId: string; expenseId: string };
+    const user = requireAuth(request);
+    await requireActiveMember(request, groupId);
+    const expense = await getExpense(request.db, expenseId);
+    if (!expense || expense.group_id !== groupId) throw notFound("Gasto no encontrado");
+    const { body } = request.body as { body?: string };
+    if (!body?.trim()) throw badRequest("El comentario no puede estar vacío");
+    const comment = await createExpenseComment(request.db, {
+      expenseId,
+      authorId: user.id,
+      body: body.trim().slice(0, 500),
+    });
+    return { comment: toCommentDto(comment) };
+  });
+
+  app.delete("/api/expenses/:expenseId/comments/:commentId", async (request) => {
+    const { expenseId, commentId } = request.params as { expenseId: string; commentId: string };
+    const user = requireAuth(request);
+    const expense = await getExpense(request.db, expenseId);
+    if (!expense) throw notFound("Gasto no encontrado");
+    const { member } = await requireActiveMember(request, expense.group_id);
+    const comment = await getExpenseComment(request.db, commentId);
+    if (!comment || comment.expense_id !== expenseId) throw notFound("Comentario no encontrado");
+    if (comment.author_id !== user.id && member.role !== "admin") {
+      throw forbidden("Solo puedes eliminar tus propios comentarios (o siendo administrador)");
+    }
+    await deleteExpenseComment(request.db, commentId);
     return { ok: true };
   });
 };
@@ -184,8 +230,13 @@ async function toExpenseDto(
     payer_name?: string;
   }
 ) {
-  const participantIds = await expenseParticipantIds(request.db, e.id);
-  const share = participantIds.length ? round2(e.amount_group / participantIds.length) : 0;
+  const participants = await expenseParticipantIds(request.db, e.id);
+  const shares = await expenseParticipantShares(request.db, e.id);
+  const comments = await listExpenseComments(request.db, e.id);
+  const custom = Object.keys(shares).length > 0;
+  const share = participants.length
+    ? round2(e.amount_group / participants.length)
+    : 0;
   return {
     id: e.id,
     groupId: e.group_id,
@@ -199,10 +250,53 @@ async function toExpenseDto(
     createdAt: e.created_at,
     updatedAt: e.updated_at,
     deleted: Boolean(e.deleted),
-    participants: participantIds,
+    participants,
+    shares: custom ? shares : null,
     share,
-    participantsCount: participantIds.length,
+    participantsCount: participants.length,
+    comments: comments.map(toCommentDto),
   };
+}
+
+function toCommentDto(c: {
+  id: string;
+  expense_id: string;
+  author_id: string;
+  author_name: string;
+  author_verified: number;
+  body: string;
+  created_at: string;
+}) {
+  return {
+    id: c.id,
+    expenseId: c.expense_id,
+    authorId: c.author_id,
+    authorName: c.author_name,
+    authorVerified: Boolean(c.author_verified),
+    body: c.body,
+    createdAt: c.created_at,
+  };
+}
+
+function parseShares(
+  raw: Record<string, number> | null | undefined,
+  participants: string[],
+  amountGroup: number
+): Record<string, number> | null {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw !== "object" || Array.isArray(raw)) throw badRequest("Reparto personalizado inválido");
+  const shares: Record<string, number> = {};
+  let sum = 0;
+  for (const p of participants) {
+    const v = Number(raw[p]);
+    if (!Number.isFinite(v) || v < 0) throw badRequest("Reparto personalizado inválido");
+    shares[p] = round2(v);
+    sum += v;
+  }
+  if (Math.abs(sum - amountGroup) > Math.max(0.02, participants.length * 0.01)) {
+    throw badRequest("Los importes del reparto no suman el total del gasto");
+  }
+  return shares;
 }
 
 function round2(n: number): number {

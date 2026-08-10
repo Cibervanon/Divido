@@ -50,6 +50,7 @@ export interface MemberRow extends MembershipRow {
   name: string;
   email: string | null;
   avatar_url: string | null;
+  email_verified: number;
 }
 
 export interface ExpenseRow {
@@ -339,7 +340,7 @@ export async function getMemberRow(
 ): Promise<MemberRow | undefined> {
   return (await db
     .prepare(
-      `SELECT m.*, u.name, u.email, u.avatar_url
+      `SELECT m.*, u.name, u.email, u.avatar_url, u.email_verified
        FROM group_members m
        JOIN users u ON u.id = m.user_id
        WHERE m.group_id = ? AND m.user_id = ?`
@@ -350,7 +351,7 @@ export async function getMemberRow(
 export async function listMembers(db: Db, groupId: string): Promise<MemberRow[]> {
   return (await db
     .prepare(
-      `SELECT m.*, u.name, u.email, u.avatar_url
+      `SELECT m.*, u.name, u.email, u.avatar_url, u.email_verified
        FROM group_members m
        JOIN users u ON u.id = m.user_id
        WHERE m.group_id = ?
@@ -404,6 +405,8 @@ export interface CreateExpenseInput {
   amountGroup: number;
   createdById: string;
   participants: string[];
+  /** Reparto personalizado en moneda del grupo (solo para participantes con share fijo). */
+  shares?: Record<string, number> | null;
 }
 
 export async function createExpense(db: Db, input: CreateExpenseInput): Promise<ExpenseRow> {
@@ -427,9 +430,11 @@ export async function createExpense(db: Db, input: CreateExpenseInput): Promise<
       now,
       now
     );
-  const ins = db.prepare("INSERT INTO expense_participants (expense_id, user_id) VALUES (?, ?)");
+  const ins = db.prepare(
+    "INSERT INTO expense_participants (expense_id, user_id, share_amount) VALUES (?, ?, ?)"
+  );
   for (const p of input.participants) {
-    await ins.run(id, p);
+    await ins.run(id, p, input.shares?.[p] ?? null);
   }
   return (await getExpense(db, id))!;
 }
@@ -456,11 +461,31 @@ export async function listExpenses(
   return (await db.prepare(sql).all(groupId)) as unknown as ExpenseRow[];
 }
 
+export interface ExpenseParticipantRow {
+  expense_id: string;
+  user_id: string;
+  share_amount: number | null;
+}
+
+export async function expenseParticipantRows(db: Db, expenseId: string): Promise<ExpenseParticipantRow[]> {
+  return (await db
+    .prepare("SELECT * FROM expense_participants WHERE expense_id = ?")
+    .all(expenseId)) as unknown as ExpenseParticipantRow[];
+}
+
 export async function expenseParticipantIds(db: Db, expenseId: string): Promise<string[]> {
-  const rows = (await db
-    .prepare("SELECT user_id FROM expense_participants WHERE expense_id = ?")
-    .all(expenseId)) as unknown as Array<{ user_id: string }>;
+  const rows = await expenseParticipantRows(db, expenseId);
   return rows.map((r) => r.user_id);
+}
+
+/** Devuelve el reparto personalizado (en moneda del grupo) si existe; {} si es a partes iguales. */
+export async function expenseParticipantShares(db: Db, expenseId: string): Promise<Record<string, number>> {
+  const rows = await expenseParticipantRows(db, expenseId);
+  const out: Record<string, number> = {};
+  for (const r of rows) {
+    if (r.share_amount != null) out[r.user_id] = r.share_amount;
+  }
+  return out;
 }
 
 export async function updateExpense(
@@ -474,6 +499,8 @@ export async function updateExpense(
     amountGroup?: number;
     payerId?: string;
     participants?: string[];
+    /** undefined = reparto por igual; objeto = reparto personalizado. */
+    shares?: Record<string, number> | null;
   }
 ): Promise<ExpenseRow> {
   const current = (await getExpense(db, expenseId))!;
@@ -496,8 +523,12 @@ export async function updateExpense(
     );
   if (patch.participants) {
     await db.prepare("DELETE FROM expense_participants WHERE expense_id = ?").run(expenseId);
-    const ins = db.prepare("INSERT INTO expense_participants (expense_id, user_id) VALUES (?, ?)");
-    for (const p of patch.participants) await ins.run(expenseId, p);
+    const ins = db.prepare(
+      "INSERT INTO expense_participants (expense_id, user_id, share_amount) VALUES (?, ?, ?)"
+    );
+    for (const p of patch.participants) {
+      await ins.run(expenseId, p, patch.shares?.[p] ?? null);
+    }
   }
   return (await getExpense(db, expenseId))!;
 }
@@ -568,6 +599,56 @@ export async function listPayments(db: Db, groupId: string): Promise<PaymentRow[
 
 export async function deletePayment(db: Db, paymentId: string): Promise<void> {
   await db.prepare("DELETE FROM payments WHERE id = ?").run(paymentId);
+}
+
+// ---------- Comentarios de gasto ----------
+
+export interface ExpenseCommentRow {
+  id: string;
+  expense_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+  author_name: string;
+  author_verified: number;
+}
+
+export async function createExpenseComment(
+  db: Db,
+  input: { expenseId: string; authorId: string; body: string }
+): Promise<ExpenseCommentRow> {
+  const id = randomUUID();
+  await db
+    .prepare(
+      "INSERT INTO expense_comments (id, expense_id, author_id, body, created_at) VALUES (?, ?, ?, ?, ?)"
+    )
+    .run(id, input.expenseId, input.authorId, input.body, new Date().toISOString());
+  return (await getExpenseComment(db, id))!;
+}
+
+export async function getExpenseComment(db: Db, commentId: string): Promise<ExpenseCommentRow | undefined> {
+  return (await db
+    .prepare(
+      `SELECT c.*, u.name AS author_name, u.email_verified AS author_verified
+       FROM expense_comments c JOIN users u ON u.id = c.author_id
+       WHERE c.id = ?`
+    )
+    .get(commentId)) as ExpenseCommentRow | undefined;
+}
+
+export async function listExpenseComments(db: Db, expenseId: string): Promise<ExpenseCommentRow[]> {
+  return (await db
+    .prepare(
+      `SELECT c.*, u.name AS author_name, u.email_verified AS author_verified
+       FROM expense_comments c JOIN users u ON u.id = c.author_id
+       WHERE c.expense_id = ?
+       ORDER BY c.created_at ASC`
+    )
+    .all(expenseId)) as unknown as ExpenseCommentRow[];
+}
+
+export async function deleteExpenseComment(db: Db, commentId: string): Promise<void> {
+  await db.prepare("DELETE FROM expense_comments WHERE id = ?").run(commentId);
 }
 
 // ---------- Modification requests ----------

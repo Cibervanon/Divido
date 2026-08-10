@@ -152,7 +152,7 @@ export function Modal({
 }: {
   open: boolean;
   onClose: () => void;
-  title: string;
+  title: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
 }) {
@@ -213,6 +213,33 @@ export function Avatar({ name, url, size = "md" }: { name: string; url?: string 
     >
       {initials}
     </div>
+  );
+}
+
+export function VerifiedBadge({
+  className = "",
+  size = "sm",
+}: {
+  className?: string;
+  size?: "sm" | "xs";
+}) {
+  return (
+    <span
+      title="Email verificado"
+      className={`inline-flex shrink-0 items-center justify-center rounded-full bg-indigo-500 text-white ${
+        size === "xs" ? "h-3 w-3" : "h-4 w-4"
+      } ${className}`}
+    >
+      <svg
+        className={size === "xs" ? "h-2 w-2" : "h-2.5 w-2.5"}
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={3.5}
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+      </svg>
+    </span>
   );
 }
 

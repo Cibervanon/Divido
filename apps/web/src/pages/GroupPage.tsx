@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "reac
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { Avatar, Button, EmptyState, Input, Modal, Money, Select, Spinner, Tabs, Toast } from "../components/ui";
+import { Avatar, Button, EmptyState, Input, Modal, Money, Select, Spinner, Tabs, Toast, VerifiedBadge } from "../components/ui";
 import { ExpenseModal } from "../components/ExpenseModal";
 import { PaymentModal } from "../components/PaymentModal";
 import type {
   BreakdownItem,
+  ExpenseCommentDto,
   ExpenseDto,
   GroupDetail,
   HistoryEvent,
@@ -233,6 +234,8 @@ export default function GroupPage() {
               expenses={expenses}
               memberName={memberName}
               isAdmin={isAdmin}
+              myUserId={user.id}
+              groupId={group.id}
               groupCurrency={group.currency}
               onEdit={(e) => setEditTarget(e)}
               onDelete={(e) => setDeleteTarget(e)}
@@ -359,6 +362,8 @@ function ExpensesTab({
   expenses,
   memberName,
   isAdmin,
+  myUserId,
+  groupId,
   groupCurrency,
   onEdit,
   onDelete,
@@ -368,6 +373,8 @@ function ExpensesTab({
   expenses: ExpenseDto[];
   memberName: (id: string) => string;
   isAdmin: boolean;
+  myUserId: string;
+  groupId: string;
   groupCurrency: string;
   onEdit: (e: ExpenseDto) => void;
   onDelete: (e: ExpenseDto) => void;
@@ -442,7 +449,13 @@ function ExpensesTab({
                       </span>
                     ) : null}
                   </p>
-                  <p className="mt-0.5 text-[11px] text-slate-500">cada uno {e.share.toFixed(2)}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    {e.shares ? (
+                      <span className="text-indigo-300">reparto personalizado</span>
+                    ) : (
+                      <>cada uno {e.share.toFixed(2)}</>
+                    )}
+                  </p>
                 </div>
               </div>
               <div className="mt-3 flex items-center justify-between">
@@ -478,10 +491,135 @@ function ExpensesTab({
                   />
                 </div>
               </div>
+              <ExpenseComments expense={e} groupId={groupId} myUserId={myUserId} />
             </div>
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function ExpenseComments({
+  expense,
+  groupId,
+  myUserId,
+}: {
+  expense: ExpenseDto;
+  groupId: string;
+  myUserId: string;
+}) {
+  const [open, setOpen] = useState((expense.comments?.length ?? 0) > 0);
+  const [comments, setComments] = useState<ExpenseCommentDto[]>(expense.comments ?? []);
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
+  async function send() {
+    const body = text.trim();
+    if (!body) return;
+    setError("");
+    setSending(true);
+    try {
+      const res = await api.post<ExpenseCommentDto>(
+        `/groups/${groupId}/expenses/${expense.id}/comments`,
+        { body }
+      );
+      setComments((prev) => [...prev, res]);
+      setText("");
+      setOpen(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo enviar el comentario");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function remove(id: string) {
+    setDeletingId(id);
+    try {
+      await api.delete(`/expenses/${expense.id}/comments/${id}`);
+      setComments((prev) => prev.filter((c) => c.id !== id));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo eliminar el comentario");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  return (
+    <div className="mt-3 border-t border-slate-800 pt-3">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 transition hover:text-slate-200"
+      >
+        <svg
+          className={`h-3 w-3 transition ${open ? "rotate-180" : ""}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2.5}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+        Comentarios ({comments.length})
+      </button>
+
+      {open ? (
+        <div className="mt-2 space-y-2">
+          {comments.length > 0 ? (
+            <div className="space-y-2">
+              {comments.map((c) => (
+                <div key={c.id} className="rounded-xl bg-slate-800/60 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="flex items-center gap-1 text-[11px] font-semibold text-slate-300">
+                      <span className="truncate">{c.authorName}</span>
+                      {c.authorVerified ? <VerifiedBadge size="xs" /> : null}
+                    </p>
+                    <span className="flex shrink-0 items-center gap-2">
+                      <span className="text-[10px] text-slate-500">{fmtTime(c.createdAt)}</span>
+                      {c.authorId === myUserId ? (
+                        <button
+                          type="button"
+                          onClick={() => remove(c.id)}
+                          disabled={deletingId === c.id}
+                          className="text-[10px] font-semibold text-slate-500 transition hover:text-rose-400"
+                        >
+                          {deletingId === c.id ? "..." : "Eliminar"}
+                        </button>
+                      ) : null}
+                    </span>
+                  </div>
+                  <p className="mt-1 whitespace-pre-wrap break-words text-xs text-slate-300">{c.body}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[11px] text-slate-500">Sin comentarios todavía.</p>
+          )}
+          <div className="flex gap-2">
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void send();
+                }
+              }}
+              placeholder="Añade un comentario..."
+              maxLength={500}
+              className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
+            />
+            <Button variant="secondary" className="!px-3 !py-2 text-xs" onClick={() => void send()} loading={sending}>
+              Enviar
+            </Button>
+          </div>
+          {error ? <p className="text-[11px] font-medium text-rose-400">{error}</p> : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -530,15 +668,16 @@ function BalancesTab({
         {balances.map((b) => (
           <button
             key={b.userId}
-            onClick={() => onOpenMember({ userId: b.userId, name: b.name, email: null, avatarUrl: null, role: "member", status: "active", joinedAt: "", leftAt: null, frozenBalance: null })}
+            onClick={() => onOpenMember({ userId: b.userId, name: b.name, email: null, avatarUrl: null, emailVerified: b.emailVerified ?? false, role: "member", status: "active", joinedAt: "", leftAt: null, frozenBalance: null })}
             className={`flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-left transition hover:border-slate-700 ${
               b.isMe ? "border-indigo-500/50" : ""
             }`}
           >
             <Avatar name={b.name} size="sm" />
-            <span className="flex-1 text-sm font-medium text-slate-200">
-              {b.name}
-              {b.isMe ? <span className="ml-2 text-[10px] text-indigo-400">tú</span> : null}
+            <span className="flex min-w-0 flex-1 items-center gap-1.5 text-sm font-medium text-slate-200">
+              <span className="truncate">{b.name}</span>
+              {b.emailVerified ? <VerifiedBadge /> : null}
+              {b.isMe ? <span className="shrink-0 text-[10px] text-indigo-400">tú</span> : null}
             </span>
             <span className={`text-sm font-bold ${b.net > 0.004 ? "text-emerald-400" : b.net < -0.004 ? "text-rose-400" : "text-slate-500"}`}>
               <Money amount={b.net} currency={group.currency} />
@@ -549,9 +688,10 @@ function BalancesTab({
 
       {transfers.length > 0 ? (
         <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-          <p className="mb-3 text-sm font-bold text-slate-100">Pagos sugeridos (optimizados)</p>
+          <p className="mb-3 text-sm font-bold text-slate-100">Pagos sugeridos (liquidación optimizada)</p>
           <p className="mb-3 text-[11px] text-slate-500">
-            {transfers.length} transferencia{transfers.length !== 1 ? "s" : ""} para liquidar todo el grupo
+            {transfers.length} transferencia{transfers.length !== 1 ? "s" : ""} para liquidar todo el grupo.
+            Las deudas en cadena se consolidan (si A debe a B y B a C, se propone A → C).
           </p>
           <div className="space-y-2">
             {transfers.map((t, i) => (
@@ -654,7 +794,8 @@ function MembersTab({
               <Avatar name={m.name} url={m.avatarUrl} size="sm" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-200">
-                  {m.name} {isMe ? <span className="text-[10px] text-indigo-400">tú</span> : null}
+                  {m.name} {isMe ? <span className="text-[10px] text-indigo-400">tú</span> : null}{" "}
+                  {m.emailVerified ? <VerifiedBadge size="xs" /> : null}
                 </p>
                 <p className="text-[11px] text-slate-500">
                   {m.userId === group.creatorId ? "Creador" : m.role === "admin" ? "Administrador" : "Miembro"}
@@ -906,7 +1047,15 @@ function MemberDetailModal({
   if (!data) return null;
   const { member, data: breakdown } = data;
   return (
-    <Modal open onClose={onClose} title={`Transacciones con ${member.name}`}>
+    <Modal
+      open
+      onClose={onClose}
+      title={
+        <span className="inline-flex items-center gap-2">
+          {member.name} {member.emailVerified ? <VerifiedBadge /> : null}
+        </span>
+      }
+    >
       <div className="space-y-3">
         {breakdown.length === 0 ? (
           <p className="text-sm text-slate-500">Sin transacciones compartidas.</p>
@@ -949,6 +1098,19 @@ function MemberDetailModal({
 function fmtDate(iso: string): string {
   try {
     return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
+  } catch {
+    return iso;
+  }
+}
+
+function fmtTime(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString("es-ES", {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   } catch {
     return iso;
   }

@@ -13,6 +13,11 @@ export interface BalanceInput {
     payerId: string;
     amountGroup: number;
     participants: string[];
+    /**
+     * Importe (en moneda del grupo) que debe cada participante.
+     * Si falta una clave, esa persona se reparte a partes iguales.
+     */
+    participantShares?: Record<string, number>;
     deleted?: boolean;
   }>;
   payments: Array<{
@@ -28,6 +33,7 @@ export interface MemberBalance {
   net: number;
   paidForOthers: number;
   owesOthers: number;
+  emailVerified?: boolean;
 }
 
 export function computeNetBalances(
@@ -47,10 +53,12 @@ export function computeNetBalances(
   for (const e of input.expenses) {
     if (e.deleted) continue;
     if (e.participants.length === 0) continue;
-    const share = e.amountGroup / e.participants.length;
+    const equalShare = e.amountGroup / e.participants.length;
+    const shares = e.participantShares ?? {};
     for (const p of e.participants) {
       if (p === e.payerId) continue;
       if (shouldInclude && !shouldInclude(e.payerId, p)) continue;
+      const share = shares[p] != null ? shares[p] : equalShare;
       net[e.payerId] = (net[e.payerId] ?? 0) + share;
       net[p] = (net[p] ?? 0) - share;
       paid[e.payerId] = (paid[e.payerId] ?? 0) + share;
@@ -73,24 +81,71 @@ export function computeNetBalances(
   }));
 }
 
+/**
+ * Calcula el conjunto mínimo (en la práctica) de transferencias para liquidar
+ * las deudas del grupo aplicando "liquidación en cadena":
+ *
+ * Ejemplo: A debe 10 € a B y B debe 10 € a C. Los saldos netos quedan
+ * A = -10, B = 0, C = +10, y la app propone el pago directo A -> C.
+ *
+ * Algoritmo:
+ *  1. Iguala primero deudas que encajan exactamente (1 transferencia cada una).
+ *  2. Con el resto, empareja el mayor deudor con el mayor acreedor (voraz),
+ *     lo que garantiza a lo sumo n-1 transferencias.
+ */
 export function simplifyDebts(balances: MemberBalance[]): SettlementTransfer[] {
+  const nameOf = (id: string) => balances.find((b) => b.userId === id)?.name ?? "Usuario";
+
   const debtors = balances
     .filter((b) => b.net < -EPS)
     .map((b) => ({ id: b.userId, amount: -b.net }))
     .sort((a, b) => b.amount - a.amount);
   const creditors = balances
     .filter((b) => b.net > EPS)
-    .map((b) => ({ id: b.userId, amount: b.net }))
+    .map((b) => ({ id: b.userId, amount: b.net, settled: false }))
     .sort((a, b) => b.amount - a.amount);
 
-  const nameOf = (id: string) => balances.find((b) => b.userId === id)?.name ?? "Usuario";
-
   const transfers: SettlementTransfer[] = [];
+
+  const byAmount = new Map<number, Array<(typeof creditors)[number]>>();
+  for (const c of creditors) {
+    const list = byAmount.get(c.amount) ?? [];
+    list.push(c);
+    byAmount.set(c.amount, list);
+  }
+
+  const pendingDebtors: Array<{ id: string; amount: number }> = [];
+  for (const d of debtors) {
+    const list = byAmount.get(d.amount);
+    let matched: (typeof creditors)[number] | undefined;
+    while (list && list.length > 0) {
+      const c = list.pop()!;
+      if (!c.settled) {
+        matched = c;
+        c.settled = true;
+        break;
+      }
+    }
+    if (matched) {
+      transfers.push({
+        fromUserId: d.id,
+        fromName: nameOf(d.id),
+        toUserId: matched.id,
+        toName: nameOf(matched.id),
+        amount: d.amount,
+      });
+    } else {
+      pendingDebtors.push(d);
+    }
+  }
+
+  const pendingCreditors = creditors.filter((c) => !c.settled);
+
   let i = 0;
   let j = 0;
-  while (i < debtors.length && j < creditors.length) {
-    const d = debtors[i];
-    const c = creditors[j];
+  while (i < pendingDebtors.length && j < pendingCreditors.length) {
+    const d = pendingDebtors[i];
+    const c = pendingCreditors[j];
     const amount = Math.min(d.amount, c.amount);
     transfers.push({
       fromUserId: d.id,

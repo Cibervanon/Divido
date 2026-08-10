@@ -8,6 +8,7 @@ import {
 } from "@divido/shared";
 import {
   expenseParticipantIds,
+  expenseParticipantShares,
   listExpenses,
   listMembers,
   listPayments,
@@ -54,9 +55,13 @@ const isActive = (m: MemberRow) => m.status === "active";
 
 async function expensePairs(db: Db, groupId: string) {
   const expenses = await listExpenses(db, groupId);
-  const result: Array<ExpenseRow & { participants: string[] }> = [];
+  const result: Array<ExpenseRow & { participants: string[]; shares: Record<string, number> }> = [];
   for (const e of expenses) {
-    result.push({ ...e, participants: await expenseParticipantIds(db, e.id) });
+    result.push({
+      ...e,
+      participants: await expenseParticipantIds(db, e.id),
+      shares: await expenseParticipantShares(db, e.id),
+    });
   }
   return result;
 }
@@ -68,12 +73,17 @@ export async function getGroupBalances(db: Db, groupId: string): Promise<GroupBa
   const activeIds = new Set(active.map((m) => m.user_id));
   const allIds = members.map((m) => m.user_id);
   const names: Record<string, string> = {};
-  for (const m of members) names[m.user_id] = m.name;
+  const verified: Record<string, boolean> = {};
+  for (const m of members) {
+    names[m.user_id] = m.name;
+    verified[m.user_id] = Boolean(m.email_verified);
+  }
 
   const expenses = (await expensePairs(db, groupId)).map((e) => ({
     payerId: e.payer_id,
     amountGroup: e.amount_group,
     participants: e.participants,
+    participantShares: Object.keys(e.shares).length ? e.shares : undefined,
     deleted: Boolean(e.deleted),
   }));
   const payments = (await listPayments(db, groupId)).map((p) => ({
@@ -85,7 +95,7 @@ export async function getGroupBalances(db: Db, groupId: string): Promise<GroupBa
   const balances = computeNetBalances(
     { memberIds: activeIds.size ? [...activeIds] : [], names, expenses, payments },
     (payer, participant) => activeIds.has(payer) && activeIds.has(participant)
-  );
+  ).map((b) => ({ ...b, emailVerified: verified[b.userId] }));
 
   const fullBalances = computeNetBalances(
     { memberIds: allIds, names, expenses, payments }
@@ -133,12 +143,14 @@ export async function getPersonBreakdown(db: Db, groupId: string, userId: string
   for (const e of expenses) {
     if (e.deleted) continue;
     if (e.participants.length === 0) continue;
-    const share = e.amount_group / e.participants.length;
+    const shareOf = (p: string) =>
+      e.shares[p] ?? e.amount_group / e.participants.length;
     if (e.payer_id === userId) {
       for (const p of e.participants) {
         if (p === userId) continue;
         const item = index.get(p);
         if (!item) continue;
+        const share = shareOf(p);
         item.net += share;
         item.expenses.push({
           id: e.id,
@@ -156,6 +168,7 @@ export async function getPersonBreakdown(db: Db, groupId: string, userId: string
     } else if (e.participants.includes(userId)) {
       const item = index.get(e.payer_id);
       if (!item) continue;
+      const share = shareOf(userId);
       item.net -= share;
       item.expenses.push({
         id: e.id,

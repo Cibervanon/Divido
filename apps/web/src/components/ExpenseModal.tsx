@@ -4,6 +4,9 @@ import { Button, Input, Modal, Select } from "./ui";
 import type { ExpenseDto, MemberInfo } from "../lib/types";
 
 const FOREIGN_CURRENCIES = ["USD", "GBP", "MXN", "ARS", "COP", "CLP", "PEN", "BRL", "CHF", "CAD", "JPY"];
+const EPS = 0.004;
+
+type SplitMode = "equal" | "percent" | "amount";
 
 export function ExpenseModal({
   open,
@@ -33,11 +36,15 @@ export function ExpenseModal({
   const [exchangeRate, setExchangeRate] = useState("1");
   const [payerId, setPayerId] = useState(defaultPayerId);
   const [participants, setParticipants] = useState<string[]>([]);
+  const [splitMode, setSplitMode] = useState<SplitMode>("equal");
+  const [percents, setPercents] = useState<Record<string, string>>({});
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
+      setError("");
       if (expense) {
         setDescription(expense.description);
         setAmount(String(expense.amount));
@@ -45,36 +52,125 @@ export function ExpenseModal({
         setExchangeRate(String(expense.exchangeRate));
         setPayerId(expense.payerId);
         setParticipants(expense.participants);
+        initCustomFromShares(expense.participants, expense.shares);
       } else {
+        const all = activeMembers.map((m) => m.userId);
         setDescription("");
         setAmount("");
         setCurrency(groupCurrency);
         setExchangeRate("1");
         setPayerId(defaultPayerId);
-        setParticipants(activeMembers.map((m) => m.userId));
+        setParticipants(all);
+        setSplitMode("equal");
+        setPercents({});
+        setAmounts({});
       }
-      setError("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, groupId, expense]);
 
+  function initCustomFromShares(ids: string[], shares: Record<string, number> | null) {
+    setPercents({});
+    setAmounts({});
+    if (!shares || ids.length === 0) {
+      setSplitMode("equal");
+      return;
+    }
+    setSplitMode("amount");
+    const next: Record<string, string> = {};
+    for (const id of ids) next[id] = String(shares[id] ?? 0);
+    setAmounts(next);
+  }
+
   const isForeign = currency !== groupCurrency;
-  const share = useMemo(() => {
+  const totalGroup = useMemo(() => {
     const amt = Number(amount);
     const rate = Number(exchangeRate);
-    if (!amt || amt <= 0 || participants.length === 0) return null;
-    const total = isForeign && rate > 0 ? amt * rate : amt;
-    return total / participants.length;
-  }, [amount, exchangeRate, participants.length, isForeign]);
+    if (!amt || amt <= 0) return 0;
+    return isForeign && rate > 0 ? amt * rate : amt;
+  }, [amount, exchangeRate, isForeign]);
+
+  const equalShare = useMemo(() => {
+    if (participants.length === 0) return 0;
+    return totalGroup / participants.length;
+  }, [totalGroup, participants.length]);
+
+  const percentSum = useMemo(
+    () => participants.reduce((s, id) => s + (Number(percents[id]) || 0), 0),
+    [percents, participants]
+  );
+  const amountSum = useMemo(
+    () => participants.reduce((s, id) => s + (Number(amounts[id]) || 0), 0),
+    [amounts, participants]
+  );
 
   function toggleParticipant(id: string) {
-    setParticipants((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
-    );
+    setParticipants((prev) => {
+      const next = prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id];
+      if (splitMode !== "equal") balanceCustom(next);
+      return next;
+    });
+  }
+
+  function balanceCustom(ids: string[]) {
+    if (splitMode === "percent") {
+      const each = ids.length ? 100 / ids.length : 0;
+      const next: Record<string, string> = {};
+      for (const id of ids) next[id] = each.toFixed(2);
+      setPercents(next);
+    } else if (splitMode === "amount" && totalGroup > 0) {
+      const each = ids.length ? totalGroup / ids.length : 0;
+      const next: Record<string, string> = {};
+      for (const id of ids) next[id] = each.toFixed(2);
+      setAmounts(next);
+    }
+  }
+
+  function buildShares(): Record<string, number> | null {
+    if (splitMode === "equal") return null;
+    if (participants.length === 0) return null;
+    const shares: Record<string, number> = {};
+    let sum = 0;
+    for (const id of participants) {
+      const v =
+        splitMode === "percent"
+          ? (Number(percents[id]) || 0) / 100 * totalGroup
+          : Number(amounts[id]) || 0;
+      shares[id] = Math.round((v + Number.EPSILON) * 100) / 100;
+      sum += shares[id];
+    }
+    const tolerance = Math.max(0.02, participants.length * 0.01);
+    if (Math.abs(sum - totalGroup) > tolerance) {
+      const remainder = totalGroup - sum;
+      const remainingLabel =
+        splitMode === "percent"
+          ? `${(remainder / (totalGroup || 1) * 100).toFixed(1)}%`
+          : `${remainder.toFixed(2)} ${groupCurrency}`;
+      throw new Error(
+        `El reparto no suma el total (quedan ${remainingLabel}). Reparte a partes iguales o ajusta las cantidades.`
+      );
+    }
+    return shares;
+  }
+
+  function switchMode(mode: SplitMode) {
+    setSplitMode(mode);
+    if (mode === "percent" && Object.keys(percents).length === 0 && participants.length) {
+      balanceCustom(participants);
+    } else if (mode === "amount" && Object.keys(amounts).length === 0 && participants.length) {
+      balanceCustom(participants);
+    }
   }
 
   async function submit() {
     setError("");
+    let shares: Record<string, number> | null = null;
+    try {
+      shares = buildShares();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Reparto inválido");
+      return;
+    }
     setLoading(true);
     try {
       const body: Record<string, unknown> = {
@@ -85,6 +181,7 @@ export function ExpenseModal({
         payerId,
       };
       if (isForeign) body.exchangeRate = Number(exchangeRate);
+      if (splitMode !== "equal") body.shares = shares;
       if (expense && !locked) {
         await api.patch(`/expenses/${expense.id}`, body);
       } else if (expense && locked) {
@@ -168,12 +265,6 @@ export function ExpenseModal({
             hint="El cambio se congela en el momento del gasto."
           />
         ) : null}
-        {share !== null && participants.length > 0 ? (
-          <p className="rounded-xl bg-slate-800/60 px-3 py-2 text-xs text-slate-300">
-            {participants.length} participante{participants.length > 1 ? "s" : ""} ·{" "}
-            <strong>{share.toFixed(2)} {groupCurrency}</strong> cada uno
-          </p>
-        ) : null}
         <div>
           <span className="mb-1.5 block text-xs font-medium text-slate-400">Pagado por</span>
           <Select value={payerId} onChange={(e) => setPayerId(e.target.value)}>
@@ -185,35 +276,133 @@ export function ExpenseModal({
           </Select>
         </div>
         <div>
-          <span className="mb-1.5 block text-xs font-medium text-slate-400">
-            Participantes ({participants.length})
-          </span>
-          <div className="max-h-48 space-y-1 overflow-y-auto">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-400">
+              Participantes ({participants.length})
+            </span>
+            <div className="flex gap-1 rounded-lg bg-slate-800 p-0.5">
+              {([
+                ["equal", "Iguales"],
+                ["percent", "%"],
+                ["amount", groupCurrency],
+              ] as Array<[SplitMode, string]>).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => switchMode(mode)}
+                  className={`rounded-md px-2 py-1 text-[11px] font-semibold transition ${
+                    splitMode === mode
+                      ? "bg-indigo-600 text-white"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="max-h-56 space-y-1 overflow-y-auto">
             {activeMembers.map((m) => {
               const checked = participants.includes(m.userId);
               return (
-                <button
+                <div
                   key={m.userId}
-                  type="button"
-                  onClick={() => toggleParticipant(m.userId)}
-                  className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm transition ${
+                  className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${
                     checked
-                      ? "border-indigo-500 bg-indigo-500/10 text-slate-100"
-                      : "border-slate-800 text-slate-400 hover:bg-slate-800/50"
+                      ? "border-indigo-500 bg-indigo-500/10"
+                      : "border-slate-800 bg-transparent"
                   }`}
                 >
-                  <span
-                    className={`flex h-5 w-5 items-center justify-center rounded-md border text-xs ${
-                      checked ? "border-indigo-500 bg-indigo-600 text-white" : "border-slate-600"
-                    }`}
+                  <button
+                    type="button"
+                    onClick={() => toggleParticipant(m.userId)}
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
                   >
-                    {checked ? "✓" : ""}
-                  </span>
-                  {m.name}
-                </button>
+                    <span
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs ${
+                        checked ? "border-indigo-500 bg-indigo-600 text-white" : "border-slate-600"
+                      }`}
+                    >
+                      {checked ? "✓" : ""}
+                    </span>
+                    <span
+                      className={`truncate ${checked ? "text-slate-100" : "text-slate-400"}`}
+                    >
+                      {m.name}
+                    </span>
+                  </button>
+                  {checked && splitMode !== "equal" ? (
+                    splitMode === "percent" ? (
+                      <div className="flex shrink-0 items-center gap-1">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={percents[m.userId] ?? ""}
+                          onChange={(e) =>
+                            setPercents((prev) => ({ ...prev, [m.userId]: e.target.value }))
+                          }
+                          className="w-16 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-right text-xs text-slate-100 outline-none focus:border-indigo-500"
+                        />
+                        <span className="text-xs text-slate-500">%</span>
+                      </div>
+                    ) : (
+                      <div className="flex shrink-0 items-center gap-1">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={amounts[m.userId] ?? ""}
+                          onChange={(e) =>
+                            setAmounts((prev) => ({ ...prev, [m.userId]: e.target.value }))
+                          }
+                          className="w-20 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-right text-xs text-slate-100 outline-none focus:border-indigo-500"
+                        />
+                        <span className="text-xs text-slate-500">{groupCurrency}</span>
+                      </div>
+                    )
+                  ) : null}
+                </div>
               );
             })}
           </div>
+
+          {splitMode === "equal" && totalGroup > 0 && participants.length > 0 ? (
+            <p className="mt-2 rounded-xl bg-slate-800/60 px-3 py-2 text-xs text-slate-300">
+              {participants.length} participante{participants.length > 1 ? "s" : ""} ·{" "}
+              <strong>{equalShare.toFixed(2)} {groupCurrency}</strong> cada uno
+            </p>
+          ) : null}
+          {splitMode === "percent" ? (
+            <div className="mt-2 flex items-center justify-between rounded-xl bg-slate-800/60 px-3 py-2 text-xs">
+              <span className={Math.abs(percentSum - 100) < 0.01 ? "text-emerald-400" : "text-amber-400"}>
+                Suma: {percentSum.toFixed(1)}%
+              </span>
+              <button
+                type="button"
+                onClick={() => balanceCustom(participants)}
+                className="font-semibold text-indigo-400 hover:text-indigo-300"
+              >
+                A partes iguales
+              </button>
+            </div>
+          ) : null}
+          {splitMode === "amount" ? (
+            <div className="mt-2 flex items-center justify-between rounded-xl bg-slate-800/60 px-3 py-2 text-xs">
+              <span className={Math.abs(amountSum - totalGroup) < 0.01 ? "text-emerald-400" : "text-amber-400"}>
+                Repartido: {amountSum.toFixed(2)} de {totalGroup.toFixed(2)} {groupCurrency}
+              </span>
+              <button
+                type="button"
+                onClick={() => balanceCustom(participants)}
+                className="font-semibold text-indigo-400 hover:text-indigo-300"
+              >
+                A partes iguales
+              </button>
+            </div>
+          ) : null}
         </div>
         {error ? <p className="text-xs font-medium text-rose-400">{error}</p> : null}
       </div>

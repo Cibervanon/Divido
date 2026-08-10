@@ -230,6 +230,7 @@ async function groupDetail(
       name: m.name,
       email: m.email,
       avatarUrl: m.avatar_url,
+      emailVerified: Boolean(m.email_verified),
       role: m.role,
       status: m.status,
       joinedAt: m.joined_at,

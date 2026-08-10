@@ -113,7 +113,16 @@ CREATE TABLE IF NOT EXISTS expenses (
 CREATE TABLE IF NOT EXISTS expense_participants (
   expense_id TEXT NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL REFERENCES users(id),
+  share_amount REAL,
   PRIMARY KEY (expense_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS expense_comments (
+  id TEXT PRIMARY KEY,
+  expense_id TEXT NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
+  author_id TEXT NOT NULL REFERENCES users(id),
+  body TEXT NOT NULL,
+  created_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS payments (
@@ -144,6 +153,7 @@ CREATE INDEX IF NOT EXISTS idx_members_user ON group_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_members_group ON group_members(group_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_group ON expenses(group_id);
 CREATE INDEX IF NOT EXISTS idx_participants_expense ON expense_participants(expense_id);
+CREATE INDEX IF NOT EXISTS idx_comments_expense ON expense_comments(expense_id);
 CREATE INDEX IF NOT EXISTS idx_payments_group ON payments(group_id);
 CREATE INDEX IF NOT EXISTS idx_requests_group ON modification_requests(group_id);
 CREATE INDEX IF NOT EXISTS idx_requests_expense ON modification_requests(expense_id);
@@ -156,6 +166,7 @@ const MIGRATIONS = [
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT",
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TEXT",
   "ALTER TABLE groups ADD COLUMN IF NOT EXISTS logo_url TEXT",
+  "ALTER TABLE expense_participants ADD COLUMN IF NOT EXISTS share_amount REAL",
 ];
 
 export async function initDb(db: Db): Promise<void> {

@@ -52,6 +52,7 @@ export interface ExpenseParticipant {
   expenseId: string;
   userId: string;
   share: number;
+  shareAmount: number | null;
 }
 
 export interface Payment {

@@ -21,6 +21,7 @@ export interface MemberInfo {
   name: string;
   email: string | null;
   avatarUrl: string | null;
+  emailVerified: boolean;
   role: "admin" | "member";
   status: "active" | "inactive" | "ex_member";
   joinedAt: string;
@@ -35,6 +36,7 @@ export interface MemberBalance {
   paidForOthers: number;
   owesOthers: number;
   isMe?: boolean;
+  emailVerified?: boolean;
 }
 
 export interface ExMemberInfo {
@@ -63,6 +65,16 @@ export interface GroupDetail {
   exMembers: ExMemberInfo[];
 }
 
+export interface ExpenseCommentDto {
+  id: string;
+  expenseId: string;
+  authorId: string;
+  authorName: string;
+  authorVerified: boolean;
+  body: string;
+  createdAt: string;
+}
+
 export interface ExpenseDto {
   id: string;
   groupId: string;
@@ -77,8 +89,10 @@ export interface ExpenseDto {
   updatedAt: string;
   deleted: boolean;
   participants: string[];
+  shares: Record<string, number> | null;
   share: number;
   participantsCount: number;
+  comments: ExpenseCommentDto[];
   editable: boolean;
 }
 

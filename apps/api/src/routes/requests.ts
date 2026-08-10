@@ -91,6 +91,14 @@ function sanitizeEdit(changes: Record<string, unknown>, groupCurrency: string) {
   if (Array.isArray(changes.participants) && changes.participants.every((p) => typeof p === "string")) {
     out.participants = changes.participants as string[];
   }
+  if (changes.shares && typeof changes.shares === "object" && !Array.isArray(changes.shares)) {
+    const shares: Record<string, number> = {};
+    for (const [k, v] of Object.entries(changes.shares as Record<string, unknown>)) {
+      const n = Number(v);
+      if (Number.isFinite(n) && n >= 0) shares[k] = round2(n);
+    }
+    if (Object.keys(shares).length) out.shares = shares;
+  }
   if (typeof changes.currency === "string") {
     const cur = changes.currency.toUpperCase();
     out.currency = cur;
@@ -132,13 +140,29 @@ async function applyRequest(
     currency !== group.currency && typeof changes.exchangeRate === "number"
       ? changes.exchangeRate
       : expense.exchange_rate;
+  const amountGroup = round2(amount * exchangeRate);
+  let shares: Record<string, number> | undefined;
+  if (
+    Array.isArray(changes.participants) &&
+    changes.shares &&
+    typeof changes.shares === "object" &&
+    !Array.isArray(changes.shares)
+  ) {
+    const candidate = changes.shares as Record<string, number>;
+    const valid = participants.every((p) => Number.isFinite(Number(candidate[p])) && Number(candidate[p]) >= 0);
+    const sum = participants.reduce((s, p) => s + Number(candidate[p]), 0);
+    if (valid && Math.abs(sum - amountGroup) <= Math.max(0.02, participants.length * 0.01)) {
+      shares = candidate;
+    }
+  }
   await updateExpense(db, req.expense_id, {
     description: typeof changes.description === "string" ? changes.description : expense.description,
     amount,
     currency,
     exchangeRate,
-    amountGroup: round2(amount * exchangeRate),
+    amountGroup,
     payerId,
     participants,
+    shares,
   });
 }
