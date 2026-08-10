@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -168,6 +168,7 @@ export default function GroupPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
+          <Avatar name={group.name} url={group.logoUrl} size="md" />
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-extrabold text-slate-100">{group.name}</h1>
             <p className="text-[11px] text-slate-500">
@@ -207,10 +208,10 @@ export default function GroupPage() {
           </p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             <span className="rounded-lg bg-emerald-500/10 px-2.5 py-1 font-semibold text-emerald-400">
-              Te deben <Money amount={detail.balances.filter((b) => b.net > 0 && !b.isMe).reduce((s, b) => s + b.net, 0)} currency={group.currency} />
+              Te deben <Money amount={myBalance > 0.004 ? myBalance : 0} currency={group.currency} />
             </span>
             <span className="rounded-lg bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-400">
-              Debes <Money amount={detail.balances.filter((b) => b.net < 0 && !b.isMe).reduce((s, b) => s - b.net, 0)} currency={group.currency} />
+              Debes <Money amount={myBalance < -0.004 ? -myBalance : 0} currency={group.currency} />
             </span>
           </div>
         </div>
@@ -778,22 +779,35 @@ function SettingsModal({
   const [name, setName] = useState(group.name);
   const [currency, setCurrency] = useState(group.currency);
   const [type, setType] = useState<"open" | "closed">(group.type);
+  const [logoUrl, setLogoUrl] = useState(group.logoUrl ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
       setName(group.name);
       setCurrency(group.currency);
       setType(group.type);
+      setLogoUrl(group.logoUrl ?? "");
       setError("");
     }
   }, [open, group]);
 
+  const isDataUrl = logoUrl.startsWith("data:image");
+
+  function onPickFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setLogoUrl(String(reader.result ?? ""));
+    reader.readAsDataURL(file);
+  }
+
   async function save() {
     setSaving(true);
     try {
-      await api.patch(`/groups/${group.id}`, { name, currency, type });
+      await api.patch(`/groups/${group.id}`, { name, currency, type, logoUrl: logoUrl.trim() || null });
       onChanged();
       onClose();
     } catch (err) {
@@ -824,6 +838,31 @@ function SettingsModal({
       <div className="space-y-4">
         {isAdmin ? (
           <>
+            <div className="flex items-center gap-4">
+              <Avatar name={name || group.name} url={logoUrl || null} size="lg" />
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="secondary"
+                  className="!px-3 !py-1.5 text-xs"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  Subir logo
+                </Button>
+                {logoUrl ? (
+                  <Button variant="ghost" className="!px-3 !py-1.5 text-xs" onClick={() => setLogoUrl("")}>
+                    Quitar logo
+                  </Button>
+                ) : null}
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickFile} />
+              </div>
+            </div>
+            <Input
+              label="Logo (URL)"
+              placeholder="https://... o déjalo vacío"
+              value={isDataUrl ? "Imagen subida desde tu dispositivo" : logoUrl}
+              readOnly={isDataUrl}
+              onChange={(e) => setLogoUrl(e.target.value)}
+            />
             <Input label="Nombre" value={name} onChange={(e) => setName(e.target.value)} />
             <div className="grid grid-cols-2 gap-3">
               <Select label="Moneda" value={currency} onChange={(e) => setCurrency(e.target.value)}>

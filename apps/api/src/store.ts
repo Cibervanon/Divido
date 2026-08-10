@@ -30,6 +30,7 @@ export interface GroupRow {
   type: GroupType;
   invite_token: string;
   creator_id: string;
+  logo_url: string | null;
   created_at: string;
 }
 
@@ -100,6 +101,7 @@ export function toGroup(r: GroupRow): Group {
     type: r.type,
     inviteToken: r.invite_token,
     creatorId: r.creator_id,
+    logoUrl: r.logo_url,
     createdAt: r.created_at,
   };
 }
@@ -211,16 +213,16 @@ export async function linkGoogleToUser(
 
 export async function createGroup(
   db: Db,
-  input: { name: string; currency: string; type: GroupType; creatorId: string }
+  input: { name: string; currency: string; type: GroupType; creatorId: string; logoUrl?: string | null }
 ): Promise<Group> {
   const id = randomUUID();
   const inviteToken = randomUUID().replace(/-/g, "").slice(0, 16);
   await db
     .prepare(
-      `INSERT INTO groups (id, name, currency, type, invite_token, creator_id, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO groups (id, name, currency, type, invite_token, creator_id, logo_url, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(id, input.name, input.currency, input.type, inviteToken, input.creatorId, new Date().toISOString());
+    .run(id, input.name, input.currency, input.type, inviteToken, input.creatorId, input.logoUrl ?? null, new Date().toISOString());
   await addMember(db, {
     groupId: id,
     userId: input.creatorId,
@@ -266,13 +268,14 @@ export async function listGroupsForUser(
 export async function updateGroup(
   db: Db,
   groupId: string,
-  patch: { name?: string; currency?: string; type?: GroupType }
+  patch: { name?: string; currency?: string; type?: GroupType; logoUrl?: string | null }
 ): Promise<Group> {
   const current = (await getGroup(db, groupId))!;
-  await db.prepare("UPDATE groups SET name = ?, currency = ?, type = ? WHERE id = ?").run(
+  await db.prepare("UPDATE groups SET name = ?, currency = ?, type = ?, logo_url = ? WHERE id = ?").run(
     patch.name ?? current.name,
     patch.currency ?? current.currency,
     patch.type ?? current.type,
+    patch.logoUrl === undefined ? current.logoUrl : patch.logoUrl,
     groupId
   );
   return (await getGroup(db, groupId))!;

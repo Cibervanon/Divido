@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS groups (
   type TEXT NOT NULL DEFAULT 'open',
   invite_token TEXT UNIQUE NOT NULL,
   creator_id TEXT NOT NULL REFERENCES users(id),
+  logo_url TEXT,
   created_at TEXT NOT NULL
 );
 
@@ -150,6 +151,7 @@ const MIGRATIONS = [
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS verify_token TEXT",
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS verify_token_expires TEXT",
+  "ALTER TABLE groups ADD COLUMN IF NOT EXISTS logo_url TEXT",
 ];
 
 export async function initDb(db: Db): Promise<void> {

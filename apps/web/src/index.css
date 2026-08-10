@@ -12,6 +12,11 @@ body {
   overscroll-behavior-y: none;
 }
 
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

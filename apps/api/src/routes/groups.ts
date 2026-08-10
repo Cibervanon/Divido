@@ -22,6 +22,22 @@ const VALID_CURRENCIES = new Set([
   "EUR", "USD", "GBP", "JPY", "MXN", "ARS", "COP", "CLP", "PEN", "BRL", "CHF", "CAD", "AUD", "CNY", "INR",
 ]);
 
+const HTTP_URL_RE = /^https?:\/\//i;
+const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
+const MAX_LOGO_BYTES = 4 * 1024 * 1024;
+
+function parseGroupLogo(raw: string | null): string | null {
+  const url = (raw ?? "").trim();
+  if (url === "") return null;
+  if (HTTP_URL_RE.test(url)) return url.slice(0, 2048);
+  if (DATA_IMAGE_RE.test(url)) {
+    const size = Math.ceil((url.length - url.indexOf(",") - 1) * 0.75);
+    if (size > MAX_LOGO_BYTES) throw badRequest("El logo es demasiado grande (máximo 4 MB)");
+    return url;
+  }
+  throw badRequest("URL de logo inválida");
+}
+
 export const groupRoutes: FastifyPluginAsync = async (app) => {
   app.get("/api/groups", async (request) => {
     const user = requireAuth(request);
@@ -83,17 +99,19 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
   app.patch("/api/groups/:groupId", async (request) => {
     const { groupId } = request.params as { groupId: string };
     await requireAdmin(request, groupId);
-    const { name, currency, type } = request.body as {
+    const { name, currency, type, logoUrl } = request.body as {
       name?: string;
       currency?: string;
       type?: GroupType;
+      logoUrl?: string | null;
     };
     const cur = currency ? currency.toUpperCase() : undefined;
     if (cur && !VALID_CURRENCIES.has(cur)) throw badRequest("Moneda no soportada");
-    const patch: { name?: string; currency?: string; type?: GroupType } = {};
+    const patch: { name?: string; currency?: string; type?: GroupType; logoUrl?: string | null } = {};
     if (name?.trim()) patch.name = name.trim();
     if (cur) patch.currency = cur;
     if (type === "open" || type === "closed") patch.type = type;
+    if (logoUrl !== undefined) patch.logoUrl = parseGroupLogo(logoUrl);
     if (Object.keys(patch).length === 0) throw badRequest("Sin cambios");
     const group = await updateGroup(request.db, groupId, patch);
     return { group: await groupDetail(request.db, group, requireAuth(request).id) };
@@ -185,6 +203,7 @@ function groupToPublic(group: Group) {
     currency: group.currency,
     type: group.type,
     creatorId: group.creatorId,
+    logoUrl: group.logoUrl,
     createdAt: group.createdAt,
   };
 }

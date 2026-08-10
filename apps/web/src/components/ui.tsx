@@ -1,4 +1,4 @@
-import type { ReactNode, InputHTMLAttributes, ButtonHTMLAttributes, SelectHTMLAttributes } from "react";
+import { useEffect, type ReactNode, type InputHTMLAttributes, type ButtonHTMLAttributes, type SelectHTMLAttributes } from "react";
 
 export function Spinner({ className = "" }: { className?: string }) {
   return (
@@ -13,13 +13,14 @@ export function Button({
   variant = "primary",
   loading = false,
   className = "",
+  type = "button",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "ghost" | "danger";
   loading?: boolean;
 }) {
   const base =
-    "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none";
+    "inline-flex touch-manipulation select-none items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none";
   const variants = {
     primary: "bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-900/30",
     secondary: "bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700",
@@ -27,7 +28,7 @@ export function Button({
     danger: "bg-rose-600/90 text-white hover:bg-rose-500",
   };
   return (
-    <button className={`${base} ${variants[variant]} ${className}`} disabled={loading || props.disabled} {...props}>
+    <button type={type} className={`${base} ${variants[variant]} ${className}`} disabled={loading || props.disabled} {...props}>
       {loading ? <Spinner /> : null}
       {children}
     </button>
@@ -84,16 +85,31 @@ export function Modal({
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [open, onClose]);
+
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-slate-800 bg-slate-900 p-5 shadow-2xl sm:rounded-2xl">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+      <div className="absolute inset-0 touch-manipulation bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 max-h-[92vh] w-full max-w-lg touch-manipulation overscroll-contain overflow-y-auto rounded-t-2xl border border-slate-800 bg-slate-900 p-5 shadow-2xl sm:rounded-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-100">{title}</h2>
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+            className="touch-manipulation rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
             aria-label="Cerrar"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

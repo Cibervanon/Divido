@@ -7,6 +7,7 @@ export interface GroupSummary {
   type: GroupType;
   inviteToken?: string;
   creatorId: string;
+  logoUrl: string | null;
   createdAt: string;
   myRole: "admin" | "member";
   myBalance: number;
@@ -50,6 +51,7 @@ export interface GroupDetail {
     currency: string;
     type: GroupType;
     creatorId: string;
+    logoUrl: string | null;
     createdAt: string;
   };
   inviteUrl: string | null;

@@ -71,8 +71,9 @@ export default function DashboardPage() {
               €
             </div>
             <button
+              type="button"
               onClick={() => setProfileOpen(true)}
-              className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-left transition hover:bg-slate-800"
+              className="flex touch-manipulation items-center gap-2 rounded-lg px-1.5 py-1 text-left transition hover:bg-slate-800"
             >
               <Avatar name={user?.name ?? ""} url={user?.avatarUrl} size="sm" />
               <span>
@@ -209,9 +210,17 @@ function GroupCard({ group, onQuickAdd }: { group: GroupSummary; onQuickAdd: () 
       to={`/groups/${group.id}`}
       className="group relative flex items-center gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-4 transition hover:border-slate-700 hover:bg-slate-800/60"
     >
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-lg font-bold text-indigo-300">
-        {group.name[0]?.toUpperCase()}
-      </div>
+      {group.logoUrl ? (
+        <img
+          src={group.logoUrl}
+          alt={group.name}
+          className="h-11 w-11 shrink-0 rounded-xl object-cover"
+        />
+      ) : (
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-lg font-bold text-indigo-300">
+          {group.name[0]?.toUpperCase()}
+        </div>
+      )}
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-slate-100">{group.name}</p>
         <p className="mt-0.5 text-xs text-slate-500">

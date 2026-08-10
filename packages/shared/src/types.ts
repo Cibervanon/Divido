@@ -19,6 +19,7 @@ export interface Group {
   type: GroupType;
   inviteToken: string;
   creatorId: string;
+  logoUrl: string | null;
   createdAt: string;
 }
 
