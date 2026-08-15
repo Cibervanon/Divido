@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "reac
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { Avatar, Button, EmptyState, GhostBadge, Input, Modal, Money, Select, Spinner, Tabs, Toast, VerifiedBadge } from "../components/ui";
+import { Avatar, Button, EmptyState, GhostBadge, Input, Modal, Money, Select, Spinner, Tabs, Toast, VerifiedBadge, currencySymbol } from "../components/ui";
 import { ExpenseModal } from "../components/ExpenseModal";
 import { PaymentModal } from "../components/PaymentModal";
 import type {
@@ -15,7 +15,7 @@ import type {
   MemberInfo,
   ModificationRequestDto,
 } from "../lib/types";
-import type { InformalDebtStatus } from "@divido/shared";
+import type { InformalDebtStatus, SettlementTransfer } from "@divido/shared";
 
 type Tab = "expenses" | "balances" | "members" | "history" | "debts";
 
@@ -252,7 +252,7 @@ export default function GroupPage() {
             />
           ) : null}
           {tab === "balances" ? (
-            <BalancesTab detail={detail} myUserId={user.id} onOpenMember={openBreakdown} />
+            <BalancesTab detail={detail} myUserId={user.id} onOpenMember={openBreakdown} onToast={showToast} />
           ) : null}
           {tab === "members" ? (
             <MembersTab
@@ -679,39 +679,149 @@ function IconBtn({
 
 // ---------- Saldos ----------
 
+function buildSummaryText(groupName: string, currency: string, transfers: SettlementTransfer[]): string {
+  const sym = currencySymbol(currency);
+  const lines =
+    transfers.length > 0
+      ? transfers.map((t) => `• ${t.fromName} debe ${sym}${t.amount.toFixed(2)} a ${t.toName}`)
+      : ["• Sin deudas pendientes 🎉"];
+  return `📊 Resumen de ${groupName}\n${lines.join("\n")}`;
+}
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    window.prompt("Copia este texto:", text);
+    return false;
+  }
+}
+
 function BalancesTab({
   detail,
   myUserId,
   onOpenMember,
+  onToast,
 }: {
   detail: GroupDetail;
   myUserId: string;
   onOpenMember: (m: MemberInfo) => void;
+  onToast: (msg: string) => void;
 }) {
   const { group, balances, transfers, exMembers } = detail;
+  const memberById = new Map(detail.members.map((m) => [m.userId, m]));
+
+  async function shareSummary() {
+    const text = buildSummaryText(group.name, group.currency, transfers);
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch {
+        // Usuario canceló: copiamos como alternativa.
+      }
+    }
+    if (await copyText(text)) onToast("Resumen copiado. Pégalo en WhatsApp");
+  }
+
+  async function copyBizum(name: string, phone: string) {
+    if (await copyText(phone)) onToast(`Número de Bizum de ${name} copiado`);
+  }
+
+  function openPayLink(kind: "revolut" | "paypal", username: string) {
+    window.open(`https://${kind}.me/${encodeURIComponent(username)}`, "_blank", "noopener");
+  }
+
   return (
     <div className="space-y-5">
+      <button
+        onClick={() => void shareSummary()}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-500/40 bg-emerald-500/5 px-4 py-3 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/10"
+      >
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+        </svg>
+        Compartir resumen
+      </button>
+
       <div className="space-y-2">
-        {balances.map((b) => (
-          <button
-            key={b.userId}
-            onClick={() => onOpenMember({ userId: b.userId, name: b.name, email: null, avatarUrl: null, emailVerified: b.emailVerified ?? false, isGhost: b.isGhost ?? false, role: "member", status: "active", joinedAt: "", leftAt: null, frozenBalance: null })}
-            className={`flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-left transition hover:border-slate-700 ${
-              b.isMe ? "border-indigo-500/50" : ""
-            }`}
-          >
-            <Avatar name={b.name} size="sm" />
-            <span className="flex min-w-0 flex-1 items-center gap-1.5 text-sm font-medium text-slate-200">
-              <span className="truncate">{b.name}</span>
-              {b.emailVerified ? <VerifiedBadge /> : null}
-              {b.isGhost ? <GhostBadge showLabel={false} /> : null}
-              {b.isMe ? <span className="shrink-0 text-[10px] text-indigo-400">tú</span> : null}
-            </span>
-            <span className={`text-sm font-bold ${b.net > 0.004 ? "text-emerald-400" : b.net < -0.004 ? "text-rose-400" : "text-slate-500"}`}>
-              <Money amount={b.net} currency={group.currency} />
-            </span>
-          </button>
-        ))}
+        {balances.map((b) => {
+          const member = memberById.get(b.userId);
+          const methods: Array<{ kind: string; label: string; onClick: () => void }> = [];
+          if (b.net > 0.004 && member && !b.isMe) {
+            if (member.phone) {
+              methods.push({ kind: "bizum", label: "Bizum", onClick: () => void copyBizum(member!.name, member!.phone!) });
+            }
+            if (member.revolut) {
+              methods.push({
+                kind: "revolut",
+                label: "Revolut",
+                onClick: () => openPayLink("revolut", member!.revolut!),
+              });
+            }
+            if (member.paypal) {
+              methods.push({
+                kind: "paypal",
+                label: "PayPal",
+                onClick: () => openPayLink("paypal", member!.paypal!),
+              });
+            }
+          }
+          return (
+            <div
+              key={b.userId}
+              className={`rounded-2xl border bg-slate-900 ${b.isMe ? "border-indigo-500/50" : "border-slate-800"}`}
+            >
+              <button
+                onClick={() =>
+                  onOpenMember({
+                    userId: b.userId,
+                    name: b.name,
+                    email: member?.email ?? null,
+                    avatarUrl: member?.avatarUrl ?? null,
+                    emailVerified: b.emailVerified ?? false,
+                    isGhost: b.isGhost ?? false,
+                    phone: member?.phone ?? null,
+                    revolut: member?.revolut ?? null,
+                    paypal: member?.paypal ?? null,
+                    role: "member",
+                    status: "active",
+                    joinedAt: "",
+                    leftAt: null,
+                    frozenBalance: null,
+                  })
+                }
+                className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-800/50"
+              >
+                <Avatar name={b.name} size="sm" />
+                <span className="flex min-w-0 flex-1 items-center gap-1.5 text-sm font-medium text-slate-200">
+                  <span className="truncate">{b.name}</span>
+                  {b.emailVerified ? <VerifiedBadge /> : null}
+                  {b.isGhost ? <GhostBadge showLabel={false} /> : null}
+                  {b.isMe ? <span className="shrink-0 text-[10px] text-indigo-400">tú</span> : null}
+                </span>
+                <span className={`text-sm font-bold ${b.net > 0.004 ? "text-emerald-400" : b.net < -0.004 ? "text-rose-400" : "text-slate-500"}`}>
+                  <Money amount={b.net} currency={group.currency} />
+                </span>
+              </button>
+              {methods.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-800/70 px-4 py-2.5">
+                  <span className="text-[11px] text-slate-500">Pagar a {b.name}:</span>
+                  {methods.map((m) => (
+                    <button
+                      key={m.kind}
+                      onClick={m.onClick}
+                      className="rounded-lg bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-slate-200 transition hover:bg-slate-700"
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
 
       {transfers.length > 0 ? (
@@ -1253,7 +1363,7 @@ function HistoryTab({
         <EmptyState title="Sin actividad" subtitle="Aquí aparecerán gastos y pagos saldados en orden cronológico" />
       ) : (
         events.map((e, i) => {
-          const isMemberEvent = e.type === "member_joined" || e.type === "member_left";
+          const isMemberEvent = e.type === "member_joined" || e.type === "member_left" || e.type === "member_removed";
           const isExpense = e.type === "expense";
           const isPayment = e.type === "payment";
           const iconColor = isMemberEvent
@@ -1264,16 +1374,25 @@ function HistoryTab({
               ? "bg-emerald-500/15 text-emerald-400"
               : "bg-indigo-500/15 text-indigo-400";
           return (
-            <div key={`${e.type}-${e.id}-${i}`} className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-slate-900">
+            <div
+              key={`${e.type}-${e.id}-${i}`}
+              className={`flex items-center gap-3 rounded-xl px-3 py-3 ${
+                isMemberEvent ? "bg-slate-900/30 opacity-80" : "hover:bg-slate-900"
+              }`}
+            >
               <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconColor}`}>
                 {isMemberEvent ? (
                   e.type === "member_joined" ? (
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM3 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.766z" />
                     </svg>
-                  ) : (
+                  ) : e.type === "member_left" ? (
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M22 10.5h-6m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.766z" />
+                    </svg>
+                  ) : (
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M22 10.5h-6m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.766zM17 9l-5 5m0 0l5 5m-5-5h6" />
                     </svg>
                   )
                 ) : isPayment ? (
@@ -1291,7 +1410,11 @@ function HistoryTab({
                   {isMemberEvent ? (
                     <>
                       <strong>{e.userName}</strong>{" "}
-                      {e.type === "member_joined" ? "se unió al grupo" : "abandonó el grupo"}
+                      {e.type === "member_joined"
+                        ? "se unió al grupo"
+                        : e.type === "member_left"
+                          ? "abandonó el grupo"
+                          : "fue expulsado del grupo"}
                     </>
                   ) : isPayment ? (
                     <>

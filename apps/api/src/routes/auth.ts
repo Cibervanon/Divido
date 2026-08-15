@@ -136,6 +136,9 @@ function toAuthUser(user: {
   name: string;
   avatar_url: string | null;
   email_verified: number;
+  phone: string | null;
+  revolut: string | null;
+  paypal: string | null;
 }) {
   return {
     id: user.id,
@@ -143,5 +146,8 @@ function toAuthUser(user: {
     name: user.name,
     avatarUrl: user.avatar_url,
     emailVerified: Boolean(user.email_verified),
+    phone: user.phone,
+    revolut: user.revolut,
+    paypal: user.paypal,
   };
 }

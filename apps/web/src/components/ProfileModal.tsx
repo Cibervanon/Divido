@@ -8,6 +8,9 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
   const { user, refreshUser } = useAuth();
   const [name, setName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [phone, setPhone] = useState("");
+  const [revolut, setRevolut] = useState("");
+  const [paypal, setPaypal] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [verifying, setVerifying] = useState(false);
@@ -20,6 +23,9 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
     if (open && user) {
       setName(user.name);
       setAvatarUrl(user.avatarUrl ?? "");
+      setPhone(user.phone ?? "");
+      setRevolut(user.revolut ?? "");
+      setPaypal(user.paypal ?? "");
       setTheme(getStoredTheme());
       setError("");
       setVerificationUrl("");
@@ -52,7 +58,13 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
     setSaving(true);
     setError("");
     try {
-      await api.patch("/users/me", { name: name.trim(), avatarUrl: avatarUrl.trim() || null });
+      await api.patch("/users/me", {
+        name: name.trim(),
+        avatarUrl: avatarUrl.trim() || null,
+        phone: phone.trim() || null,
+        revolut: revolut.trim() || null,
+        paypal: paypal.trim() || null,
+      });
       await refreshUser();
       onClose();
     } catch (err) {
@@ -124,6 +136,34 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
           readOnly={isDataUrl}
           onChange={(e) => setAvatarUrl(e.target.value)}
         />
+
+        <div className="border-t border-slate-800 pt-4">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Métodos de pago</p>
+          <p className="mb-3 mt-0.5 text-[11px] text-slate-500">
+            Así los demás podrán pagarte al instante desde la vista de saldos del grupo.
+          </p>
+          <div className="space-y-3">
+            <Input
+              label="Teléfono (Bizum)"
+              placeholder="600 000 000"
+              inputMode="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+            <Input
+              label="Revolut (revolut.me/usuario)"
+              placeholder="tu-usuario"
+              value={revolut}
+              onChange={(e) => setRevolut(e.target.value)}
+            />
+            <Input
+              label="PayPal (paypal.me/usuario)"
+              placeholder="tu-usuario"
+              value={paypal}
+              onChange={(e) => setPaypal(e.target.value)}
+            />
+          </div>
+        </div>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
           <p className="text-xs font-medium text-slate-400">Email</p>

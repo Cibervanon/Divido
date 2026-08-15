@@ -9,6 +9,9 @@ export interface AuthUser {
   name: string;
   avatarUrl: string | null;
   emailVerified: boolean;
+  phone: string | null;
+  revolut: string | null;
+  paypal: string | null;
 }
 
 export function signToken(user: AuthUser): string {

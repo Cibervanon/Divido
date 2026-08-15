@@ -226,7 +226,7 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     await setMemberStatus(request.db, groupId, userId, "ex_member", new Date().toISOString(), frozen);
     await createGroupEvent(request.db, {
       groupId,
-      type: "member_left",
+      type: "member_removed",
       userId,
       userName: target.name,
     });
@@ -391,6 +391,9 @@ async function groupDetail(
       avatarUrl: m.avatar_url,
       emailVerified: Boolean(m.email_verified),
       isGhost: Boolean(m.is_ghost),
+      phone: m.phone,
+      revolut: m.revolut,
+      paypal: m.paypal,
       role: m.role,
       status: m.status,
       joinedAt: m.joined_at,

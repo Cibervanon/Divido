@@ -21,6 +21,9 @@ export interface UserRow {
   google_sub: string | null;
   email_verified: number;
   is_ghost: number;
+  phone: string | null;
+  revolut: string | null;
+  paypal: string | null;
   verify_token: string | null;
   verify_token_expires: string | null;
   reset_token: string | null;
@@ -56,6 +59,9 @@ export interface MemberRow extends MembershipRow {
   avatar_url: string | null;
   email_verified: number;
   is_ghost: number;
+  phone: string | null;
+  revolut: string | null;
+  paypal: string | null;
 }
 
 export interface ExpenseRow {
@@ -162,14 +168,25 @@ export async function findUserByResetToken(db: Db, token: string): Promise<UserR
 export async function updateUser(
   db: Db,
   userId: string,
-  patch: { name?: string; avatarUrl?: string | null }
+  patch: {
+    name?: string;
+    avatarUrl?: string | null;
+    phone?: string | null;
+    revolut?: string | null;
+    paypal?: string | null;
+  }
 ): Promise<UserRow> {
   const current = (await findUserById(db, userId))!;
-  await db.prepare("UPDATE users SET name = ?, avatar_url = ? WHERE id = ?").run(
-    patch.name?.trim() ?? current.name,
-    patch.avatarUrl === undefined ? current.avatar_url : patch.avatarUrl,
-    userId
-  );
+  await db
+    .prepare("UPDATE users SET name = ?, avatar_url = ?, phone = ?, revolut = ?, paypal = ? WHERE id = ?")
+    .run(
+      patch.name?.trim() ?? current.name,
+      patch.avatarUrl === undefined ? current.avatar_url : patch.avatarUrl,
+      patch.phone === undefined ? current.phone : patch.phone,
+      patch.revolut === undefined ? current.revolut : patch.revolut,
+      patch.paypal === undefined ? current.paypal : patch.paypal,
+      userId
+    );
   return (await findUserById(db, userId))!;
 }
 
@@ -391,7 +408,7 @@ export async function getMemberRow(
 ): Promise<MemberRow | undefined> {
   return (await db
     .prepare(
-      `SELECT m.*, u.name, u.email, u.avatar_url, u.email_verified, u.is_ghost
+      `SELECT m.*, u.name, u.email, u.avatar_url, u.email_verified, u.is_ghost, u.phone, u.revolut, u.paypal
        FROM group_members m
        JOIN users u ON u.id = m.user_id
        WHERE m.group_id = ? AND m.user_id = ?`
@@ -402,7 +419,7 @@ export async function getMemberRow(
 export async function listMembers(db: Db, groupId: string): Promise<MemberRow[]> {
   return (await db
     .prepare(
-      `SELECT m.*, u.name, u.email, u.avatar_url, u.email_verified, u.is_ghost
+      `SELECT m.*, u.name, u.email, u.avatar_url, u.email_verified, u.is_ghost, u.phone, u.revolut, u.paypal
        FROM group_members m
        JOIN users u ON u.id = m.user_id
        WHERE m.group_id = ?
@@ -444,10 +461,12 @@ export async function countActiveMemberships(db: Db, userId: string): Promise<nu
   return Number(row?.count ?? 0);
 }
 
+export type GroupEventType = "member_joined" | "member_left" | "member_removed";
+
 export interface GroupEventRow {
   id: string;
   group_id: string;
-  type: "member_joined" | "member_left";
+  type: GroupEventType;
   user_id: string;
   user_name: string;
   created_at: string;
@@ -455,7 +474,7 @@ export interface GroupEventRow {
 
 export async function createGroupEvent(
   db: Db,
-  input: { groupId: string; type: "member_joined" | "member_left"; userId: string; userName: string }
+  input: { groupId: string; type: GroupEventType; userId: string; userName: string }
 ): Promise<void> {
   await db
     .prepare(

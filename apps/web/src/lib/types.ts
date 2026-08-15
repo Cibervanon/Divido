@@ -23,6 +23,9 @@ export interface MemberInfo {
   avatarUrl: string | null;
   emailVerified: boolean;
   isGhost: boolean;
+  phone: string | null;
+  revolut: string | null;
+  paypal: string | null;
   role: "admin" | "member";
   status: "active" | "inactive" | "ex_member";
   joinedAt: string;
@@ -128,7 +131,7 @@ export interface ModificationRequestDto {
 }
 
 export interface HistoryEvent {
-  type: "expense" | "payment" | "member_joined" | "member_left";
+  type: "expense" | "payment" | "member_joined" | "member_left" | "member_removed";
   id: string;
   date: string;
   description?: string;

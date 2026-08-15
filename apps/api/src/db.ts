@@ -67,6 +67,9 @@ CREATE TABLE IF NOT EXISTS users (
   google_sub TEXT UNIQUE,
   email_verified INTEGER NOT NULL DEFAULT 0,
   is_ghost BOOLEAN NOT NULL DEFAULT FALSE,
+  phone TEXT,
+  revolut TEXT,
+  paypal TEXT,
   verify_token TEXT,
   verify_token_expires TEXT,
   reset_token TEXT,
@@ -194,6 +197,9 @@ const MIGRATIONS = [
   "ALTER TABLE expense_participants ADD COLUMN IF NOT EXISTS share_amount REAL",
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_ghost BOOLEAN NOT NULL DEFAULT FALSE",
   "ALTER TABLE groups ADD COLUMN IF NOT EXISTS enabled_extras TEXT NOT NULL DEFAULT '[]'",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS revolut TEXT",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS paypal TEXT",
 ];
 
 export async function initDb(db: Db): Promise<void> {

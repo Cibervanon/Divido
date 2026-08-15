@@ -13,6 +13,9 @@ export interface Me {
   name: string;
   avatarUrl: string | null;
   emailVerified: boolean;
+  phone: string | null;
+  revolut: string | null;
+  paypal: string | null;
 }
 
 interface AuthContextValue {

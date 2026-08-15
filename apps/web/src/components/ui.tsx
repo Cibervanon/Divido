@@ -274,7 +274,7 @@ const SYMBOLS: Record<string, string> = {
   PEN: "S/", BRL: "R$", CHF: "Fr", CAD: "C$", AUD: "A$", CNY: "¥", INR: "₹",
 };
 
-function currencySymbol(code: string): string {
+export function currencySymbol(code: string): string {
   return SYMBOLS[code.toUpperCase()] ?? code.toUpperCase();
 }
 

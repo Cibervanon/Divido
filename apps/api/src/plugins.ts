@@ -29,6 +29,9 @@ export const authPlugin = fp(async (app: FastifyInstance) => {
           name: row.name,
           avatarUrl: row.avatar_url,
           emailVerified: Boolean(row.email_verified),
+          phone: row.phone,
+          revolut: row.revolut,
+          paypal: row.paypal,
         };
       }
     } catch {
