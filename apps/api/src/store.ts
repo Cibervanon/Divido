@@ -51,6 +51,7 @@ export interface MembershipRow {
   joined_at: string;
   left_at: string | null;
   frozen_balance: number | null;
+  claim_token: string | null;
 }
 
 export interface MemberRow extends MembershipRow {
@@ -266,19 +267,89 @@ export async function createGhostUser(
   return createUser(db, { email: null, name: input.name, avatarUrl: input.avatarUrl, isGhost: true });
 }
 
-export async function claimGhostUser(
-  db: Db,
-  userId: string,
-  patch: { email: string; passwordHash?: string; name?: string; googleSub?: string }
-): Promise<UserRow> {
+export async function claimGhostUser(db: Db, ghostId: string, realUserId: string): Promise<void> {
+  if (ghostId === realUserId) return;
+
+  await db.prepare("UPDATE expenses SET payer_id = ? WHERE payer_id = ?").run(realUserId, ghostId);
+  await db.prepare("UPDATE expenses SET created_by_id = ? WHERE created_by_id = ?").run(realUserId, ghostId);
+  await db.prepare("UPDATE expense_comments SET author_id = ? WHERE author_id = ?").run(realUserId, ghostId);
   await db
     .prepare(
-      `UPDATE users SET is_ghost = 0, email = ?, password_hash = COALESCE(?, password_hash),
-       name = COALESCE(?, name), google_sub = COALESCE(?, google_sub)
-       WHERE id = ?`
+      "DELETE FROM expense_participants WHERE user_id = ? AND expense_id IN (SELECT expense_id FROM expense_participants WHERE user_id = ?)"
     )
-    .run(patch.email, patch.passwordHash ?? null, patch.name ?? null, patch.googleSub ?? null, userId);
-  return (await findUserById(db, userId))!;
+    .run(ghostId, realUserId);
+  await db.prepare("UPDATE expense_participants SET user_id = ? WHERE user_id = ?").run(realUserId, ghostId);
+  await db.prepare("UPDATE payments SET from_user_id = ? WHERE from_user_id = ?").run(realUserId, ghostId);
+  await db.prepare("UPDATE payments SET to_user_id = ? WHERE to_user_id = ?").run(realUserId, ghostId);
+  await db.prepare("UPDATE payments SET created_by_id = ? WHERE created_by_id = ?").run(realUserId, ghostId);
+  await db.prepare("UPDATE modification_requests SET requester_id = ? WHERE requester_id = ?").run(realUserId, ghostId);
+  await db.prepare("UPDATE informal_debts SET creator_id = ? WHERE creator_id = ?").run(realUserId, ghostId);
+  await db.prepare("UPDATE informal_debts SET creditor_id = ? WHERE creditor_id = ?").run(realUserId, ghostId);
+  await db.prepare("UPDATE informal_debts SET debtor_id = ? WHERE debtor_id = ?").run(realUserId, ghostId);
+  await db.prepare("UPDATE group_events SET user_id = ? WHERE user_id = ?").run(realUserId, ghostId);
+  await db.prepare("UPDATE groups SET creator_id = ? WHERE creator_id = ?").run(realUserId, ghostId);
+
+  const ghostMemberships = (await db
+    .prepare("SELECT group_id, status FROM group_members WHERE user_id = ?")
+    .all(ghostId)) as unknown as Array<{ group_id: string; status: MemberStatus }>;
+  for (const gm of ghostMemberships) {
+    const existing = (await db
+      .prepare("SELECT user_id, status FROM group_members WHERE group_id = ? AND user_id = ?")
+      .get(gm.group_id, realUserId)) as { user_id: string; status: MemberStatus } | undefined;
+    if (existing) {
+      await db.prepare("DELETE FROM group_members WHERE group_id = ? AND user_id = ?").run(gm.group_id, ghostId);
+      if (existing.status !== "active") {
+        await db
+          .prepare(
+            "UPDATE group_members SET status = 'active', left_at = NULL, frozen_balance = NULL, claim_token = NULL WHERE group_id = ? AND user_id = ?"
+          )
+          .run(gm.group_id, realUserId);
+      }
+    } else {
+      await db
+        .prepare("UPDATE group_members SET user_id = ?, claim_token = NULL WHERE group_id = ? AND user_id = ?")
+        .run(realUserId, gm.group_id, ghostId);
+    }
+  }
+
+  await db.prepare("DELETE FROM users WHERE id = ?").run(ghostId);
+}
+
+export async function setMembershipClaimToken(
+  db: Db,
+  groupId: string,
+  userId: string,
+  token: string | null
+): Promise<void> {
+  await db.prepare("UPDATE group_members SET claim_token = ? WHERE group_id = ? AND user_id = ?").run(
+    token,
+    groupId,
+    userId
+  );
+}
+
+export interface MembershipClaimRow {
+  group_id: string;
+  user_id: string;
+  role: MemberRole;
+  status: MemberStatus;
+  joined_at: string;
+  claim_token: string;
+  group_name: string;
+  currency: string;
+  user_name: string;
+}
+
+export async function findMembershipByClaimToken(db: Db, token: string): Promise<MembershipClaimRow | undefined> {
+  return (await db
+    .prepare(
+      `SELECT m.*, g.name AS group_name, g.currency, u.name AS user_name
+       FROM group_members m
+       JOIN groups g ON g.id = m.group_id
+       JOIN users u ON u.id = m.user_id
+       WHERE m.claim_token = ? AND m.status = 'active'`
+    )
+    .get(token)) as MembershipClaimRow | undefined;
 }
 
 export async function linkGoogleToUser(

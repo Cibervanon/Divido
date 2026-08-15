@@ -19,6 +19,25 @@ import type { InformalDebtStatus, SettlementTransfer } from "@divido/shared";
 
 type Tab = "expenses" | "balances" | "members" | "history" | "debts";
 
+function normalizeName(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ");
+}
+
+function similarNames(a: string, b: string): boolean {
+  const na = normalizeName(a).trim();
+  const nb = normalizeName(b).trim();
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  if (na.includes(nb) || nb.includes(na)) return true;
+  const ta = na.split(" ").filter((t) => t.length > 2);
+  const tb = nb.split(" ").filter((t) => t.length > 2);
+  return ta.some((t) => tb.includes(t));
+}
+
 export default function GroupPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const { user } = useAuth();
@@ -258,10 +277,12 @@ export default function GroupPage() {
             <MembersTab
               detail={detail}
               myUserId={user.id}
+              myName={user.name}
               isAdmin={isAdmin}
               onCopyInvite={copyInvite}
               onChanged={load}
               onOpenMember={openBreakdown}
+              onToast={showToast}
             />
           ) : null}
           {tab === "history" ? <HistoryTab events={history} currency={group.currency} memberName={memberName} /> : null}
@@ -871,22 +892,53 @@ function BalancesTab({
 function MembersTab({
   detail,
   myUserId,
+  myName,
   isAdmin,
   onCopyInvite,
   onChanged,
   onOpenMember,
+  onToast,
 }: {
   detail: GroupDetail;
   myUserId: string;
+  myName: string;
   isAdmin: boolean;
   onCopyInvite: () => void;
   onChanged: () => void;
   onOpenMember: (m: MemberInfo) => void;
+  onToast: (msg: string) => void;
 }) {
   const { group, members } = detail;
   const active = members.filter((m) => m.status === "active");
   const ex = members.filter((m) => m.status === "ex_member");
   const [ghostOpen, setGhostOpen] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const matchingGhosts = active.filter((m) => m.isGhost && m.userId !== myUserId && similarNames(m.name, myName));
+
+  async function claimGhost(ghost: MemberInfo) {
+    setClaiming(true);
+    try {
+      await api.post(`/groups/${group.id}/claim-ghost`, { ghostUserId: ghost.userId });
+      onChanged();
+      onToast(`Perfil de ${ghost.name} reclamado. Su historial ahora es tuyo`);
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Error");
+    } finally {
+      setClaiming(false);
+    }
+  }
+
+  async function sendClaimLink(ghost: MemberInfo) {
+    try {
+      const res = await api.post<{ claimUrl: string }>(
+        `/groups/${group.id}/ghost-members/${ghost.userId}/claim-token`
+      );
+      await copyText(res.claimUrl);
+      onToast("Enlace de reclamación copiado. Compártelo con esa persona");
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Error");
+    }
+  }
 
   async function setRole(userId: string, role: "admin" | "member") {
     try {
@@ -909,6 +961,25 @@ function MembersTab({
 
   return (
     <div className="space-y-5">
+      {matchingGhosts.length > 0 ? (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <p className="text-sm font-semibold text-amber-200">
+            ¿Eres {matchingGhosts[0].name}?
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            Hay un participante sin cuenta con un nombre parecido al tuyo. Reclámalo para conservar su historial en el grupo.
+          </p>
+          <Button
+            variant="secondary"
+            className="mt-3 !px-3 !py-1.5 text-xs"
+            loading={claiming}
+            onClick={() => claimGhost(matchingGhosts[0])}
+          >
+            Reclamar mi perfil
+          </Button>
+        </div>
+      ) : null}
+
       {isAdmin ? (
         <div className="space-y-2">
           <button
@@ -955,6 +1026,11 @@ function MembersTab({
               </div>
               {isAdmin && !isMe && m.userId !== group.creatorId ? (
                 <div className="flex shrink-0 gap-1.5" onClick={(e) => e.stopPropagation()}>
+                  {m.isGhost ? (
+                    <Button variant="ghost" className="!px-2 !py-1 text-[11px]" onClick={() => sendClaimLink(m)}>
+                      Enviar enlace
+                    </Button>
+                  ) : null}
                   {m.role === "admin" ? (
                     <Button variant="ghost" className="!px-2 !py-1 text-[11px]" onClick={() => setRole(m.userId, "member")}>
                       Quitar admin

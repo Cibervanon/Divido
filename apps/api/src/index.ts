@@ -7,6 +7,7 @@ import { HttpError } from "./errors.js";
 import { authRoutes } from "./routes/auth.js";
 import { groupRoutes } from "./routes/groups.js";
 import { joinRoutes } from "./routes/join.js";
+import { claimRoutes } from "./routes/claim.js";
 import { expenseRoutes } from "./routes/expenses.js";
 import { paymentRoutes } from "./routes/payments.js";
 import { requestRoutes } from "./routes/requests.js";
@@ -34,6 +35,7 @@ export async function buildApp(db = createDb(config.databaseUrl)) {
 
   app.register(authRoutes);
   app.register(joinRoutes);
+  app.register(claimRoutes);
   app.register(groupRoutes);
   app.register(expenseRoutes);
   app.register(paymentRoutes);

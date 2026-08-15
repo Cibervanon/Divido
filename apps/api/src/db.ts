@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS group_members (
   joined_at TEXT NOT NULL,
   left_at TEXT,
   frozen_balance REAL,
+  claim_token TEXT,
   PRIMARY KEY (group_id, user_id)
 );
 
@@ -200,6 +201,7 @@ const MIGRATIONS = [
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT",
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS revolut TEXT",
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS paypal TEXT",
+  "ALTER TABLE group_members ADD COLUMN IF NOT EXISTS claim_token TEXT",
 ];
 
 export async function initDb(db: Db): Promise<void> {

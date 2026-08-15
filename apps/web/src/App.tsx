@@ -8,6 +8,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DashboardPage from "./pages/DashboardPage";
 import GroupPage from "./pages/GroupPage";
 import JoinPage from "./pages/JoinPage";
+import ClaimPage from "./pages/ClaimPage";
 import GoogleCallbackPage from "./pages/GoogleCallbackPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 
@@ -34,6 +35,7 @@ export default function App() {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/join/:token" element={<JoinPage />} />
+      <Route path="/claim/:token" element={<ClaimPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
       <Route
