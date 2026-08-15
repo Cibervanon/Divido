@@ -176,6 +176,26 @@ CREATE TABLE IF NOT EXISTS informal_debts (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS common_pot_contributions (
+  id TEXT PRIMARY KEY,
+  group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  amount REAL NOT NULL,
+  note TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS recurring_expenses (
+  id TEXT PRIMARY KEY,
+  group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  amount REAL NOT NULL,
+  frequency TEXT NOT NULL DEFAULT 'monthly',
+  responsible_id TEXT NOT NULL REFERENCES users(id),
+  created_at TEXT NOT NULL,
+  active INTEGER NOT NULL DEFAULT 1
+);
+
 CREATE INDEX IF NOT EXISTS idx_members_user ON group_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_members_group ON group_members(group_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_group ON expenses(group_id);
@@ -186,6 +206,8 @@ CREATE INDEX IF NOT EXISTS idx_requests_group ON modification_requests(group_id)
 CREATE INDEX IF NOT EXISTS idx_requests_expense ON modification_requests(expense_id);
 CREATE INDEX IF NOT EXISTS idx_events_group ON group_events(group_id);
 CREATE INDEX IF NOT EXISTS idx_informal_debts_group ON informal_debts(group_id);
+CREATE INDEX IF NOT EXISTS idx_pot_group ON common_pot_contributions(group_id);
+CREATE INDEX IF NOT EXISTS idx_recurring_group ON recurring_expenses(group_id);
 `;
 
 const MIGRATIONS = [

@@ -666,6 +666,179 @@ export async function updateInformalDebtStatus(db: Db, id: string, status: Infor
   return (await getInformalDebt(db, id))!;
 }
 
+// ---------- Bote común ----------
+
+export type RecurringFrequency = "weekly" | "monthly";
+
+export interface PotContribution {
+  id: string;
+  groupId: string;
+  userId: string;
+  userName: string;
+  userAvatar: string | null;
+  amount: number;
+  note: string | null;
+  createdAt: string;
+}
+
+interface PotContributionRow {
+  id: string;
+  group_id: string;
+  user_id: string;
+  amount: number;
+  note: string | null;
+  created_at: string;
+  user_name: string;
+  user_avatar: string | null;
+}
+
+function toPotContribution(r: PotContributionRow): PotContribution {
+  return {
+    id: r.id,
+    groupId: r.group_id,
+    userId: r.user_id,
+    userName: r.user_name,
+    userAvatar: r.user_avatar,
+    amount: r.amount,
+    note: r.note,
+    createdAt: r.created_at,
+  };
+}
+
+export async function listPotContributions(db: Db, groupId: string): Promise<PotContribution[]> {
+  const rows = (await db
+    .prepare(
+      `SELECT c.*, u.name AS user_name, u.avatar_url AS user_avatar
+       FROM common_pot_contributions c
+       JOIN users u ON u.id = c.user_id
+       WHERE c.group_id = ?
+       ORDER BY c.created_at DESC`
+    )
+    .all(groupId)) as unknown as PotContributionRow[];
+  return rows.map(toPotContribution);
+}
+
+export async function addPotContribution(
+  db: Db,
+  input: { groupId: string; userId: string; amount: number; note?: string | null }
+): Promise<PotContribution> {
+  const id = randomUUID();
+  await db
+    .prepare(
+      `INSERT INTO common_pot_contributions (id, group_id, user_id, amount, note, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    )
+    .run(id, input.groupId, input.userId, input.amount, input.note ?? null, new Date().toISOString());
+  const row = (await db
+    .prepare(
+      `SELECT c.*, u.name AS user_name, u.avatar_url AS user_avatar
+       FROM common_pot_contributions c
+       JOIN users u ON u.id = c.user_id
+       WHERE c.id = ?`
+    )
+    .get(id)) as unknown as PotContributionRow;
+  return toPotContribution(row);
+}
+
+export async function deletePotContribution(db: Db, id: string): Promise<void> {
+  await db.prepare("DELETE FROM common_pot_contributions WHERE id = ?").run(id);
+}
+
+export async function getPotBalance(db: Db, groupId: string): Promise<number> {
+  const row = (await db
+    .prepare("SELECT COALESCE(SUM(amount), 0) AS total FROM common_pot_contributions WHERE group_id = ?")
+    .get(groupId)) as { total: number | string } | undefined;
+  return Math.round(Number(row?.total ?? 0) * 100) / 100;
+}
+
+// ---------- Gastos fijos ----------
+
+export interface RecurringExpense {
+  id: string;
+  groupId: string;
+  title: string;
+  amount: number;
+  frequency: RecurringFrequency;
+  responsibleId: string;
+  responsibleName: string;
+  createdAt: string;
+  active: boolean;
+}
+
+interface RecurringExpenseRow {
+  id: string;
+  group_id: string;
+  title: string;
+  amount: number;
+  frequency: RecurringFrequency;
+  responsible_id: string;
+  created_at: string;
+  active: number;
+  responsible_name: string;
+}
+
+function toRecurringExpense(r: RecurringExpenseRow): RecurringExpense {
+  return {
+    id: r.id,
+    groupId: r.group_id,
+    title: r.title,
+    amount: r.amount,
+    frequency: r.frequency,
+    responsibleId: r.responsible_id,
+    responsibleName: r.responsible_name,
+    createdAt: r.created_at,
+    active: Boolean(r.active),
+  };
+}
+
+export async function listRecurringExpenses(db: Db, groupId: string): Promise<RecurringExpense[]> {
+  const rows = (await db
+    .prepare(
+      `SELECT r.*, u.name AS responsible_name
+       FROM recurring_expenses r
+       JOIN users u ON u.id = r.responsible_id
+       WHERE r.group_id = ?
+       ORDER BY r.created_at DESC`
+    )
+    .all(groupId)) as unknown as RecurringExpenseRow[];
+  return rows.map(toRecurringExpense);
+}
+
+export async function getRecurringExpense(db: Db, id: string): Promise<RecurringExpense | undefined> {
+  const row = (await db
+    .prepare(
+      `SELECT r.*, u.name AS responsible_name
+       FROM recurring_expenses r
+       JOIN users u ON u.id = r.responsible_id
+       WHERE r.id = ?`
+    )
+    .get(id)) as unknown as RecurringExpenseRow | undefined;
+  return row ? toRecurringExpense(row) : undefined;
+}
+
+export async function createRecurringExpense(
+  db: Db,
+  input: { groupId: string; title: string; amount: number; frequency: RecurringFrequency; responsibleId: string }
+): Promise<RecurringExpense> {
+  const id = randomUUID();
+  await db
+    .prepare(
+      `INSERT INTO recurring_expenses (id, group_id, title, amount, frequency, responsible_id, created_at, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1)`
+    )
+    .run(id, input.groupId, input.title, input.amount, input.frequency, input.responsibleId, new Date().toISOString());
+  return (await getRecurringExpense(db, id))!;
+}
+
+export async function setRecurringExpenseActive(db: Db, id: string, active: boolean): Promise<RecurringExpense> {
+  await db.prepare("UPDATE recurring_expenses SET active = ? WHERE id = ?").run(active ? 1 : 0, id);
+  return (await getRecurringExpense(db, id))!;
+}
+
+export async function deleteRecurringExpense(db: Db, id: string): Promise<void> {
+  await db.prepare("DELETE FROM recurring_expenses WHERE id = ?").run(id);
+}
+
 // ---------- Expenses ----------
 
 export interface CreateExpenseInput {

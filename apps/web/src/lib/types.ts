@@ -195,3 +195,28 @@ export interface InformalDebtDto {
   creditorIsGhost: boolean;
   debtorIsGhost: boolean;
 }
+
+export type RecurringFrequency = "weekly" | "monthly";
+
+export interface PotContributionDto {
+  id: string;
+  groupId: string;
+  userId: string;
+  userName: string;
+  userAvatar: string | null;
+  amount: number;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface RecurringExpenseDto {
+  id: string;
+  groupId: string;
+  title: string;
+  amount: number;
+  frequency: RecurringFrequency;
+  responsibleId: string;
+  responsibleName: string;
+  createdAt: string;
+  active: boolean;
+}

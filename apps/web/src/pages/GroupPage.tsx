@@ -14,10 +14,13 @@ import type {
   InformalDebtDto,
   MemberInfo,
   ModificationRequestDto,
+  PotContributionDto,
+  RecurringExpenseDto,
+  RecurringFrequency,
 } from "../lib/types";
 import type { InformalDebtStatus, SettlementTransfer } from "@divido/shared";
 
-type Tab = "expenses" | "balances" | "members" | "history" | "debts";
+type Tab = "expenses" | "balances" | "members" | "history" | "debts" | "pot" | "recurring";
 
 function normalizeName(s: string): string {
   return s
@@ -38,6 +41,24 @@ function similarNames(a: string, b: string): boolean {
   return ta.some((t) => tb.includes(t));
 }
 
+const GROUP_EXTRAS: Array<{ key: string; label: string; description: string }> = [
+  {
+    key: "informal_debts",
+    label: "Piques y Apuestas",
+    description: "Deudas informales entre miembros (apuestas, favores...), aparte del balance de gastos.",
+  },
+  {
+    key: "common_pot",
+    label: "Bote Común",
+    description: "Fondo común al que los miembros aportan dinero para gastos compartidos.",
+  },
+  {
+    key: "recurring_expenses",
+    label: "Gastos Fijos",
+    description: "Suscripciones o cuotas recurrentes (mensuales o semanales) con un miembro responsable.",
+  },
+];
+
 export default function GroupPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const { user } = useAuth();
@@ -48,6 +69,9 @@ export default function GroupPage() {
   const [requests, setRequests] = useState<ModificationRequestDto[]>([]);
   const [history, setHistory] = useState<HistoryEvent[]>([]);
   const [debts, setDebts] = useState<InformalDebtDto[]>([]);
+  const [potBalance, setPotBalance] = useState(0);
+  const [potContributions, setPotContributions] = useState<PotContributionDto[]>([]);
+  const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpenseDto[]>([]);
   const [tab, setTab] = useState<Tab>("expenses");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -55,6 +79,8 @@ export default function GroupPage() {
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [showNewDebt, setShowNewDebt] = useState(false);
+  const [showNewContribution, setShowNewContribution] = useState(false);
+  const [showNewRecurring, setShowNewRecurring] = useState(false);
   const [editTarget, setEditTarget] = useState<ExpenseDto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ExpenseDto | null>(null);
   const [breakdownTarget, setBreakdownTarget] = useState<MemberInfo | null>(null);
@@ -75,18 +101,27 @@ export default function GroupPage() {
     if (!groupId) return;
     setLoading(true);
     try {
-      const [d, e, h, r, dd] = await Promise.all([
+      const [d, e, h, r, dd, pot, rec] = await Promise.all([
         api.get<GroupDetail>(`/groups/${groupId}`),
         api.get<{ expenses: ExpenseDto[] }>(`/groups/${groupId}/expenses`),
         api.get<{ events: HistoryEvent[] }>(`/groups/${groupId}/history`),
         api.get<{ requests: ModificationRequestDto[] }>(`/groups/${groupId}/requests`).catch(() => null),
         api.get<{ debts: InformalDebtDto[] }>(`/groups/${groupId}/informal-debts`).catch(() => null),
+        api
+          .get<{ balance: number; contributions: PotContributionDto[] }>(`/groups/${groupId}/common-pot`)
+          .catch(() => null),
+        api.get<{ expenses: RecurringExpenseDto[] }>(`/groups/${groupId}/recurring-expenses`).catch(() => null),
       ]);
       setDetail(d);
       setExpenses(e.expenses);
       setHistory(h.events);
       if (r) setRequests(r.requests);
       if (dd) setDebts(dd.debts);
+      if (pot) {
+        setPotBalance(pot.balance);
+        setPotContributions(pot.contributions);
+      }
+      if (rec) setRecurringExpenses(rec.expenses);
       setError("");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error cargando el grupo");
@@ -121,6 +156,8 @@ export default function GroupPage() {
   const g = detail;
   const { group } = g;
   const hasDebts = (detail.group.enabledExtras ?? []).includes("informal_debts");
+  const hasPot = (detail.group.enabledExtras ?? []).includes("common_pot");
+  const hasRecurring = (detail.group.enabledExtras ?? []).includes("recurring_expenses");
   const myBalance = g.balances.find((b) => b.isMe)?.net ?? 0;
   const positive = myBalance > 0.004;
   const negative = myBalance < -0.004;
@@ -248,8 +285,10 @@ export default function GroupPage() {
             { key: "expenses", label: "Gastos" },
             { key: "balances", label: "Saldos" },
             { key: "members", label: "Miembros" },
-            { key: "history", label: "Historial" },
+            { key: "history", label: "Actividad" },
             ...(hasDebts ? [{ key: "debts", label: "Piques" }] : []),
+            ...(hasPot ? [{ key: "pot", label: "Bote" }] : []),
+            ...(hasRecurring ? [{ key: "recurring", label: "Fijos" }] : []),
           ]}
           active={tab}
           onChange={(k) => setTab(k as Tab)}
@@ -285,7 +324,9 @@ export default function GroupPage() {
               onToast={showToast}
             />
           ) : null}
-          {tab === "history" ? <HistoryTab events={history} currency={group.currency} memberName={memberName} /> : null}
+          {tab === "history" ? (
+            <HistoryTab events={history} currency={group.currency} groupName={group.name} memberName={memberName} />
+          ) : null}
           {tab === "debts" && hasDebts ? (
             <DebtsTab
               debts={debts}
@@ -294,6 +335,27 @@ export default function GroupPage() {
               currency={group.currency}
               onChanged={load}
               onNew={() => setShowNewDebt(true)}
+            />
+          ) : null}
+          {tab === "pot" && hasPot ? (
+            <PotTab
+              balance={potBalance}
+              contributions={potContributions}
+              myUserId={user.id}
+              isAdmin={isAdmin}
+              currency={group.currency}
+              onChanged={load}
+              onNew={() => setShowNewContribution(true)}
+            />
+          ) : null}
+          {tab === "recurring" && hasRecurring ? (
+            <RecurringTab
+              expenses={recurringExpenses}
+              myUserId={user.id}
+              isAdmin={isAdmin}
+              currency={group.currency}
+              onChanged={load}
+              onNew={() => setShowNewRecurring(true)}
             />
           ) : null}
         </div>
@@ -393,6 +455,23 @@ export default function GroupPage() {
       <NewDebtModal
         open={showNewDebt}
         onClose={() => setShowNewDebt(false)}
+        groupId={group.id}
+        currency={group.currency}
+        members={detail.members}
+        onCreated={load}
+      />
+
+      <NewContributionModal
+        open={showNewContribution}
+        onClose={() => setShowNewContribution(false)}
+        groupId={group.id}
+        currency={group.currency}
+        onCreated={load}
+      />
+
+      <NewRecurringModal
+        open={showNewRecurring}
+        onClose={() => setShowNewRecurring(false)}
         groupId={group.id}
         currency={group.currency}
         members={detail.members}
@@ -1351,6 +1430,422 @@ function NewDebtModal({
   );
 }
 
+// ---------- Bote común ----------
+
+function PotTab({
+  balance,
+  contributions,
+  myUserId,
+  isAdmin,
+  currency,
+  onChanged,
+  onNew,
+}: {
+  balance: number;
+  contributions: PotContributionDto[];
+  myUserId: string;
+  isAdmin: boolean;
+  currency: string;
+  onChanged: () => void;
+  onNew: () => void;
+}) {
+  async function removeContribution(contribution: PotContributionDto) {
+    if (!confirm(`¿Eliminar la aportación de ${contribution.userName}?`)) return;
+    try {
+      await api.delete(`/groups/${contribution.groupId}/common-pot/contributions/${contribution.id}`);
+      onChanged();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Error");
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-slate-900/50 p-5">
+        <p className="text-xs font-medium uppercase tracking-wider text-emerald-400">Saldo del bote común</p>
+        <p className="mt-1 text-3xl font-extrabold text-emerald-300">
+          <Money amount={balance} currency={currency} />
+        </p>
+        <p className="mt-1 text-xs text-slate-500">Dinero aportado por los miembros para gastos compartidos del grupo</p>
+        <Button variant="secondary" className="mt-4" onClick={onNew}>
+          Aportar al bote
+        </Button>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Aportaciones</p>
+        {contributions.length === 0 ? (
+          <EmptyState
+            title="El bote está vacío"
+            subtitle="Cada miembro puede aportar dinero para gastos compartidos"
+            icon={
+              <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
+          />
+        ) : (
+          contributions.map((c) => (
+            <div
+              key={c.id}
+              className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3"
+            >
+              <Avatar name={c.userName} url={c.userAvatar} size="sm" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-slate-200">{c.userName}</p>
+                <p className="truncate text-[11px] text-slate-500">
+                  {c.note ? `${c.note} · ` : ""}
+                  {fmtDate(c.createdAt)}
+                </p>
+              </div>
+              <span className="shrink-0 text-sm font-bold text-emerald-400">
+                <Money amount={c.amount} currency={currency} />
+              </span>
+              {isAdmin || c.userId === myUserId ? (
+                <button
+                  onClick={() => void removeContribution(c)}
+                  className="shrink-0 rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-rose-400"
+                  title="Eliminar aportación"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                  </svg>
+                </button>
+              ) : null}
+            </div>
+          ))
+        )}
+      </div>
+
+      <p className="text-center text-[11px] text-slate-600">
+        Las aportaciones al bote no afectan al balance de gastos compartidos.
+      </p>
+    </div>
+  );
+}
+
+function NewContributionModal({
+  open,
+  onClose,
+  groupId,
+  currency,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  groupId: string;
+  currency: string;
+  onCreated: () => void;
+}) {
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setAmount("");
+      setNote("");
+      setError("");
+    }
+  }, [open]);
+
+  async function submit() {
+    setLoading(true);
+    setError("");
+    try {
+      await api.post(`/groups/${groupId}/common-pot/contributions`, {
+        amount: parseFloat(amount),
+        note: note.trim(),
+      });
+      onCreated();
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const amountNum = parseFloat(amount);
+  const canSubmit = Number.isFinite(amountNum) && amountNum > 0 && !loading;
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Aportar al bote común"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={() => void submit()} disabled={!canSubmit} loading={loading}>
+            Aportar
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <p className="text-xs text-slate-400">
+          El importe se suma al saldo del bote del grupo. Apunta un concepto para que los demás sepan a qué se destina.
+        </p>
+        <Input
+          label="Importe"
+          type="number"
+          min="0"
+          step="0.01"
+          inputMode="decimal"
+          placeholder="0.00"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          rightElement={<span className="text-xs font-semibold text-slate-400">{currency}</span>}
+        />
+        <Input label="Concepto (opcional)" placeholder="Ej. Caja para la barbacoa" value={note} onChange={(e) => setNote(e.target.value)} />
+        {error ? <p className="text-xs font-medium text-rose-400">{error}</p> : null}
+      </div>
+    </Modal>
+  );
+}
+
+// ---------- Gastos fijos ----------
+
+const FREQUENCY_LABELS: Record<RecurringFrequency, string> = {
+  weekly: "Semanal",
+  monthly: "Mensual",
+};
+
+function RecurringTab({
+  expenses,
+  myUserId,
+  isAdmin,
+  currency,
+  onChanged,
+  onNew,
+}: {
+  expenses: RecurringExpenseDto[];
+  myUserId: string;
+  isAdmin: boolean;
+  currency: string;
+  onChanged: () => void;
+  onNew: () => void;
+}) {
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  async function toggleActive(expense: RecurringExpenseDto) {
+    setTogglingId(expense.id);
+    try {
+      await api.patch(`/groups/${expense.groupId}/recurring-expenses/${expense.id}`, { active: !expense.active });
+      onChanged();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Error");
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
+  async function removeExpense(expense: RecurringExpenseDto) {
+    if (!confirm(`¿Eliminar la cuota fija "${expense.title}"?`)) return;
+    try {
+      await api.delete(`/groups/${expense.groupId}/recurring-expenses/${expense.id}`);
+      onChanged();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Error");
+    }
+  }
+
+  const canManage = (expense: RecurringExpenseDto) => isAdmin || expense.responsibleId === myUserId;
+  const sorted = [...expenses].sort((a, b) => Number(b.active) - Number(a.active));
+
+  return (
+    <div className="space-y-4">
+      <button
+        onClick={onNew}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-500/50 bg-indigo-500/5 px-4 py-3 text-sm font-semibold text-indigo-300 transition hover:bg-indigo-500/10"
+      >
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Añadir cuota fija
+      </button>
+
+      {sorted.length === 0 ? (
+        <EmptyState
+          title="Sin gastos fijos"
+          subtitle="Programa aquí suscripciones o cuotas que se repiten cada mes o semana"
+          icon={
+            <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          }
+        />
+      ) : (
+        <div className="space-y-2">
+          {sorted.map((expense) => (
+            <div
+              key={expense.id}
+              className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ${
+                expense.active ? "border-slate-800 bg-slate-900" : "border-slate-800/50 bg-slate-900/40 opacity-60"
+              }`}
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-slate-200">{expense.title}</p>
+                <p className="truncate text-[11px] text-slate-500">
+                  {FREQUENCY_LABELS[expense.frequency]} · Responsable: {expense.responsibleName}
+                  {expense.active ? "" : " · Pausada"}
+                </p>
+              </div>
+              <span className="shrink-0 text-sm font-bold text-slate-100">
+                <Money amount={expense.amount} currency={currency} />
+              </span>
+              {canManage(expense) ? (
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    onClick={() => void toggleActive(expense)}
+                    disabled={togglingId === expense.id}
+                    title={expense.active ? "Pausar cuota" : "Reactivar cuota"}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
+                      expense.active ? "bg-indigo-600" : "bg-slate-700"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${
+                        expense.active ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                  <button
+                    onClick={() => void removeExpense(expense)}
+                    className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-rose-400"
+                    title="Eliminar cuota"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                    </svg>
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p className="text-center text-[11px] text-slate-600">
+        Las cuotas fijas sirven para recordar suscripciones o pagos recurrentes. El responsable las marca como pagadas
+        pausando o reactivando la cuota.
+      </p>
+    </div>
+  );
+}
+
+function NewRecurringModal({
+  open,
+  onClose,
+  groupId,
+  currency,
+  members,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  groupId: string;
+  currency: string;
+  members: MemberInfo[];
+  onCreated: () => void;
+}) {
+  const active = members.filter((m) => m.status === "active");
+  const [title, setTitle] = useState("");
+  const [amount, setAmount] = useState("");
+  const [frequency, setFrequency] = useState<RecurringFrequency>("monthly");
+  const [responsibleId, setResponsibleId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setTitle("");
+      setAmount("");
+      setFrequency("monthly");
+      setResponsibleId("");
+      setError("");
+    }
+  }, [open]);
+
+  async function submit() {
+    setLoading(true);
+    setError("");
+    try {
+      await api.post(`/groups/${groupId}/recurring-expenses`, {
+        title,
+        amount: parseFloat(amount),
+        frequency,
+        responsibleId,
+      });
+      onCreated();
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const amountNum = parseFloat(amount);
+  const canSubmit = title.trim().length > 0 && Number.isFinite(amountNum) && amountNum > 0 && Boolean(responsibleId) && !loading;
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Añadir cuota fija"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={() => void submit()} disabled={!canSubmit} loading={loading}>
+            Añadir cuota
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <p className="text-xs text-slate-400">
+          Define una suscripción o pago que se repite cada mes o cada semana. El miembro responsable podrá marcarla como
+          pagada pausándola.
+        </p>
+        <Input label="Título" placeholder="Ej. Netflix, gimnasio, alquiler..." value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Input
+          label="Importe"
+          type="number"
+          min="0"
+          step="0.01"
+          inputMode="decimal"
+          placeholder="0.00"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          rightElement={<span className="text-xs font-semibold text-slate-400">{currency}</span>}
+        />
+        <div className="grid grid-cols-2 gap-3">
+          <Select label="Periodicidad" value={frequency} onChange={(e) => setFrequency(e.target.value as RecurringFrequency)}>
+            <option value="monthly">Mensual</option>
+            <option value="weekly">Semanal</option>
+          </Select>
+          <Select label="Responsable" value={responsibleId} onChange={(e) => setResponsibleId(e.target.value)}>
+            <option value="">Elegir...</option>
+            {active.map((m) => (
+              <option key={m.userId} value={m.userId}>
+                {m.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        {error ? <p className="text-xs font-medium text-rose-400">{error}</p> : null}
+      </div>
+    </Modal>
+  );
+}
+
 // ---------- Añadir participante sin cuenta ----------
 
 function AddGhostModal({
@@ -1427,15 +1922,59 @@ function AddGhostModal({
 function HistoryTab({
   events,
   currency,
+  groupName,
   memberName,
 }: {
   events: HistoryEvent[];
   currency: string;
+  groupName: string;
   memberName: (id: string) => string;
 }) {
+  function exportHistory() {
+    const lines = [
+      `Divido · Historial de actividad de ${groupName}`,
+      `Exportado el ${new Date().toLocaleString("es-ES")}`,
+      `Moneda del grupo: ${currency}`,
+      "",
+    ];
+    for (const e of events) {
+      const when = new Date(e.date).toLocaleString("es-ES");
+      if (e.type === "member_joined") {
+        lines.push(`[${when}] ${e.userName} se unió al grupo`);
+      } else if (e.type === "member_left") {
+        lines.push(`[${when}] ${e.userName} abandonó el grupo`);
+      } else if (e.type === "member_removed") {
+        lines.push(`[${when}] ${e.userName} fue expulsado del grupo`);
+      } else if (e.type === "payment") {
+        lines.push(
+          `[${when}] ${e.fromName} pagó a ${e.toName} ${e.amount?.toFixed(2)} ${currency}${e.note ? ` (${e.note})` : ""}`
+        );
+      } else if (e.type === "expense") {
+        const parts = [`[${when}] ${e.payerName} pagó ${e.description}`];
+        parts.push(`${(e.amountGroup ?? 0).toFixed(2)} ${e.currency ?? currency}`);
+        if (e.deleted) parts.push("(eliminado)");
+        if (e.edited) parts.push("(modificado)");
+        lines.push(parts.join(" "));
+      }
+    }
+    lines.push("", `Total de eventos: ${events.length}`);
+    downloadText(lines.join("\n"), `historial-${groupName.replace(/[^a-z0-9]+/gi, "-")}.txt`);
+  }
+
   return (
-    <div className="space-y-1">
-      {events.length === 0 ? (
+    <div className="space-y-3">
+      <div className="flex items-center justify-end">
+        {events.length > 0 ? (
+          <Button variant="secondary" className="!px-3 !py-1.5 text-xs" onClick={exportHistory}>
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Exportar historial
+          </Button>
+        ) : null}
+      </div>
+      <div className="space-y-1">
+        {events.length === 0 ? (
         <EmptyState title="Sin actividad" subtitle="Aquí aparecerán gastos y pagos saldados en orden cronológico" />
       ) : (
         events.map((e, i) => {
@@ -1516,7 +2055,8 @@ function HistoryTab({
           );
         })
       )}
-    </div>
+        </div>
+      </div>
   );
 }
 
@@ -1643,33 +2183,39 @@ function SettingsModal({
             </div>
             <div className="border-t border-slate-800 pt-4">
               <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Extras del grupo</p>
-              <button
-                type="button"
-                onClick={() =>
-                  setEnabledExtras((prev) =>
-                    prev.includes("informal_debts") ? prev.filter((x) => x !== "informal_debts") : [...prev, "informal_debts"]
-                  )
-                }
-                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-left transition hover:border-slate-600"
-              >
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-slate-200">Piques y Apuestas</span>
-                  <span className="mt-0.5 block text-[11px] text-slate-500">
-                    Deudas informales entre miembros (apuestas, favores...), aparte del balance de gastos.
-                  </span>
-                </span>
-                <span
-                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
-                    enabledExtras.includes("informal_debts") ? "bg-indigo-600" : "bg-slate-700"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${
-                      enabledExtras.includes("informal_debts") ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </span>
-              </button>
+              <div className="space-y-2">
+                {GROUP_EXTRAS.map((extra) => {
+                  const enabled = enabledExtras.includes(extra.key);
+                  return (
+                    <button
+                      key={extra.key}
+                      type="button"
+                      onClick={() =>
+                        setEnabledExtras((prev) =>
+                          enabled ? prev.filter((x) => x !== extra.key) : [...prev, extra.key]
+                        )
+                      }
+                      className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-left transition hover:border-slate-600"
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-slate-200">{extra.label}</span>
+                        <span className="mt-0.5 block text-[11px] text-slate-500">{extra.description}</span>
+                      </span>
+                      <span
+                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
+                          enabled ? "bg-indigo-600" : "bg-slate-700"
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${
+                            enabled ? "translate-x-6" : "translate-x-1"
+                          }`}
+                        />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             {error ? <p className="text-xs text-rose-400">{error}</p> : null}
           </>
@@ -1767,4 +2313,16 @@ function fmtTime(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+function downloadText(text: string, filename: string): void {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }

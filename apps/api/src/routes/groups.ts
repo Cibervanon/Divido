@@ -3,18 +3,27 @@ import type { FastifyPluginAsync } from "fastify";
 import type { Db } from "../db.js";
 import {
   addMember,
+  addPotContribution,
   createGhostUser,
   createGroup,
   createGroupEvent,
   createInformalDebt,
+  createRecurringExpense,
+  deletePotContribution,
+  deleteRecurringExpense,
   getGroup,
   getInformalDebt,
   getMemberRow,
+  getPotBalance,
+  getRecurringExpense,
   listGroupsForUser,
   listInformalDebts,
   listMembers,
+  listPotContributions,
+  listRecurringExpenses,
   removeMember,
   setMemberStatus,
+  setRecurringExpenseActive,
   setRole,
   updateGroup,
   updateInformalDebtStatus,
@@ -33,7 +42,7 @@ const HTTP_URL_RE = /^https?:\/\//i;
 const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
 const MAX_LOGO_BYTES = 4 * 1024 * 1024;
 
-const VALID_EXTRAS = new Set(["informal_debts"]);
+const VALID_EXTRAS = new Set(["informal_debts", "common_pot", "recurring_expenses"]);
 const VALID_DEBT_STATUSES = new Set<InformalDebtStatus>(["pending", "accepted", "rejected", "settled"]);
 
 function parseGroupLogo(raw: string | null): string | null {
@@ -340,6 +349,127 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
       throw badRequest("No se puede pasar a ese estado");
     }
     await updateInformalDebtStatus(request.db, debtId, next);
+    return { ok: true };
+  });
+
+  // ---------- Bote común ----------
+
+  app.get("/api/groups/:groupId/common-pot", async (request) => {
+    const { groupId } = request.params as { groupId: string };
+    const { group } = await requireActiveMember(request, groupId);
+    if (!group.enabledExtras.includes("common_pot")) {
+      throw badRequest("El extra de bote común no está activo en este grupo");
+    }
+    const [balance, contributions] = await Promise.all([
+      getPotBalance(request.db, groupId),
+      listPotContributions(request.db, groupId),
+    ]);
+    return { balance, contributions };
+  });
+
+  app.post("/api/groups/:groupId/common-pot/contributions", async (request) => {
+    const { groupId } = request.params as { groupId: string };
+    const user = requireAuth(request);
+    const { group } = await requireActiveMember(request, groupId);
+    if (!group.enabledExtras.includes("common_pot")) {
+      throw badRequest("El extra de bote común no está activo en este grupo");
+    }
+    const { amount, note } = request.body as { amount?: number; note?: string };
+    const amountNum = Number(amount);
+    if (!Number.isFinite(amountNum) || amountNum <= 0) throw badRequest("El importe debe ser mayor que 0");
+    const cleanNote = note?.trim() ?? "";
+    if (cleanNote.length > 140) throw badRequest("La nota es demasiado larga");
+    const contribution = await addPotContribution(request.db, {
+      groupId,
+      userId: user.id,
+      amount: Math.round(amountNum * 100) / 100,
+      note: cleanNote || null,
+    });
+    return { contribution };
+  });
+
+  app.delete("/api/groups/:groupId/common-pot/contributions/:contributionId", async (request) => {
+    const { groupId, contributionId } = request.params as { groupId: string; contributionId: string };
+    const user = requireAuth(request);
+    const { member } = await requireActiveMember(request, groupId);
+    const contributions = await listPotContributions(request.db, groupId);
+    const contribution = contributions.find((c) => c.id === contributionId);
+    if (!contribution) throw notFound("Aportación no encontrada");
+    if (contribution.userId !== user.id && member.role !== "admin") {
+      throw forbidden("Solo puedes eliminar tus propias aportaciones");
+    }
+    await deletePotContribution(request.db, contributionId);
+    return { ok: true };
+  });
+
+  // ---------- Gastos fijos ----------
+
+  app.get("/api/groups/:groupId/recurring-expenses", async (request) => {
+    const { groupId } = request.params as { groupId: string };
+    const { group } = await requireActiveMember(request, groupId);
+    if (!group.enabledExtras.includes("recurring_expenses")) {
+      throw badRequest("El extra de gastos fijos no está activo en este grupo");
+    }
+    return { expenses: await listRecurringExpenses(request.db, groupId) };
+  });
+
+  app.post("/api/groups/:groupId/recurring-expenses", async (request) => {
+    const { groupId } = request.params as { groupId: string };
+    const { group } = await requireActiveMember(request, groupId);
+    if (!group.enabledExtras.includes("recurring_expenses")) {
+      throw badRequest("El extra de gastos fijos no está activo en este grupo");
+    }
+    const { title, amount, frequency, responsibleId } = request.body as {
+      title?: string;
+      amount?: number;
+      frequency?: string;
+      responsibleId?: string;
+    };
+    const cleanTitle = title?.trim() ?? "";
+    if (!cleanTitle) throw badRequest("Escribe un título para la cuota");
+    if (cleanTitle.length > 140) throw badRequest("El título es demasiado largo");
+    const amountNum = Number(amount);
+    if (!Number.isFinite(amountNum) || amountNum <= 0) throw badRequest("El importe debe ser mayor que 0");
+    if (frequency !== "monthly" && frequency !== "weekly") throw badRequest("Periodicidad inválida");
+    if (!responsibleId) throw badRequest("Elige el miembro responsable");
+    const members = await listMembers(request.db, groupId);
+    const activeIds = new Set(members.filter((m) => m.status === "active").map((m) => m.user_id));
+    if (!activeIds.has(responsibleId)) throw badRequest("El responsable no es un miembro activo");
+    const expense = await createRecurringExpense(request.db, {
+      groupId,
+      title: cleanTitle,
+      amount: Math.round(amountNum * 100) / 100,
+      frequency,
+      responsibleId,
+    });
+    return { expense };
+  });
+
+  app.patch("/api/groups/:groupId/recurring-expenses/:expenseId", async (request) => {
+    const { groupId, expenseId } = request.params as { groupId: string; expenseId: string };
+    const user = requireAuth(request);
+    const { member } = await requireActiveMember(request, groupId);
+    const { active } = request.body as { active?: unknown };
+    if (typeof active !== "boolean") throw badRequest("Falta el estado activo");
+    const expense = await getRecurringExpense(request.db, expenseId);
+    if (!expense || expense.groupId !== groupId) throw notFound("Cuota fija no encontrada");
+    if (expense.responsibleId !== user.id && member.role !== "admin") {
+      throw forbidden("Solo el responsable o un administrador puede cambiar el estado");
+    }
+    const updated = await setRecurringExpenseActive(request.db, expenseId, active);
+    return { expense: updated };
+  });
+
+  app.delete("/api/groups/:groupId/recurring-expenses/:expenseId", async (request) => {
+    const { groupId, expenseId } = request.params as { groupId: string; expenseId: string };
+    const user = requireAuth(request);
+    const { member } = await requireActiveMember(request, groupId);
+    const expense = await getRecurringExpense(request.db, expenseId);
+    if (!expense || expense.groupId !== groupId) throw notFound("Cuota fija no encontrada");
+    if (expense.responsibleId !== user.id && member.role !== "admin") {
+      throw forbidden("Solo el responsable o un administrador puede eliminar la cuota");
+    }
+    await deleteRecurringExpense(request.db, expenseId);
     return { ok: true };
   });
 
