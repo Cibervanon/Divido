@@ -11,11 +11,13 @@ import type {
   ExpenseDto,
   GroupDetail,
   HistoryEvent,
+  InformalDebtDto,
   MemberInfo,
   ModificationRequestDto,
 } from "../lib/types";
+import type { InformalDebtStatus } from "@divido/shared";
 
-type Tab = "expenses" | "balances" | "members" | "history";
+type Tab = "expenses" | "balances" | "members" | "history" | "debts";
 
 export default function GroupPage() {
   const { groupId } = useParams<{ groupId: string }>();
@@ -26,12 +28,14 @@ export default function GroupPage() {
   const [expenses, setExpenses] = useState<ExpenseDto[]>([]);
   const [requests, setRequests] = useState<ModificationRequestDto[]>([]);
   const [history, setHistory] = useState<HistoryEvent[]>([]);
+  const [debts, setDebts] = useState<InformalDebtDto[]>([]);
   const [tab, setTab] = useState<Tab>("expenses");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
+  const [showNewDebt, setShowNewDebt] = useState(false);
   const [editTarget, setEditTarget] = useState<ExpenseDto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ExpenseDto | null>(null);
   const [breakdownTarget, setBreakdownTarget] = useState<MemberInfo | null>(null);
@@ -52,16 +56,18 @@ export default function GroupPage() {
     if (!groupId) return;
     setLoading(true);
     try {
-      const [d, e, h, r] = await Promise.all([
+      const [d, e, h, r, dd] = await Promise.all([
         api.get<GroupDetail>(`/groups/${groupId}`),
         api.get<{ expenses: ExpenseDto[] }>(`/groups/${groupId}/expenses`),
         api.get<{ events: HistoryEvent[] }>(`/groups/${groupId}/history`),
         api.get<{ requests: ModificationRequestDto[] }>(`/groups/${groupId}/requests`).catch(() => null),
+        api.get<{ debts: InformalDebtDto[] }>(`/groups/${groupId}/informal-debts`).catch(() => null),
       ]);
       setDetail(d);
       setExpenses(e.expenses);
       setHistory(h.events);
       if (r) setRequests(r.requests);
+      if (dd) setDebts(dd.debts);
       setError("");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error cargando el grupo");
@@ -95,6 +101,7 @@ export default function GroupPage() {
 
   const g = detail;
   const { group } = g;
+  const hasDebts = (detail.group.enabledExtras ?? []).includes("informal_debts");
   const myBalance = g.balances.find((b) => b.isMe)?.net ?? 0;
   const positive = myBalance > 0.004;
   const negative = myBalance < -0.004;
@@ -223,6 +230,7 @@ export default function GroupPage() {
             { key: "balances", label: "Saldos" },
             { key: "members", label: "Miembros" },
             { key: "history", label: "Historial" },
+            ...(hasDebts ? [{ key: "debts", label: "Piques" }] : []),
           ]}
           active={tab}
           onChange={(k) => setTab(k as Tab)}
@@ -257,6 +265,16 @@ export default function GroupPage() {
             />
           ) : null}
           {tab === "history" ? <HistoryTab events={history} currency={group.currency} memberName={memberName} /> : null}
+          {tab === "debts" && hasDebts ? (
+            <DebtsTab
+              debts={debts}
+              members={detail.members}
+              myUserId={user.id}
+              currency={group.currency}
+              onChanged={load}
+              onNew={() => setShowNewDebt(true)}
+            />
+          ) : null}
         </div>
       </main>
 
@@ -349,6 +367,15 @@ export default function GroupPage() {
         data={memberDetail}
         onClose={() => setMemberDetail(null)}
         currency={group.currency}
+      />
+
+      <NewDebtModal
+        open={showNewDebt}
+        onClose={() => setShowNewDebt(false)}
+        groupId={group.id}
+        currency={group.currency}
+        members={detail.members}
+        onCreated={load}
       />
 
       <Toast show={Boolean(toast)}>{toast}</Toast>
@@ -858,6 +885,286 @@ function MembersTab({
   );
 }
 
+// ---------- Piques y apuestas ----------
+
+const DEBT_STATUS_LABELS: Record<InformalDebtStatus, string> = {
+  pending: "Pendiente",
+  accepted: "Aceptado",
+  settled: "Pagado",
+  rejected: "Rechazado",
+};
+
+const DEBT_STATUS_BADGE: Record<InformalDebtStatus, string> = {
+  pending: "bg-amber-500/10 text-amber-300",
+  accepted: "bg-indigo-500/10 text-indigo-300",
+  settled: "bg-emerald-500/10 text-emerald-300",
+  rejected: "bg-rose-500/10 text-rose-300",
+};
+
+const DEBT_STATUS_BORDER: Record<InformalDebtStatus, string> = {
+  pending: "border-amber-500/30 bg-amber-500/5",
+  accepted: "border-indigo-500/30 bg-indigo-500/5",
+  settled: "border-emerald-500/30 bg-emerald-500/5",
+  rejected: "border-rose-500/20 bg-slate-900/40",
+};
+
+const DEBT_STATUS_ORDER: Record<InformalDebtStatus, number> = {
+  pending: 0,
+  accepted: 1,
+  settled: 2,
+  rejected: 3,
+};
+
+function DebtsTab({
+  debts,
+  members,
+  myUserId,
+  currency,
+  onChanged,
+  onNew,
+}: {
+  debts: InformalDebtDto[];
+  members: MemberInfo[];
+  myUserId: string;
+  currency: string;
+  onChanged: () => void;
+  onNew: () => void;
+}) {
+  async function setStatus(debt: InformalDebtDto, status: InformalDebtStatus) {
+    try {
+      await api.patch(`/groups/${debt.groupId}/informal-debts/${debt.id}/status`, { status });
+      onChanged();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Error");
+    }
+  }
+
+  const sorted = [...debts].sort(
+    (a, b) => DEBT_STATUS_ORDER[a.status] - DEBT_STATUS_ORDER[b.status] || a.createdAt.localeCompare(b.createdAt)
+  );
+
+  return (
+    <div className="space-y-4">
+      <button
+        onClick={onNew}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-500/50 bg-indigo-500/5 px-4 py-3 text-sm font-semibold text-indigo-300 transition hover:bg-indigo-500/10"
+      >
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Lanzar un pique o apuesta
+      </button>
+
+      {sorted.length === 0 ? (
+        <EmptyState
+          title="Sin piques todavía"
+          subtitle="Registra aquí apuestas o deudas informales entre miembros, sin tocar el balance de gastos"
+          icon={
+            <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+            </svg>
+          }
+        />
+      ) : (
+        <div className="space-y-2">
+          {sorted.map((d) => {
+            const iAmCreditor = d.creditorId === myUserId;
+            const iAmDebtor = d.debtorId === myUserId;
+            return (
+              <div key={d.id} className={`rounded-2xl border p-4 ${DEBT_STATUS_BORDER[d.status]}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-100">{d.title}</p>
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-400">
+                      <span className="flex min-w-0 items-center gap-1">
+                        <span className="truncate">{d.debtorName}</span>
+                        {d.debtorIsGhost ? <GhostBadge showLabel={false} /> : null}
+                      </span>
+                      <span>debe a</span>
+                      <span className="flex min-w-0 items-center gap-1">
+                        <span className="truncate">{d.creditorName}</span>
+                        {d.creditorIsGhost ? <GhostBadge showLabel={false} /> : null}
+                      </span>
+                    </p>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${DEBT_STATUS_BADGE[d.status]}`}
+                  >
+                    {DEBT_STATUS_LABELS[d.status]}
+                  </span>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-lg font-extrabold text-slate-100">
+                    <Money amount={d.amount} currency={currency} />
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {d.status === "pending" && iAmDebtor ? (
+                      <>
+                        <Button
+                          variant="secondary"
+                          className="!px-3 !py-1.5 text-xs"
+                          onClick={() => setStatus(d, "accepted")}
+                        >
+                          Aceptar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="!px-3 !py-1.5 text-xs text-rose-400"
+                          onClick={() => setStatus(d, "rejected")}
+                        >
+                          Rechazar
+                        </Button>
+                      </>
+                    ) : null}
+                    {d.status === "accepted" && iAmCreditor ? (
+                      <Button
+                        variant="secondary"
+                        className="!px-3 !py-1.5 text-xs text-emerald-400"
+                        onClick={() => setStatus(d, "settled")}
+                      >
+                        Marcar como pagado
+                      </Button>
+                    ) : null}
+                    {d.status === "pending" && !iAmDebtor ? (
+                      <span className="text-[11px] text-slate-500">A la espera de que {d.debtorName} acepte</span>
+                    ) : null}
+                    {d.status === "accepted" && !iAmCreditor ? (
+                      <span className="text-[11px] text-slate-500">A la espera de que {d.creditorName} confirme el pago</span>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <p className="text-center text-[11px] text-slate-600">
+        Los piques se gestionan de forma independiente y no afectan al balance de gastos compartidos.
+      </p>
+    </div>
+  );
+}
+
+function NewDebtModal({
+  open,
+  onClose,
+  groupId,
+  currency,
+  members,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  groupId: string;
+  currency: string;
+  members: MemberInfo[];
+  onCreated: () => void;
+}) {
+  const active = members.filter((m) => m.status === "active");
+  const [debtorId, setDebtorId] = useState("");
+  const [creditorId, setCreditorId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [title, setTitle] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setDebtorId("");
+      setCreditorId("");
+      setAmount("");
+      setTitle("");
+      setError("");
+    }
+  }, [open]);
+
+  async function submit() {
+    setLoading(true);
+    setError("");
+    try {
+      await api.post(`/groups/${groupId}/informal-debts`, {
+        creditorId,
+        debtorId,
+        amount: parseFloat(amount),
+        title,
+      });
+      onCreated();
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const amountNum = parseFloat(amount);
+  const canSubmit =
+    Boolean(debtorId) &&
+    Boolean(creditorId) &&
+    debtorId !== creditorId &&
+    title.trim().length > 0 &&
+    Number.isFinite(amountNum) &&
+    amountNum > 0 &&
+    !loading;
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Lanzar un pique o apuesta"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={() => void submit()} disabled={!canSubmit} loading={loading}>
+            Crear pique
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <p className="text-xs text-slate-400">
+          Un pique es una deuda informal entre dos miembros (apuestas, favores, recuerdos...). El deudor deberá aceptarlo
+          para que quede cerrado y el acreedor podrá marcarlo como pagado.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <Select label="Quién debe" value={debtorId} onChange={(e) => setDebtorId(e.target.value)}>
+            <option value="">Elegir...</option>
+            {active.map((m) => (
+              <option key={m.userId} value={m.userId}>
+                {m.name}
+              </option>
+            ))}
+          </Select>
+          <Select label="A quién" value={creditorId} onChange={(e) => setCreditorId(e.target.value)}>
+            <option value="">Elegir...</option>
+            {active.map((m) => (
+              <option key={m.userId} value={m.userId}>
+                {m.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <Input
+          label="Importe"
+          type="number"
+          min="0"
+          step="0.01"
+          inputMode="decimal"
+          placeholder="0.00"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          rightElement={<span className="text-xs font-semibold text-slate-400">{currency}</span>}
+        />
+        <Input label="Concepto" placeholder="Ej. Apuesta Clásico" value={title} onChange={(e) => setTitle(e.target.value)} />
+        {error ? <p className="text-xs font-medium text-rose-400">{error}</p> : null}
+      </div>
+    </Modal>
+  );
+}
+
 // ---------- Añadir participante sin cuenta ----------
 
 function AddGhostModal({
@@ -1036,6 +1343,7 @@ function SettingsModal({
   const [currency, setCurrency] = useState(group.currency);
   const [type, setType] = useState<"open" | "closed">(group.type);
   const [logoUrl, setLogoUrl] = useState(group.logoUrl ?? "");
+  const [enabledExtras, setEnabledExtras] = useState<string[]>(group.enabledExtras ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -1046,6 +1354,7 @@ function SettingsModal({
       setCurrency(group.currency);
       setType(group.type);
       setLogoUrl(group.logoUrl ?? "");
+      setEnabledExtras(group.enabledExtras ?? []);
       setError("");
     }
   }, [open, group]);
@@ -1063,7 +1372,7 @@ function SettingsModal({
   async function save() {
     setSaving(true);
     try {
-      await api.patch(`/groups/${group.id}`, { name, currency, type, logoUrl: logoUrl.trim() || null });
+      await api.patch(`/groups/${group.id}`, { name, currency, type, logoUrl: logoUrl.trim() || null, enabledExtras });
       onChanged();
       onClose();
     } catch (err) {
@@ -1132,6 +1441,36 @@ function SettingsModal({
                 <option value="open">Abierto</option>
                 <option value="closed">Cerrado</option>
               </Select>
+            </div>
+            <div className="border-t border-slate-800 pt-4">
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Extras del grupo</p>
+              <button
+                type="button"
+                onClick={() =>
+                  setEnabledExtras((prev) =>
+                    prev.includes("informal_debts") ? prev.filter((x) => x !== "informal_debts") : [...prev, "informal_debts"]
+                  )
+                }
+                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-left transition hover:border-slate-600"
+              >
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-slate-200">Piques y Apuestas</span>
+                  <span className="mt-0.5 block text-[11px] text-slate-500">
+                    Deudas informales entre miembros (apuestas, favores...), aparte del balance de gastos.
+                  </span>
+                </span>
+                <span
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
+                    enabledExtras.includes("informal_debts") ? "bg-indigo-600" : "bg-slate-700"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${
+                      enabledExtras.includes("informal_debts") ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </span>
+              </button>
             </div>
             {error ? <p className="text-xs text-rose-400">{error}</p> : null}
           </>

@@ -6,16 +6,20 @@ import {
   createGhostUser,
   createGroup,
   createGroupEvent,
+  createInformalDebt,
   getGroup,
+  getInformalDebt,
   getMemberRow,
   listGroupsForUser,
+  listInformalDebts,
   listMembers,
   removeMember,
   setMemberStatus,
   setRole,
   updateGroup,
+  updateInformalDebtStatus,
 } from "../store.js";
-import type { Group, GroupType } from "@divido/shared";
+import type { Group, GroupType, InformalDebtStatus } from "@divido/shared";
 import { badRequest, conflict, forbidden, notFound } from "../errors.js";
 import { requireActiveMember, requireAdmin, requireAuth, requireGroup } from "../plugins.js";
 import { getGroupBalances } from "../services.js";
@@ -28,6 +32,9 @@ const VALID_CURRENCIES = new Set([
 const HTTP_URL_RE = /^https?:\/\//i;
 const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
 const MAX_LOGO_BYTES = 4 * 1024 * 1024;
+
+const VALID_EXTRAS = new Set(["informal_debts"]);
+const VALID_DEBT_STATUSES = new Set<InformalDebtStatus>(["pending", "accepted", "rejected", "settled"]);
 
 function parseGroupLogo(raw: string | null): string | null {
   const url = (raw ?? "").trim();
@@ -105,19 +112,33 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
   app.patch("/api/groups/:groupId", async (request) => {
     const { groupId } = request.params as { groupId: string };
     await requireAdmin(request, groupId);
-    const { name, currency, type, logoUrl } = request.body as {
+    const { name, currency, type, logoUrl, enabledExtras } = request.body as {
       name?: string;
       currency?: string;
       type?: GroupType;
       logoUrl?: string | null;
+      enabledExtras?: string[];
     };
     const cur = currency ? currency.toUpperCase() : undefined;
     if (cur && !VALID_CURRENCIES.has(cur)) throw badRequest("Moneda no soportada");
-    const patch: { name?: string; currency?: string; type?: GroupType; logoUrl?: string | null } = {};
+    const patch: {
+      name?: string;
+      currency?: string;
+      type?: GroupType;
+      logoUrl?: string | null;
+      enabledExtras?: string[];
+    } = {};
     if (name?.trim()) patch.name = name.trim();
     if (cur) patch.currency = cur;
     if (type === "open" || type === "closed") patch.type = type;
     if (logoUrl !== undefined) patch.logoUrl = parseGroupLogo(logoUrl);
+    if (enabledExtras !== undefined) {
+      if (!Array.isArray(enabledExtras)) throw badRequest("enabledExtras debe ser una lista");
+      for (const extra of enabledExtras) {
+        if (typeof extra !== "string" || !VALID_EXTRAS.has(extra)) throw badRequest("Extra no soportado");
+      }
+      patch.enabledExtras = [...new Set(enabledExtras)];
+    }
     if (Object.keys(patch).length === 0) throw badRequest("Sin cambios");
     const group = await updateGroup(request.db, groupId, patch);
     return { group: await groupDetail(request.db, group, requireAuth(request).id) };
@@ -237,6 +258,91 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     return { ok: true };
   });
 
+  app.get("/api/groups/:groupId/informal-debts", async (request) => {
+    const { groupId } = request.params as { groupId: string };
+    await requireActiveMember(request, groupId);
+    const [debts, members] = await Promise.all([
+      listInformalDebts(request.db, groupId),
+      listMembers(request.db, groupId),
+    ]);
+    const ghost: Record<string, boolean> = {};
+    for (const m of members) ghost[m.user_id] = Boolean(m.is_ghost);
+    return {
+      debts: debts.map((d) => ({
+        ...d,
+        creditorIsGhost: Boolean(ghost[d.creditorId]),
+        debtorIsGhost: Boolean(ghost[d.debtorId]),
+      })),
+    };
+  });
+
+  app.post("/api/groups/:groupId/informal-debts", async (request) => {
+    const { groupId } = request.params as { groupId: string };
+    const user = requireAuth(request);
+    const { group } = await requireActiveMember(request, groupId);
+    if (!group.enabledExtras.includes("informal_debts")) {
+      throw badRequest("El extra de piques y apuestas no está activo en este grupo");
+    }
+    const { creditorId, debtorId, amount, title } = request.body as {
+      creditorId?: string;
+      debtorId?: string;
+      amount?: number;
+      title?: string;
+    };
+    const cleanTitle = title?.trim() ?? "";
+    if (!cleanTitle) throw badRequest("Escribe un concepto para el pique");
+    if (cleanTitle.length > 140) throw badRequest("El concepto es demasiado largo");
+    const amountNum = Number(amount);
+    if (!Number.isFinite(amountNum) || amountNum <= 0) throw badRequest("El importe debe ser mayor que 0");
+    if (!creditorId || !debtorId) throw badRequest("Debes elegir quién debe y a quién");
+    if (creditorId === debtorId) throw badRequest("Acreedor y deudor deben ser personas distintas");
+    const members = await listMembers(request.db, groupId);
+    const activeIds = new Set(members.filter((m) => m.status === "active").map((m) => m.user_id));
+    if (!activeIds.has(creditorId)) throw badRequest("El acreedor no es un miembro activo");
+    if (!activeIds.has(debtorId)) throw badRequest("El deudor no es un miembro activo");
+    const debt = await createInformalDebt(request.db, {
+      groupId,
+      creatorId: user.id,
+      creditorId,
+      debtorId,
+      amount: Math.round(amountNum * 100) / 100,
+      title: cleanTitle,
+    });
+    const ghost: Record<string, boolean> = {};
+    for (const m of members) ghost[m.user_id] = Boolean(m.is_ghost);
+    const creditor = members.find((m) => m.user_id === creditorId);
+    const debtor = members.find((m) => m.user_id === debtorId);
+    return {
+      debt: {
+        ...debt,
+        creditorName: creditor?.name ?? "Usuario",
+        debtorName: debtor?.name ?? "Usuario",
+        creditorIsGhost: Boolean(ghost[creditorId]),
+        debtorIsGhost: Boolean(ghost[debtorId]),
+      },
+    };
+  });
+
+  app.patch("/api/groups/:groupId/informal-debts/:debtId/status", async (request) => {
+    const { groupId, debtId } = request.params as { groupId: string; debtId: string };
+    const user = requireAuth(request);
+    await requireActiveMember(request, groupId);
+    const { status } = request.body as { status?: string };
+    if (!status || !VALID_DEBT_STATUSES.has(status as InformalDebtStatus)) throw badRequest("Estado inválido");
+    const debt = await getInformalDebt(request.db, debtId);
+    if (!debt || debt.groupId !== groupId) throw notFound("Pique no encontrado");
+    const next = status as InformalDebtStatus;
+    if (debt.status === "pending" && (next === "accepted" || next === "rejected")) {
+      if (user.id !== debt.debtorId) throw forbidden("Solo el deudor puede aceptar o rechazar el pique");
+    } else if (debt.status === "accepted" && next === "settled") {
+      if (user.id !== debt.creditorId) throw forbidden("Solo el acreedor puede marcar el pique como pagado");
+    } else {
+      throw badRequest("No se puede pasar a ese estado");
+    }
+    await updateInformalDebtStatus(request.db, debtId, next);
+    return { ok: true };
+  });
+
   app.delete("/api/groups/:groupId", async (request) => {
     const { groupId } = request.params as { groupId: string };
     const user = requireAuth(request);
@@ -259,6 +365,7 @@ function groupToPublic(group: Group) {
     type: group.type,
     creatorId: group.creatorId,
     logoUrl: group.logoUrl,
+    enabledExtras: group.enabledExtras,
     createdAt: group.createdAt,
   };
 }

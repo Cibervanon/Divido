@@ -1,4 +1,4 @@
-import type { GroupType, SettlementTransfer } from "@divido/shared";
+import type { GroupType, InformalDebtStatus, SettlementTransfer } from "@divido/shared";
 
 export interface GroupSummary {
   id: string;
@@ -56,6 +56,7 @@ export interface GroupDetail {
     type: GroupType;
     creatorId: string;
     logoUrl: string | null;
+    enabledExtras: string[];
     createdAt: string;
   };
   inviteUrl: string | null;
@@ -174,4 +175,20 @@ export interface BalancesResponse {
   exMembers: ExMemberInfo[];
   totalOwedToMe: number;
   totalOwedByMe: number;
+}
+
+export interface InformalDebtDto {
+  id: string;
+  groupId: string;
+  creatorId: string;
+  creditorId: string;
+  debtorId: string;
+  amount: number;
+  title: string;
+  status: InformalDebtStatus;
+  createdAt: string;
+  creditorName: string;
+  debtorName: string;
+  creditorIsGhost: boolean;
+  debtorIsGhost: boolean;
 }
