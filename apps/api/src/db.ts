@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS users (
   avatar_url TEXT,
   google_sub TEXT UNIQUE,
   email_verified INTEGER NOT NULL DEFAULT 0,
+  is_ghost BOOLEAN NOT NULL DEFAULT FALSE,
   verify_token TEXT,
   verify_token_expires TEXT,
   reset_token TEXT,
@@ -81,6 +82,7 @@ CREATE TABLE IF NOT EXISTS groups (
   invite_token TEXT UNIQUE NOT NULL,
   creator_id TEXT NOT NULL REFERENCES users(id),
   logo_url TEXT,
+  enabled_extras TEXT NOT NULL DEFAULT '[]',
   created_at TEXT NOT NULL
 );
 
@@ -158,6 +160,18 @@ CREATE TABLE IF NOT EXISTS group_events (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS informal_debts (
+  id TEXT PRIMARY KEY,
+  group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  creator_id TEXT NOT NULL REFERENCES users(id),
+  creditor_id TEXT NOT NULL REFERENCES users(id),
+  debtor_id TEXT NOT NULL REFERENCES users(id),
+  amount REAL NOT NULL,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_members_user ON group_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_members_group ON group_members(group_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_group ON expenses(group_id);
@@ -167,6 +181,7 @@ CREATE INDEX IF NOT EXISTS idx_payments_group ON payments(group_id);
 CREATE INDEX IF NOT EXISTS idx_requests_group ON modification_requests(group_id);
 CREATE INDEX IF NOT EXISTS idx_requests_expense ON modification_requests(expense_id);
 CREATE INDEX IF NOT EXISTS idx_events_group ON group_events(group_id);
+CREATE INDEX IF NOT EXISTS idx_informal_debts_group ON informal_debts(group_id);
 `;
 
 const MIGRATIONS = [
@@ -177,6 +192,8 @@ const MIGRATIONS = [
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TEXT",
   "ALTER TABLE groups ADD COLUMN IF NOT EXISTS logo_url TEXT",
   "ALTER TABLE expense_participants ADD COLUMN IF NOT EXISTS share_amount REAL",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_ghost BOOLEAN NOT NULL DEFAULT FALSE",
+  "ALTER TABLE groups ADD COLUMN IF NOT EXISTS enabled_extras TEXT NOT NULL DEFAULT '[]'",
 ];
 
 export async function initDb(db: Db): Promise<void> {

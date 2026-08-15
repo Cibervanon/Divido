@@ -3,6 +3,8 @@ import type {
   Group,
   GroupMember,
   GroupType,
+  InformalDebt,
+  InformalDebtStatus,
   MemberRole,
   MemberStatus,
 } from "@divido/shared";
@@ -18,6 +20,7 @@ export interface UserRow {
   avatar_url: string | null;
   google_sub: string | null;
   email_verified: number;
+  is_ghost: number;
   verify_token: string | null;
   verify_token_expires: string | null;
   reset_token: string | null;
@@ -33,6 +36,7 @@ export interface GroupRow {
   invite_token: string;
   creator_id: string;
   logo_url: string | null;
+  enabled_extras: string;
   created_at: string;
 }
 
@@ -105,8 +109,19 @@ export function toGroup(r: GroupRow): Group {
     inviteToken: r.invite_token,
     creatorId: r.creator_id,
     logoUrl: r.logo_url,
+    enabledExtras: parseExtras(r.enabled_extras),
     createdAt: r.created_at,
   };
+}
+
+function parseExtras(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const value = JSON.parse(raw);
+    return Array.isArray(value) ? value.map(String) : [];
+  } catch {
+    return [];
+  }
 }
 
 export function toMember(r: MemberRow): GroupMember {
@@ -204,13 +219,14 @@ export async function createUser(
     name: string;
     avatarUrl?: string | null;
     googleSub?: string;
+    isGhost?: boolean;
   }
 ): Promise<UserRow> {
   const id = randomUUID();
   await db
     .prepare(
-      `INSERT INTO users (id, email, password_hash, name, avatar_url, google_sub, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO users (id, email, password_hash, name, avatar_url, google_sub, is_ghost, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       id,
@@ -219,9 +235,32 @@ export async function createUser(
       input.name,
       input.avatarUrl ?? null,
       input.googleSub ?? null,
+      input.isGhost ? 1 : 0,
       new Date().toISOString()
     );
   return (await findUserById(db, id))!;
+}
+
+export async function createGhostUser(
+  db: Db,
+  input: { name: string; avatarUrl?: string | null }
+): Promise<UserRow> {
+  return createUser(db, { email: null, name: input.name, avatarUrl: input.avatarUrl, isGhost: true });
+}
+
+export async function claimGhostUser(
+  db: Db,
+  userId: string,
+  patch: { email: string; passwordHash?: string; name?: string; googleSub?: string }
+): Promise<UserRow> {
+  await db
+    .prepare(
+      `UPDATE users SET is_ghost = 0, email = ?, password_hash = COALESCE(?, password_hash),
+       name = COALESCE(?, name), google_sub = COALESCE(?, google_sub)
+       WHERE id = ?`
+    )
+    .run(patch.email, patch.passwordHash ?? null, patch.name ?? null, patch.googleSub ?? null, userId);
+  return (await findUserById(db, userId))!;
 }
 
 export async function linkGoogleToUser(
@@ -239,16 +278,26 @@ export async function linkGoogleToUser(
 
 export async function createGroup(
   db: Db,
-  input: { name: string; currency: string; type: GroupType; creatorId: string; logoUrl?: string | null }
+  input: { name: string; currency: string; type: GroupType; creatorId: string; logoUrl?: string | null; enabledExtras?: string[] }
 ): Promise<Group> {
   const id = randomUUID();
   const inviteToken = randomUUID().replace(/-/g, "").slice(0, 16);
   await db
     .prepare(
-      `INSERT INTO groups (id, name, currency, type, invite_token, creator_id, logo_url, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO groups (id, name, currency, type, invite_token, creator_id, logo_url, enabled_extras, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(id, input.name, input.currency, input.type, inviteToken, input.creatorId, input.logoUrl ?? null, new Date().toISOString());
+    .run(
+      id,
+      input.name,
+      input.currency,
+      input.type,
+      inviteToken,
+      input.creatorId,
+      input.logoUrl ?? null,
+      JSON.stringify(input.enabledExtras ?? []),
+      new Date().toISOString()
+    );
   await addMember(db, {
     groupId: id,
     userId: input.creatorId,
@@ -294,14 +343,15 @@ export async function listGroupsForUser(
 export async function updateGroup(
   db: Db,
   groupId: string,
-  patch: { name?: string; currency?: string; type?: GroupType; logoUrl?: string | null }
+  patch: { name?: string; currency?: string; type?: GroupType; logoUrl?: string | null; enabledExtras?: string[] }
 ): Promise<Group> {
   const current = (await getGroup(db, groupId))!;
-  await db.prepare("UPDATE groups SET name = ?, currency = ?, type = ?, logo_url = ? WHERE id = ?").run(
+  await db.prepare("UPDATE groups SET name = ?, currency = ?, type = ?, logo_url = ?, enabled_extras = ? WHERE id = ?").run(
     patch.name ?? current.name,
     patch.currency ?? current.currency,
     patch.type ?? current.type,
     patch.logoUrl === undefined ? current.logoUrl : patch.logoUrl,
+    patch.enabledExtras === undefined ? JSON.stringify(current.enabledExtras) : JSON.stringify(patch.enabledExtras),
     groupId
   );
   return (await getGroup(db, groupId))!;
@@ -418,6 +468,111 @@ export async function listGroupEvents(db: Db, groupId: string): Promise<GroupEve
   return (await db
     .prepare("SELECT * FROM group_events WHERE group_id = ? ORDER BY created_at ASC")
     .all(groupId)) as unknown as GroupEventRow[];
+}
+
+// ---------- Informal debts (piques/apuestas) ----------
+
+export interface InformalDebtRow {
+  id: string;
+  group_id: string;
+  creator_id: string;
+  creditor_id: string;
+  debtor_id: string;
+  amount: number;
+  title: string;
+  status: InformalDebtStatus;
+  created_at: string;
+}
+
+export type InformalDebtWithNames = InformalDebt & { creditorName: string; debtorName: string };
+
+export function toInformalDebt(r: InformalDebtRow): InformalDebt {
+  return {
+    id: r.id,
+    groupId: r.group_id,
+    creatorId: r.creator_id,
+    creditorId: r.creditor_id,
+    debtorId: r.debtor_id,
+    amount: r.amount,
+    title: r.title,
+    status: r.status,
+    createdAt: r.created_at,
+  };
+}
+
+export async function createInformalDebt(
+  db: Db,
+  input: { groupId: string; creatorId: string; creditorId: string; debtorId: string; amount: number; title: string }
+): Promise<InformalDebt> {
+  const id = randomUUID();
+  await db
+    .prepare(
+      `INSERT INTO informal_debts (id, group_id, creator_id, creditor_id, debtor_id, amount, title, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`
+    )
+    .run(
+      id,
+      input.groupId,
+      input.creatorId,
+      input.creditorId,
+      input.debtorId,
+      input.amount,
+      input.title,
+      new Date().toISOString()
+    );
+  return (await getInformalDebt(db, id))!;
+}
+
+export async function getInformalDebt(db: Db, id: string): Promise<InformalDebt | undefined> {
+  const row = (await db.prepare("SELECT * FROM informal_debts WHERE id = ?").get(id)) as
+    | InformalDebtRow
+    | undefined;
+  return row ? toInformalDebt(row) : undefined;
+}
+
+export async function listInformalDebts(db: Db, groupId: string): Promise<InformalDebtWithNames[]> {
+  const rows = (await db
+    .prepare(
+      `SELECT d.*, cu.name AS creditor_name, du.name AS debtor_name
+       FROM informal_debts d
+       JOIN users cu ON cu.id = d.creditor_id
+       JOIN users du ON du.id = d.debtor_id
+       WHERE d.group_id = ?
+       ORDER BY d.created_at DESC`
+    )
+    .all(groupId)) as unknown as Array<InformalDebtRow & { creditor_name: string; debtor_name: string }>;
+  return rows.map((r) => ({ ...toInformalDebt(r), creditorName: r.creditor_name, debtorName: r.debtor_name }));
+}
+
+export async function listInformalDebtsForUser(db: Db, userId: string): Promise<InformalDebtWithNames[]> {
+  const rows = (await db
+    .prepare(
+      `SELECT d.*, cu.name AS creditor_name, du.name AS debtor_name
+       FROM informal_debts d
+       JOIN users cu ON cu.id = d.creditor_id
+       JOIN users du ON du.id = d.debtor_id
+       WHERE d.creditor_id = ? OR d.debtor_id = ?
+       ORDER BY d.created_at DESC`
+    )
+    .all(userId, userId)) as unknown as Array<InformalDebtRow & { creditor_name: string; debtor_name: string }>;
+  return rows.map((r) => ({ ...toInformalDebt(r), creditorName: r.creditor_name, debtorName: r.debtor_name }));
+}
+
+export async function updateInformalDebt(
+  db: Db,
+  id: string,
+  patch: { amount?: number; title?: string; status?: InformalDebtStatus }
+): Promise<InformalDebt> {
+  const current = (await getInformalDebt(db, id))!;
+  await db
+    .prepare("UPDATE informal_debts SET amount = ?, title = ?, status = ? WHERE id = ?")
+    .run(patch.amount ?? current.amount, patch.title ?? current.title, patch.status ?? current.status, id);
+  return (await getInformalDebt(db, id))!;
+}
+
+export async function updateInformalDebtStatus(db: Db, id: string, status: InformalDebtStatus): Promise<InformalDebt> {
+  await db.prepare("UPDATE informal_debts SET status = ? WHERE id = ?").run(status, id);
+  return (await getInformalDebt(db, id))!;
 }
 
 // ---------- Expenses ----------

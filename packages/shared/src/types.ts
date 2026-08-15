@@ -2,13 +2,15 @@ export type GroupType = "open" | "closed";
 export type MemberRole = "admin" | "member";
 export type MemberStatus = "active" | "inactive" | "ex_member";
 export type RequestStatus = "pending" | "approved" | "rejected";
+export type InformalDebtStatus = "pending" | "accepted" | "settled" | "rejected";
 
 export interface User {
   id: string;
-  email: string;
+  email: string | null;
   name: string;
   avatarUrl: string | null;
   emailVerified: boolean;
+  isGhost: boolean;
   createdAt: string;
 }
 
@@ -20,6 +22,7 @@ export interface Group {
   inviteToken: string;
   creatorId: string;
   logoUrl: string | null;
+  enabledExtras: string[];
   createdAt: string;
 }
 
@@ -101,4 +104,16 @@ export interface InvitePreview {
   currency: string;
   memberCount: number;
   existingMember: boolean;
+}
+
+export interface InformalDebt {
+  id: string;
+  groupId: string;
+  creatorId: string;
+  creditorId: string;
+  debtorId: string;
+  amount: number;
+  title: string;
+  status: InformalDebtStatus;
+  createdAt: string;
 }
