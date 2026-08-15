@@ -74,9 +74,11 @@ export async function getGroupBalances(db: Db, groupId: string): Promise<GroupBa
   const allIds = members.map((m) => m.user_id);
   const names: Record<string, string> = {};
   const verified: Record<string, boolean> = {};
+  const ghosts: Record<string, boolean> = {};
   for (const m of members) {
     names[m.user_id] = m.name;
     verified[m.user_id] = Boolean(m.email_verified);
+    ghosts[m.user_id] = Boolean(m.is_ghost);
   }
 
   const expenses = (await expensePairs(db, groupId)).map((e) => ({
@@ -95,7 +97,7 @@ export async function getGroupBalances(db: Db, groupId: string): Promise<GroupBa
   const balances = computeNetBalances(
     { memberIds: activeIds.size ? [...activeIds] : [], names, expenses, payments },
     (payer, participant) => activeIds.has(payer) && activeIds.has(participant)
-  ).map((b) => ({ ...b, emailVerified: verified[b.userId] }));
+  ).map((b) => ({ ...b, emailVerified: verified[b.userId], isGhost: ghosts[b.userId] }));
 
   const fullBalances = computeNetBalances(
     { memberIds: allIds, names, expenses, payments }

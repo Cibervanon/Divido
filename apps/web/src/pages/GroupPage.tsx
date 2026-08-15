@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "reac
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { Avatar, Button, EmptyState, Input, Modal, Money, Select, Spinner, Tabs, Toast, VerifiedBadge } from "../components/ui";
+import { Avatar, Button, EmptyState, GhostBadge, Input, Modal, Money, Select, Spinner, Tabs, Toast, VerifiedBadge } from "../components/ui";
 import { ExpenseModal } from "../components/ExpenseModal";
 import { PaymentModal } from "../components/PaymentModal";
 import type {
@@ -668,7 +668,7 @@ function BalancesTab({
         {balances.map((b) => (
           <button
             key={b.userId}
-            onClick={() => onOpenMember({ userId: b.userId, name: b.name, email: null, avatarUrl: null, emailVerified: b.emailVerified ?? false, role: "member", status: "active", joinedAt: "", leftAt: null, frozenBalance: null })}
+            onClick={() => onOpenMember({ userId: b.userId, name: b.name, email: null, avatarUrl: null, emailVerified: b.emailVerified ?? false, isGhost: b.isGhost ?? false, role: "member", status: "active", joinedAt: "", leftAt: null, frozenBalance: null })}
             className={`flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-left transition hover:border-slate-700 ${
               b.isMe ? "border-indigo-500/50" : ""
             }`}
@@ -677,6 +677,7 @@ function BalancesTab({
             <span className="flex min-w-0 flex-1 items-center gap-1.5 text-sm font-medium text-slate-200">
               <span className="truncate">{b.name}</span>
               {b.emailVerified ? <VerifiedBadge /> : null}
+              {b.isGhost ? <GhostBadge showLabel={false} /> : null}
               {b.isMe ? <span className="shrink-0 text-[10px] text-indigo-400">tú</span> : null}
             </span>
             <span className={`text-sm font-bold ${b.net > 0.004 ? "text-emerald-400" : b.net < -0.004 ? "text-rose-400" : "text-slate-500"}`}>
@@ -748,6 +749,7 @@ function MembersTab({
   const { group, members } = detail;
   const active = members.filter((m) => m.status === "active");
   const ex = members.filter((m) => m.status === "ex_member");
+  const [ghostOpen, setGhostOpen] = useState(false);
 
   async function setRole(userId: string, role: "admin" | "member") {
     try {
@@ -771,15 +773,26 @@ function MembersTab({
   return (
     <div className="space-y-5">
       {isAdmin ? (
-        <button
-          onClick={onCopyInvite}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-500/50 bg-indigo-500/5 px-4 py-3 text-sm font-semibold text-indigo-300 transition hover:bg-indigo-500/10"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-          </svg>
-          Copiar enlace de invitación
-        </button>
+        <div className="space-y-2">
+          <button
+            onClick={onCopyInvite}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-500/50 bg-indigo-500/5 px-4 py-3 text-sm font-semibold text-indigo-300 transition hover:bg-indigo-500/10"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+            </svg>
+            Copiar enlace de invitación
+          </button>
+          <button
+            onClick={() => setGhostOpen(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-600 bg-slate-800/40 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:bg-slate-800"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            Añadir participante sin correo
+          </button>
+        </div>
       ) : null}
 
       <div className="space-y-2">
@@ -793,9 +806,11 @@ function MembersTab({
             >
               <Avatar name={m.name} url={m.avatarUrl} size="sm" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-slate-200">
-                  {m.name} {isMe ? <span className="text-[10px] text-indigo-400">tú</span> : null}{" "}
+                <p className="flex items-center gap-1.5 text-sm font-medium text-slate-200">
+                  <span className="truncate">{m.name}</span>
+                  {isMe ? <span className="shrink-0 text-[10px] text-indigo-400">tú</span> : null}
                   {m.emailVerified ? <VerifiedBadge size="xs" /> : null}
+                  {m.isGhost ? <GhostBadge /> : null}
                 </p>
                 <p className="text-[11px] text-slate-500">
                   {m.userId === group.creatorId ? "Creador" : m.role === "admin" ? "Administrador" : "Miembro"}
@@ -835,7 +850,82 @@ function MembersTab({
           ))}
         </div>
       ) : null}
+
+      {ghostOpen ? (
+        <AddGhostModal open onClose={() => setGhostOpen(false)} groupId={group.id} onCreated={onChanged} />
+      ) : null}
     </div>
+  );
+}
+
+// ---------- Añadir participante sin cuenta ----------
+
+function AddGhostModal({
+  open,
+  onClose,
+  groupId,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  groupId: string;
+  onCreated: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setName("");
+      setError("");
+    }
+  }, [open]);
+
+  async function submit() {
+    const clean = name.trim();
+    if (!clean) {
+      setError("Escribe el nombre de la persona");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      await api.post(`/groups/${groupId}/ghost-members`, { name: clean });
+      onCreated();
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Error al añadir el participante");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Añadir participante sin cuenta"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={() => void submit()} loading={loading}>
+            Añadir
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <p className="text-xs text-slate-400">
+          Se añadirá al grupo como participante sin correo ni registro. Podrá aparecer en gastos y saldos, y vincularse a
+          una cuenta real más adelante.
+        </p>
+        <Input label="Nombre" placeholder="Ej. Laura (invitada)" value={name} onChange={(e) => setName(e.target.value)} />
+        {error ? <p className="text-xs font-medium text-rose-400">{error}</p> : null}
+      </div>
+    </Modal>
   );
 }
 
@@ -1077,7 +1167,7 @@ function MemberDetailModal({
       onClose={onClose}
       title={
         <span className="inline-flex items-center gap-2">
-          {member.name} {member.emailVerified ? <VerifiedBadge /> : null}
+          {member.name} {member.emailVerified ? <VerifiedBadge /> : null} {member.isGhost ? <GhostBadge /> : null}
         </span>
       }
     >

@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { FastifyPluginAsync } from "fastify";
 import type { Db } from "../db.js";
 import {
+  addMember,
+  createGhostUser,
   createGroup,
   createGroupEvent,
   getGroup,
@@ -153,6 +155,43 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     return { ok: true };
   });
 
+  app.post("/api/groups/:groupId/ghost-members", async (request) => {
+    const { groupId } = request.params as { groupId: string };
+    await requireAdmin(request, groupId);
+    const { name } = request.body as { name?: string };
+    const clean = name?.trim();
+    if (!clean) throw badRequest("El nombre es obligatorio");
+    if (clean.length > 100) throw badRequest("El nombre es demasiado largo");
+    const user = await createGhostUser(request.db, { name: clean });
+    const member = await addMember(request.db, {
+      groupId,
+      userId: user.id,
+      role: "member",
+      status: "active",
+    });
+    await createGroupEvent(request.db, {
+      groupId,
+      type: "member_joined",
+      userId: user.id,
+      userName: user.name,
+    });
+    return {
+      member: {
+        userId: user.id,
+        name: user.name,
+        email: null,
+        avatarUrl: null,
+        emailVerified: false,
+        isGhost: true,
+        role: member.role,
+        status: member.status,
+        joinedAt: member.joinedAt,
+        leftAt: member.leftAt,
+        frozenBalance: member.frozenBalance,
+      },
+    };
+  });
+
   app.delete("/api/groups/:groupId/members/:userId", async (request) => {
     const { groupId, userId } = request.params as { groupId: string; userId: string };
     const admin = await requireAdmin(request, groupId);
@@ -244,6 +283,7 @@ async function groupDetail(
       email: m.email,
       avatarUrl: m.avatar_url,
       emailVerified: Boolean(m.email_verified),
+      isGhost: Boolean(m.is_ghost),
       role: m.role,
       status: m.status,
       joinedAt: m.joined_at,

@@ -34,6 +34,7 @@ export interface MemberBalance {
   paidForOthers: number;
   owesOthers: number;
   emailVerified?: boolean;
+  isGhost?: boolean;
 }
 
 export function computeNetBalances(

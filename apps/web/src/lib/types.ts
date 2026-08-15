@@ -22,6 +22,7 @@ export interface MemberInfo {
   email: string | null;
   avatarUrl: string | null;
   emailVerified: boolean;
+  isGhost: boolean;
   role: "admin" | "member";
   status: "active" | "inactive" | "ex_member";
   joinedAt: string;
@@ -37,6 +38,7 @@ export interface MemberBalance {
   owesOthers: number;
   isMe?: boolean;
   emailVerified?: boolean;
+  isGhost?: boolean;
 }
 
 export interface ExMemberInfo {

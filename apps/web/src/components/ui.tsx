@@ -243,6 +243,20 @@ export function VerifiedBadge({
   );
 }
 
+export function GhostBadge({ className = "", showLabel = true }: { className?: string; showLabel?: boolean }) {
+  return (
+    <span
+      title="Participante sin cuenta"
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-700/50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-300 ${className}`}
+    >
+      <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+      </svg>
+      {showLabel ? "Sin cuenta" : null}
+    </span>
+  );
+}
+
 export function Money({ amount, currency, className = "" }: { amount: number; currency: string; className?: string }) {
   const sym = currencySymbol(currency);
   const abs = Math.abs(amount).toFixed(2);

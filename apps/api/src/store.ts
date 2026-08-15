@@ -55,6 +55,7 @@ export interface MemberRow extends MembershipRow {
   email: string | null;
   avatar_url: string | null;
   email_verified: number;
+  is_ghost: number;
 }
 
 export interface ExpenseRow {
@@ -390,7 +391,7 @@ export async function getMemberRow(
 ): Promise<MemberRow | undefined> {
   return (await db
     .prepare(
-      `SELECT m.*, u.name, u.email, u.avatar_url, u.email_verified
+      `SELECT m.*, u.name, u.email, u.avatar_url, u.email_verified, u.is_ghost
        FROM group_members m
        JOIN users u ON u.id = m.user_id
        WHERE m.group_id = ? AND m.user_id = ?`
@@ -401,7 +402,7 @@ export async function getMemberRow(
 export async function listMembers(db: Db, groupId: string): Promise<MemberRow[]> {
   return (await db
     .prepare(
-      `SELECT m.*, u.name, u.email, u.avatar_url, u.email_verified
+      `SELECT m.*, u.name, u.email, u.avatar_url, u.email_verified, u.is_ghost
        FROM group_members m
        JOIN users u ON u.id = m.user_id
        WHERE m.group_id = ?
