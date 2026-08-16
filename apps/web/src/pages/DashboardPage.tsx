@@ -4,6 +4,7 @@ import { ArrowUpDown, Check, MoreVertical, Pin } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useNotifications } from "../lib/useNotifications";
+import { markPushAsked, shouldAskPush, subscribeToPush } from "../lib/push";
 import { Avatar, Button, DropdownMenu, EmptyState, Input, Modal, Money, Select, Spinner } from "../components/ui";
 import { NotificationBell } from "../components/NotificationBell";
 import { NotificationDrawer } from "../components/NotificationDrawer";
@@ -35,6 +36,8 @@ export default function DashboardPage() {
   const [type, setType] = useState<"open" | "closed">("open");
   const [creating, setCreating] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+  const [showPushBanner, setShowPushBanner] = useState(shouldAskPush());
+  const [enablingPush, setEnablingPush] = useState(false);
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
 
   useEffect(() => {
@@ -97,6 +100,14 @@ export default function DashboardPage() {
     }
   }
 
+  async function enablePush() {
+    setEnablingPush(true);
+    const ok = await subscribeToPush();
+    setEnablingPush(false);
+    setShowPushBanner(false);
+    if (!ok) markPushAsked();
+  }
+
   // Regla estricta por grupo: el balance neto propio (myBalance) indica o bien
   // "te deben" (positivo) o bien "debes" (negativo). Nunca se mezclan.
   const debtGroups = groups
@@ -153,6 +164,38 @@ export default function DashboardPage() {
             >
               Verificar
             </Button>
+          </div>
+        ) : null}
+
+        {showPushBanner ? (
+          <div className="mb-5 flex items-start gap-3 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 p-4">
+            <span className="mt-0.5 text-lg">🔔</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-indigo-300">Activa las notificaciones</p>
+              <p className="mt-0.5 text-xs text-indigo-400/80">
+                Te avisaremos al instante de gastos, pagos y piques nuevos en tus grupos, incluso con la app cerrada.
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  markPushAsked();
+                  setShowPushBanner(false);
+                }}
+                className="text-xs font-medium text-slate-400 transition hover:text-slate-200"
+              >
+                Ahora no
+              </button>
+              <Button
+                variant="primary"
+                className="!px-3 !py-1.5 text-xs"
+                loading={enablingPush}
+                onClick={() => void enablePush()}
+              >
+                Activar
+              </Button>
+            </div>
           </div>
         ) : null}
 

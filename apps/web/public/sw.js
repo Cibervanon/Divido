@@ -23,6 +23,44 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// Notificaciones push: se muestran como notificación del sistema.
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+  let payload = {};
+  try {
+    payload = event.data.json();
+  } catch {
+    // cuerpo no JSON: se muestra un aviso genérico
+  }
+  const title = payload.title || "Divido";
+  const options = {
+    body: payload.body || "",
+    icon: payload.icon || "/logo.svg",
+    badge: payload.badge || "/logo.svg",
+    data: { url: payload.url || "/" },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Al hacer clic en la notificación se abre (o se enfoca) la app en el enlace.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil(
+    clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((windowClients) => {
+        for (const client of windowClients) {
+          if ("focus" in client) {
+            client.navigate(url);
+            return client.focus();
+          }
+        }
+        return clients.openWindow(url);
+      })
+  );
+});
+
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
