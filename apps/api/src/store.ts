@@ -68,7 +68,7 @@ export interface MemberRow extends MembershipRow {
 export interface ExpenseRow {
   id: string;
   group_id: string;
-  payer_id: string;
+  payer_id: string | null;
   description: string;
   amount: number;
   currency: string;
@@ -78,7 +78,9 @@ export interface ExpenseRow {
   created_at: string;
   updated_at: string;
   deleted: number;
-  payer_name: string;
+  paid_from_pot: number;
+  receipt_url: string | null;
+  payer_name: string | null;
 }
 
 export interface PaymentRow {
@@ -678,6 +680,7 @@ export interface PotContribution {
   userAvatar: string | null;
   amount: number;
   note: string | null;
+  expenseId: string | null;
   createdAt: string;
 }
 
@@ -687,8 +690,9 @@ interface PotContributionRow {
   user_id: string;
   amount: number;
   note: string | null;
+  expense_id: string | null;
   created_at: string;
-  user_name: string;
+  user_name: string | null;
   user_avatar: string | null;
 }
 
@@ -697,10 +701,11 @@ function toPotContribution(r: PotContributionRow): PotContribution {
     id: r.id,
     groupId: r.group_id,
     userId: r.user_id,
-    userName: r.user_name,
-    userAvatar: r.user_avatar,
+    userName: r.expense_id ? "Bote común" : (r.user_name ?? "Bote común"),
+    userAvatar: r.expense_id ? null : r.user_avatar,
     amount: r.amount,
     note: r.note,
+    expenseId: r.expense_id,
     createdAt: r.created_at,
   };
 }
@@ -710,7 +715,7 @@ export async function listPotContributions(db: Db, groupId: string): Promise<Pot
     .prepare(
       `SELECT c.*, u.name AS user_name, u.avatar_url AS user_avatar
        FROM common_pot_contributions c
-       JOIN users u ON u.id = c.user_id
+       LEFT JOIN users u ON u.id = c.user_id
        WHERE c.group_id = ?
        ORDER BY c.created_at DESC`
     )
@@ -751,6 +756,69 @@ export async function getPotBalance(db: Db, groupId: string): Promise<number> {
   return Math.round(Number(row?.total ?? 0) * 100) / 100;
 }
 
+export interface PotWithdrawal {
+  id: string;
+  groupId: string;
+  amount: number;
+  expenseId: string;
+  note: string;
+  createdAt: string;
+}
+
+export async function getPotExpenseWithdrawal(
+  db: Db,
+  expenseId: string
+): Promise<PotWithdrawal | undefined> {
+  const row = (await db
+    .prepare("SELECT * FROM common_pot_contributions WHERE expense_id = ?")
+    .get(expenseId)) as
+    | { id: string; group_id: string; amount: number; note: string | null; created_at: string }
+    | undefined;
+  if (!row) return undefined;
+  return {
+    id: row.id,
+    groupId: row.group_id,
+    amount: row.amount,
+    note: row.note ?? "",
+    createdAt: row.created_at,
+    expenseId,
+  };
+}
+
+export async function upsertPotExpenseWithdrawal(
+  db: Db,
+  input: { groupId: string; expenseId: string; amountGroup: number; description: string }
+): Promise<void> {
+  const existing = await getPotExpenseWithdrawal(db, input.expenseId);
+  if (existing) {
+    await db
+      .prepare(
+        `UPDATE common_pot_contributions
+         SET amount = ?, note = ?
+         WHERE expense_id = ?`
+      )
+      .run(-input.amountGroup, `Gasto "${input.description}"`, input.expenseId);
+    return;
+  }
+  await db
+    .prepare(
+      `INSERT INTO common_pot_contributions (id, group_id, user_id, amount, note, expense_id, created_at)
+       VALUES (?, ?, NULL, ?, ?, ?, ?)`
+    )
+    .run(
+      randomUUID(),
+      input.groupId,
+      -input.amountGroup,
+      `Gasto "${input.description}"`,
+      input.expenseId,
+      new Date().toISOString()
+    );
+}
+
+export async function deletePotExpenseWithdrawal(db: Db, expenseId: string): Promise<void> {
+  await db.prepare("DELETE FROM common_pot_contributions WHERE expense_id = ?").run(expenseId);
+}
+
 // ---------- Gastos fijos ----------
 
 export interface RecurringExpense {
@@ -763,6 +831,7 @@ export interface RecurringExpense {
   responsibleName: string;
   createdAt: string;
   active: boolean;
+  autoCreate: boolean;
 }
 
 interface RecurringExpenseRow {
@@ -774,6 +843,7 @@ interface RecurringExpenseRow {
   responsible_id: string;
   created_at: string;
   active: number;
+  auto_create: number;
   responsible_name: string;
 }
 
@@ -788,6 +858,7 @@ function toRecurringExpense(r: RecurringExpenseRow): RecurringExpense {
     responsibleName: r.responsible_name,
     createdAt: r.created_at,
     active: Boolean(r.active),
+    autoCreate: Boolean(r.auto_create),
   };
 }
 
@@ -818,15 +889,31 @@ export async function getRecurringExpense(db: Db, id: string): Promise<Recurring
 
 export async function createRecurringExpense(
   db: Db,
-  input: { groupId: string; title: string; amount: number; frequency: RecurringFrequency; responsibleId: string }
+  input: {
+    groupId: string;
+    title: string;
+    amount: number;
+    frequency: RecurringFrequency;
+    responsibleId: string;
+    autoCreate?: boolean;
+  }
 ): Promise<RecurringExpense> {
   const id = randomUUID();
   await db
     .prepare(
-      `INSERT INTO recurring_expenses (id, group_id, title, amount, frequency, responsible_id, created_at, active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1)`
+      `INSERT INTO recurring_expenses (id, group_id, title, amount, frequency, responsible_id, created_at, active, auto_create)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`
     )
-    .run(id, input.groupId, input.title, input.amount, input.frequency, input.responsibleId, new Date().toISOString());
+    .run(
+      id,
+      input.groupId,
+      input.title,
+      input.amount,
+      input.frequency,
+      input.responsibleId,
+      new Date().toISOString(),
+      input.autoCreate ? 1 : 0
+    );
   return (await getRecurringExpense(db, id))!;
 }
 
@@ -843,7 +930,7 @@ export async function deleteRecurringExpense(db: Db, id: string): Promise<void> 
 
 export interface CreateExpenseInput {
   groupId: string;
-  payerId: string;
+  payerId: string | null;
   description: string;
   amount: number;
   currency: string;
@@ -853,6 +940,8 @@ export interface CreateExpenseInput {
   participants: string[];
   /** Reparto personalizado en moneda del grupo (solo para participantes con share fijo). */
   shares?: Record<string, number> | null;
+  paidFromPot?: boolean;
+  receiptUrl?: string | null;
 }
 
 export async function createExpense(db: Db, input: CreateExpenseInput): Promise<ExpenseRow> {
@@ -860,8 +949,8 @@ export async function createExpense(db: Db, input: CreateExpenseInput): Promise<
   const now = new Date().toISOString();
   await db
     .prepare(
-      `INSERT INTO expenses (id, group_id, payer_id, description, amount, currency, exchange_rate, amount_group, created_by_id, created_at, updated_at, deleted)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`
+      `INSERT INTO expenses (id, group_id, payer_id, description, amount, currency, exchange_rate, amount_group, created_by_id, created_at, updated_at, deleted, paid_from_pot, receipt_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
     )
     .run(
       id,
@@ -874,7 +963,9 @@ export async function createExpense(db: Db, input: CreateExpenseInput): Promise<
       input.amountGroup,
       input.createdById,
       now,
-      now
+      now,
+      input.paidFromPot ? 1 : 0,
+      input.receiptUrl ?? null
     );
   const ins = db.prepare(
     "INSERT INTO expense_participants (expense_id, user_id, share_amount) VALUES (?, ?, ?)"
@@ -888,8 +979,8 @@ export async function createExpense(db: Db, input: CreateExpenseInput): Promise<
 export async function getExpense(db: Db, expenseId: string): Promise<ExpenseRow | undefined> {
   return (await db
     .prepare(
-      `SELECT e.*, u.name AS payer_name
-       FROM expenses e JOIN users u ON u.id = e.payer_id
+      `SELECT e.*, COALESCE(u.name, 'Bote común') AS payer_name
+       FROM expenses e LEFT JOIN users u ON u.id = e.payer_id
        WHERE e.id = ?`
     )
     .get(expenseId)) as ExpenseRow | undefined;
@@ -900,8 +991,8 @@ export async function listExpenses(
   groupId: string,
   includeDeleted = false
 ): Promise<ExpenseRow[]> {
-  const sql = `SELECT e.*, u.name AS payer_name
-    FROM expenses e JOIN users u ON u.id = e.payer_id
+  const sql = `SELECT e.*, COALESCE(u.name, 'Bote común') AS payer_name
+    FROM expenses e LEFT JOIN users u ON u.id = e.payer_id
     WHERE e.group_id = ? ${includeDeleted ? "" : "AND e.deleted = 0"}
     ORDER BY e.created_at DESC`;
   return (await db.prepare(sql).all(groupId)) as unknown as ExpenseRow[];
@@ -943,10 +1034,12 @@ export async function updateExpense(
     currency?: string;
     exchangeRate?: number;
     amountGroup?: number;
-    payerId?: string;
+    payerId?: string | null;
     participants?: string[];
     /** undefined = reparto por igual; objeto = reparto personalizado. */
     shares?: Record<string, number> | null;
+    paidFromPot?: boolean;
+    receiptUrl?: string | null;
   }
 ): Promise<ExpenseRow> {
   const current = (await getExpense(db, expenseId))!;
@@ -954,7 +1047,7 @@ export async function updateExpense(
   await db
     .prepare(
       `UPDATE expenses SET
-         description = ?, amount = ?, currency = ?, exchange_rate = ?, amount_group = ?, payer_id = ?, updated_at = ?
+         description = ?, amount = ?, currency = ?, exchange_rate = ?, amount_group = ?, payer_id = ?, paid_from_pot = ?, receipt_url = ?, updated_at = ?
        WHERE id = ?`
     )
     .run(
@@ -963,7 +1056,9 @@ export async function updateExpense(
       patch.currency ?? current.currency,
       patch.exchangeRate ?? current.exchange_rate,
       patch.amountGroup ?? current.amount_group,
-      patch.payerId ?? current.payer_id,
+      patch.payerId === undefined ? current.payer_id : patch.payerId,
+      (patch.paidFromPot ?? Boolean(current.paid_from_pot)) ? 1 : 0,
+      patch.receiptUrl === undefined ? current.receipt_url : patch.receiptUrl,
       now,
       expenseId
     );

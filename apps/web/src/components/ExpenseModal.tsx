@@ -15,9 +15,13 @@ export function ExpenseModal({
   groupCurrency,
   members,
   defaultPayerId,
+  defaultDescription = "",
+  defaultAmount = "",
   onCreated,
   expense,
   locked = false,
+  hasPot = false,
+  potBalance = 0,
 }: {
   open: boolean;
   onClose: () => void;
@@ -25,9 +29,13 @@ export function ExpenseModal({
   groupCurrency: string;
   members: MemberInfo[];
   defaultPayerId: string;
+  defaultDescription?: string;
+  defaultAmount?: string;
   onCreated: () => void;
   expense?: ExpenseDto;
   locked?: boolean;
+  hasPot?: boolean;
+  potBalance?: number;
 }) {
   const activeMembers = members.filter((m) => m.status === "active");
   const [description, setDescription] = useState("");
@@ -39,24 +47,30 @@ export function ExpenseModal({
   const [splitMode, setSplitMode] = useState<SplitMode>("equal");
   const [percents, setPercents] = useState<Record<string, string>>({});
   const [amounts, setAmounts] = useState<Record<string, string>>({});
+  const [paidFromPot, setPaidFromPot] = useState(false);
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [receiptError, setReceiptError] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
       setError("");
+      setReceiptError("");
       if (expense) {
         setDescription(expense.description);
         setAmount(String(expense.amount));
         setCurrency(expense.currency);
         setExchangeRate(String(expense.exchangeRate));
-        setPayerId(expense.payerId);
+        setPayerId(expense.payerId ?? defaultPayerId);
         setParticipants(expense.participants);
+        setPaidFromPot(expense.paidFromPot);
+        setReceiptUrl(expense.receiptUrl);
         initCustomFromShares(expense.participants, expense.shares);
       } else {
         const all = activeMembers.map((m) => m.userId);
-        setDescription("");
-        setAmount("");
+        setDescription(defaultDescription);
+        setAmount(defaultAmount);
         setCurrency(groupCurrency);
         setExchangeRate("1");
         setPayerId(defaultPayerId);
@@ -64,6 +78,8 @@ export function ExpenseModal({
         setSplitMode("equal");
         setPercents({});
         setAmounts({});
+        setPaidFromPot(false);
+        setReceiptUrl(null);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,6 +192,23 @@ export function ExpenseModal({
     }
   }
 
+  async function readReceiptFile(file: File | undefined) {
+    setReceiptError("");
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setReceiptError("El tique debe ser una imagen");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setReceiptError("El tique supera los 5 MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setReceiptUrl(String(reader.result ?? null));
+    reader.onerror = () => setReceiptError("No se pudo leer el archivo");
+    reader.readAsDataURL(file);
+  }
+
   async function submit() {
     setError("");
     let shares: Record<string, number> | null = null;
@@ -192,8 +225,10 @@ export function ExpenseModal({
         amount: Number(amount),
         currency,
         participants,
-        payerId,
+        paidFromPot,
+        receiptUrl,
       };
+      if (!paidFromPot) body.payerId = payerId;
       if (isForeign) body.exchangeRate = Number(exchangeRate);
       if (splitMode !== "equal") body.shares = shares;
       if (expense && !locked) {
@@ -279,15 +314,108 @@ export function ExpenseModal({
             hint="El cambio se congela en el momento del gasto."
           />
         ) : null}
+        {hasPot ? (
+          <div
+            className={`flex items-center justify-between rounded-xl border px-3 py-2.5 transition ${
+              paidFromPot ? "border-emerald-500/40 bg-emerald-500/10" : "border-slate-800"
+            }`}
+          >
+            <div>
+              <p className="text-sm font-medium text-slate-200">Pagar con el Bote Común</p>
+              <p className="text-[11px] text-slate-500">
+                {paidFromPot
+                  ? `Saldo disponible: ${potBalance.toFixed(2)} ${groupCurrency}`
+                  : "Descuenta directamente del saldo acumulado del bote"}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={paidFromPot}
+              onClick={() => setPaidFromPot((v) => !v)}
+              className={`relative h-6 w-11 shrink-0 rounded-full transition ${
+                paidFromPot ? "bg-emerald-600" : "bg-slate-700"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${
+                  paidFromPot ? "left-[22px]" : "left-0.5"
+                }`}
+              />
+            </button>
+          </div>
+        ) : null}
+        {paidFromPot ? (
+          <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+            <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6"
+              />
+            </svg>
+            El gasto se carga al bote común: el importe no se suma al saldo de ninguna persona.
+          </div>
+        ) : (
+          <div>
+            <span className="mb-1.5 block text-xs font-medium text-slate-400">Pagado por</span>
+            <Select value={payerId} onChange={(e) => setPayerId(e.target.value)}>
+              {activeMembers.map((m) => (
+                <option key={m.userId} value={m.userId}>
+                  {m.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
         <div>
-          <span className="mb-1.5 block text-xs font-medium text-slate-400">Pagado por</span>
-          <Select value={payerId} onChange={(e) => setPayerId(e.target.value)}>
-            {activeMembers.map((m) => (
-              <option key={m.userId} value={m.userId}>
-                {m.name}
-              </option>
-            ))}
-          </Select>
+          <span className="mb-1.5 block text-xs font-medium text-slate-400">Tique (opcional)</span>
+          {receiptUrl ? (
+            <div className="flex items-center gap-3 rounded-xl border border-slate-800 p-2">
+              <button
+                type="button"
+                onClick={() => window.open(receiptUrl, "_blank", "noopener")}
+                className="shrink-0"
+                title="Ver tique"
+              >
+                <img
+                  src={receiptUrl}
+                  alt="Tique"
+                  className="h-14 w-14 rounded-lg border border-slate-700 object-cover"
+                />
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs text-slate-300">Tique adjuntado</p>
+                <p className="text-[11px] text-slate-500">Se guarda con el gasto.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReceiptUrl(null)}
+                className="rounded-lg border border-slate-700 px-2 py-1 text-[11px] font-semibold text-rose-400 transition hover:bg-rose-500/10"
+              >
+                Quitar
+              </button>
+            </div>
+          ) : (
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700 px-3 py-3 text-xs font-medium text-slate-400 transition hover:border-indigo-500 hover:text-indigo-300">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                />
+              </svg>
+              Subir foto del tique
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => readReceiptFile(e.target.files?.[0])}
+              />
+            </label>
+          )}
+          {receiptError ? <p className="mt-1 text-[11px] font-medium text-rose-400">{receiptError}</p> : null}
         </div>
         <div>
           <div className="mb-1.5 flex items-center justify-between">

@@ -84,7 +84,7 @@ export interface ExpenseCommentDto {
 export interface ExpenseDto {
   id: string;
   groupId: string;
-  payerId: string;
+  payerId: string | null;
   payerName: string;
   description: string;
   amount: number;
@@ -94,6 +94,8 @@ export interface ExpenseDto {
   createdAt: string;
   updatedAt: string;
   deleted: boolean;
+  paidFromPot: boolean;
+  receiptUrl: string | null;
   participants: string[];
   shares: Record<string, number> | null;
   share: number;
@@ -166,7 +168,7 @@ export interface BreakdownItem {
     exchangeRate: number;
     amount: number;
     date: string;
-    payerId: string;
+    payerId: string | null;
     paidByMe: boolean;
   }>;
   payments: Array<{ id: string; amount: number; date: string; receivedByMe: boolean }>;
@@ -206,6 +208,7 @@ export interface PotContributionDto {
   userAvatar: string | null;
   amount: number;
   note: string | null;
+  expenseId: string | null;
   createdAt: string;
 }
 
@@ -219,4 +222,5 @@ export interface RecurringExpenseDto {
   responsibleName: string;
   createdAt: string;
   active: boolean;
+  autoCreate: boolean;
 }

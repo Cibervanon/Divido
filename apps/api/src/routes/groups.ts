@@ -395,6 +395,9 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     const contributions = await listPotContributions(request.db, groupId);
     const contribution = contributions.find((c) => c.id === contributionId);
     if (!contribution) throw notFound("Aportación no encontrada");
+    if (contribution.expenseId) {
+      throw conflict("No puedes eliminar la retirada vinculada a un gasto");
+    }
     if (contribution.userId !== user.id && member.role !== "admin") {
       throw forbidden("Solo puedes eliminar tus propias aportaciones");
     }
@@ -419,11 +422,12 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     if (!group.enabledExtras.includes("recurring_expenses")) {
       throw badRequest("El extra de gastos fijos no está activo en este grupo");
     }
-    const { title, amount, frequency, responsibleId } = request.body as {
+    const { title, amount, frequency, responsibleId, autoCreate } = request.body as {
       title?: string;
       amount?: number;
       frequency?: string;
       responsibleId?: string;
+      autoCreate?: boolean;
     };
     const cleanTitle = title?.trim() ?? "";
     if (!cleanTitle) throw badRequest("Escribe un título para la cuota");
@@ -441,6 +445,7 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
       amount: Math.round(amountNum * 100) / 100,
       frequency,
       responsibleId,
+      autoCreate: Boolean(autoCreate),
     });
     return { expense };
   });

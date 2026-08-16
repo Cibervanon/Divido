@@ -77,6 +77,9 @@ export default function GroupPage() {
   const [error, setError] = useState("");
 
   const [showAddExpense, setShowAddExpense] = useState(false);
+  const [expensePrefill, setExpensePrefill] = useState<{ description: string; amount: string; payerId: string } | null>(
+    null
+  );
   const [showPayment, setShowPayment] = useState(false);
   const [showNewDebt, setShowNewDebt] = useState(false);
   const [showNewContribution, setShowNewContribution] = useState(false);
@@ -185,6 +188,11 @@ export default function GroupPage() {
 
   async function handleExpenseCreated() {
     await load();
+  }
+
+  function openAddExpense(prefill?: { description: string; amount: string; payerId: string } | null) {
+    setExpensePrefill(prefill ?? null);
+    setShowAddExpense(true);
   }
 
   async function requestDelete(expense: ExpenseDto) {
@@ -356,6 +364,13 @@ export default function GroupPage() {
               currency={group.currency}
               onChanged={load}
               onNew={() => setShowNewRecurring(true)}
+              onGenerate={(re) =>
+                openAddExpense({
+                  description: re.title,
+                  amount: String(re.amount),
+                  payerId: re.responsibleId,
+                })
+              }
             />
           ) : null}
         </div>
@@ -372,7 +387,7 @@ export default function GroupPage() {
           Pagar
         </button>
         <button
-          onClick={() => setShowAddExpense(true)}
+          onClick={() => openAddExpense()}
           className="flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-xl shadow-indigo-900/40 transition hover:bg-indigo-500 active:scale-95"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -384,11 +399,18 @@ export default function GroupPage() {
 
       <ExpenseModal
         open={showAddExpense}
-        onClose={() => setShowAddExpense(false)}
+        onClose={() => {
+          setShowAddExpense(false);
+          setExpensePrefill(null);
+        }}
         groupId={group.id}
         groupCurrency={group.currency}
         members={detail.members}
-        defaultPayerId={user.id}
+        defaultPayerId={expensePrefill?.payerId ?? user.id}
+        defaultDescription={expensePrefill?.description ?? ""}
+        defaultAmount={expensePrefill?.amount ?? ""}
+        hasPot={hasPot}
+        potBalance={potBalance}
         onCreated={handleExpenseCreated}
       />
 
@@ -409,6 +431,8 @@ export default function GroupPage() {
           groupCurrency={group.currency}
           members={detail.members}
           defaultPayerId={user.id}
+          hasPot={hasPot}
+          potBalance={potBalance}
           onCreated={handleExpenseCreated}
           expense={editTarget}
           locked={!editTarget.editable}
@@ -509,6 +533,7 @@ function ExpensesTab({
   onDecide: (id: string, d: "approve" | "reject") => void;
 }) {
   const pending = requests.filter((r) => r.status === "pending");
+  const [viewReceipt, setViewReceipt] = useState<string | null>(null);
 
   return (
     <div className="space-y-4">
@@ -558,15 +583,36 @@ function ExpensesTab({
               className="rounded-2xl border border-slate-800 bg-slate-900 p-4 transition hover:border-slate-700"
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-100">
-                    {e.description}
-                    {e.deleted ? <span className="ml-2 rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] text-rose-400">eliminado</span> : null}
-                  </p>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {e.payerName} pagó · {e.participantsCount} participante{e.participantsCount !== 1 ? "s" : ""}
-                  </p>
-                </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-100">
+                  {e.description}
+                  {e.paidFromPot ? (
+                    <span className="ml-2 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
+                      Bote común
+                    </span>
+                  ) : null}
+                  {e.deleted ? <span className="ml-2 rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] text-rose-400">eliminado</span> : null}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {e.payerName} pagó · {e.participantsCount} participante{e.participantsCount !== 1 ? "s" : ""}
+                  {e.receiptUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => setViewReceipt(e.receiptUrl)}
+                      className="ml-2 inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300 transition hover:bg-slate-700 hover:text-indigo-200"
+                    >
+                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                        />
+                      </svg>
+                      tique
+                    </button>
+                  ) : null}
+                </p>
+              </div>
                 <div className="text-right">
                   <p className="text-sm font-bold text-slate-100">
                     <Money amount={e.amount} currency={e.currency} />
@@ -623,6 +669,34 @@ function ExpensesTab({
           ))}
         </div>
       )}
+
+      {viewReceipt ? (
+        <div
+          className="fixed inset-0 z-[70] flex flex-col bg-black/90"
+          onClick={() => setViewReceipt(null)}
+        >
+          <div className="flex items-center justify-between px-4 py-3">
+            <p className="text-sm font-semibold text-slate-200">Tique del gasto</p>
+            <button
+              type="button"
+              onClick={() => setViewReceipt(null)}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-slate-300 transition hover:bg-slate-700"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="flex min-h-0 flex-1 items-center justify-center p-4">
+            <img
+              src={viewReceipt}
+              alt="Tique"
+              className="max-h-full max-w-full rounded-xl object-contain shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1498,10 +1572,14 @@ function PotTab({
                   {fmtDate(c.createdAt)}
                 </p>
               </div>
-              <span className="shrink-0 text-sm font-bold text-emerald-400">
+              <span
+                className={`shrink-0 text-sm font-bold ${
+                  c.amount < 0 ? "text-rose-400" : "text-emerald-400"
+                }`}
+              >
                 <Money amount={c.amount} currency={currency} />
               </span>
-              {isAdmin || c.userId === myUserId ? (
+              {!c.expenseId && (isAdmin || c.userId === myUserId) ? (
                 <button
                   onClick={() => void removeContribution(c)}
                   className="shrink-0 rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-rose-400"
@@ -1622,6 +1700,7 @@ function RecurringTab({
   currency,
   onChanged,
   onNew,
+  onGenerate,
 }: {
   expenses: RecurringExpenseDto[];
   myUserId: string;
@@ -1629,6 +1708,7 @@ function RecurringTab({
   currency: string;
   onChanged: () => void;
   onNew: () => void;
+  onGenerate: (expense: RecurringExpenseDto) => void;
 }) {
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
@@ -1694,10 +1774,32 @@ function RecurringTab({
                   {FREQUENCY_LABELS[expense.frequency]} · Responsable: {expense.responsibleName}
                   {expense.active ? "" : " · Pausada"}
                 </p>
+                <span
+                  className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                    expense.autoCreate
+                      ? "bg-emerald-500/10 text-emerald-400"
+                      : "bg-amber-500/10 text-amber-400"
+                  }`}
+                  title={
+                    expense.autoCreate
+                      ? "Se genera el gasto automáticamente cuando vence"
+                      : "Solo recuerda: el gasto se registra manualmente"
+                  }
+                >
+                  {expense.autoCreate ? "Autoregistro" : "Recordatorio"}
+                </span>
               </div>
               <span className="shrink-0 text-sm font-bold text-slate-100">
                 <Money amount={expense.amount} currency={currency} />
               </span>
+              <button
+                onClick={() => onGenerate(expense)}
+                disabled={!expense.active}
+                className="shrink-0 rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-indigo-300 transition hover:bg-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                title="Abre el formulario de gasto con los datos de esta cuota ya rellenados"
+              >
+                Generar gasto ahora
+              </button>
               {canManage(expense) ? (
                 <div className="flex shrink-0 items-center gap-1.5">
                   <button
@@ -1758,6 +1860,7 @@ function NewRecurringModal({
   const [amount, setAmount] = useState("");
   const [frequency, setFrequency] = useState<RecurringFrequency>("monthly");
   const [responsibleId, setResponsibleId] = useState("");
+  const [autoCreate, setAutoCreate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -1767,6 +1870,7 @@ function NewRecurringModal({
       setAmount("");
       setFrequency("monthly");
       setResponsibleId("");
+      setAutoCreate(false);
       setError("");
     }
   }, [open]);
@@ -1780,6 +1884,7 @@ function NewRecurringModal({
         amount: parseFloat(amount),
         frequency,
         responsibleId,
+        autoCreate,
       });
       onCreated();
       onClose();
@@ -1839,6 +1944,35 @@ function NewRecurringModal({
               </option>
             ))}
           </Select>
+        </div>
+        <div
+          className={`flex items-center justify-between rounded-xl border px-3 py-2.5 transition ${
+            autoCreate ? "border-emerald-500/40 bg-emerald-500/10" : "border-slate-800"
+          }`}
+        >
+          <div>
+            <p className="text-sm font-medium text-slate-200">Autoregistrar gasto</p>
+            <p className="text-[11px] text-slate-500">
+              {autoCreate
+                ? "Al vencer se crea el gasto automáticamente"
+                : "Solo recuerda: el gasto se registra manualmente"}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={autoCreate}
+            onClick={() => setAutoCreate((v) => !v)}
+            className={`relative h-6 w-11 shrink-0 rounded-full transition ${
+              autoCreate ? "bg-emerald-600" : "bg-slate-700"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${
+                autoCreate ? "left-[22px]" : "left-0.5"
+              }`}
+            />
+          </button>
         </div>
         {error ? <p className="text-xs font-medium text-rose-400">{error}</p> : null}
       </div>

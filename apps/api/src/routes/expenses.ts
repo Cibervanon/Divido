@@ -1,22 +1,30 @@
 import type { FastifyPluginAsync } from "fastify";
+import { EPS } from "@divido/shared";
 import {
   createExpense,
   createExpenseComment,
   deleteExpense,
   deleteExpenseComment,
+  deletePotExpenseWithdrawal,
   expenseParticipantIds,
   expenseParticipantShares,
   getExpense,
   getExpenseComment,
   getMemberRow,
+  getPotBalance,
+  getPotExpenseWithdrawal,
   listExpenseComments,
   listExpenses,
   listMembers,
   updateExpense,
+  upsertPotExpenseWithdrawal,
 } from "../store.js";
 import { badRequest, conflict, forbidden, notFound } from "../errors.js";
 import { requireActiveMember, requireAuth } from "../plugins.js";
 import { EDIT_WINDOW_MS } from "../config.js";
+
+const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
+const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
 
 export const expenseRoutes: FastifyPluginAsync = async (app) => {
   app.get("/api/groups/:groupId/expenses", async (request) => {
@@ -52,19 +60,28 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       participants?: string[];
       payerId?: string;
       shares?: Record<string, number>;
+      paidFromPot?: boolean;
+      receiptUrl?: unknown;
     };
     const description = body.description?.trim();
     const amount = Number(body.amount);
     if (!description) throw badRequest("La descripción es obligatoria");
     if (!Number.isFinite(amount) || amount <= 0) throw badRequest("Importe inválido");
+    const paidFromPot = Boolean(body.paidFromPot);
+    const receiptUrl = parseReceiptUrl(body.receiptUrl);
     const activeIds = new Set(
       (await listMembers(request.db, groupId))
         .filter((m) => m.status === "active")
         .map((m) => m.user_id)
     );
-    const payerId = body.payerId ?? user.id;
-    if (!activeIds.has(payerId)) throw badRequest("El pagador debe ser un miembro activo");
-    const participants = body.participants ?? [payerId];
+    if (paidFromPot) {
+      if (!group.enabledExtras.includes("common_pot")) {
+        throw badRequest("El extra de bote común no está activo en este grupo");
+      }
+    }
+    const payerId = paidFromPot ? null : body.payerId ?? user.id;
+    if (payerId !== null && !activeIds.has(payerId)) throw badRequest("El pagador debe ser un miembro activo");
+    const participants = body.participants ?? (paidFromPot ? [...activeIds] : [payerId ?? ""].filter(Boolean));
     if (participants.length === 0) throw badRequest("Debes seleccionar al menos un participante");
     for (const p of participants) {
       if (!activeIds.has(p)) throw badRequest("Hay participantes que no son miembros activos");
@@ -77,6 +94,12 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       throw badRequest("Indica el tipo de cambio congelado para la moneda extranjera");
     }
     const amountGroup = round2(amount * exchangeRate);
+    if (paidFromPot) {
+      const potBalance = await getPotBalance(request.db, groupId);
+      if (potBalance + EPS < amountGroup) {
+        throw badRequest("Saldo insuficiente en el bote común");
+      }
+    }
     const uniqueParticipants = [...new Set(participants)];
     const expense = await createExpense(request.db, {
       groupId,
@@ -89,7 +112,17 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       createdById: user.id,
       participants: uniqueParticipants,
       shares: parseShares(body.shares, uniqueParticipants, amountGroup),
+      paidFromPot,
+      receiptUrl,
     });
+    if (paidFromPot) {
+      await upsertPotExpenseWithdrawal(request.db, {
+        groupId,
+        expenseId: expense.id,
+        amountGroup,
+        description,
+      });
+    }
     return { expense: await toExpenseDto(request, expense), editable: true };
   });
 
@@ -115,14 +148,21 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       participants?: string[];
       payerId?: string;
       shares?: Record<string, number> | null;
+      paidFromPot?: boolean;
+      receiptUrl?: unknown;
     };
+    const wasPaidFromPot = Boolean(expense.paid_from_pot);
+    const paidFromPot = body.paidFromPot !== undefined ? Boolean(body.paidFromPot) : wasPaidFromPot;
+    if (paidFromPot && !group.enabledExtras.includes("common_pot")) {
+      throw badRequest("El extra de bote común no está activo en este grupo");
+    }
     const activeIds = new Set(
       (await listMembers(request.db, group.id))
         .filter((m) => m.status === "active")
         .map((m) => m.user_id)
     );
-    const payerId = body.payerId ?? expense.payer_id;
-    if (!activeIds.has(payerId)) throw badRequest("El pagador debe ser un miembro activo");
+    const payerId = paidFromPot ? null : body.payerId ?? (expense.payer_id ?? user.id);
+    if (payerId !== null && !activeIds.has(payerId)) throw badRequest("El pagador debe ser un miembro activo");
     const participants = body.participants ?? (await expenseParticipantIds(request.db, expenseId));
     for (const p of participants) {
       if (!activeIds.has(p)) throw badRequest("Hay participantes que no son miembros activos");
@@ -141,6 +181,15 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       throw badRequest("Tipo de cambio inválido");
     }
     const amountGroup = round2(amount * exchangeRate);
+    if (paidFromPot) {
+      const potBalance = await getPotBalance(request.db, expense.group_id);
+      const withdrawal = await getPotExpenseWithdrawal(request.db, expenseId);
+      const available = potBalance - (withdrawal?.amount ?? 0);
+      if (available + EPS < amountGroup) {
+        throw badRequest("Saldo insuficiente en el bote común");
+      }
+    }
+    const receiptUrl = body.receiptUrl !== undefined ? parseReceiptUrl(body.receiptUrl) : expense.receipt_url;
     const hasShares =
       body.shares === undefined || body.shares === null
         ? undefined
@@ -154,7 +203,19 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       payerId,
       participants,
       shares: hasShares,
+      paidFromPot,
+      receiptUrl,
     });
+    if (paidFromPot) {
+      await upsertPotExpenseWithdrawal(request.db, {
+        groupId: expense.group_id,
+        expenseId,
+        amountGroup,
+        description,
+      });
+    } else if (wasPaidFromPot) {
+      await deletePotExpenseWithdrawal(request.db, expenseId);
+    }
     return { expense: await toExpenseDto(request, updated), editable: false };
   });
 
@@ -172,8 +233,27 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
     if (expense.payer_id !== user.id && member.role !== "admin") {
       throw forbidden("Solo puedes eliminar gastos que hayas creado (o siendo administrador)");
     }
+    if (expense.paid_from_pot) {
+      await deletePotExpenseWithdrawal(request.db, expenseId);
+    }
     await deleteExpense(request.db, expenseId);
     return { ok: true };
+  });
+
+  app.patch("/api/expenses/:expenseId/receipt", async (request) => {
+    const { expenseId } = request.params as { expenseId: string };
+    const user = requireAuth(request);
+    const expense = await getExpense(request.db, expenseId);
+    if (!expense) throw notFound("Gasto no encontrado");
+    const { member } = await requireActiveMember(request, expense.group_id);
+    if (expense.payer_id !== user.id && member.role !== "admin") {
+      throw forbidden("Solo el pagador (o un administrador) puede adjuntar el tique");
+    }
+    const { receiptUrl } = (request.body ?? {}) as { receiptUrl?: unknown };
+    if (receiptUrl === undefined) throw badRequest("Falta el tique");
+    const parsed = parseReceiptUrl(receiptUrl);
+    const updated = await updateExpense(request.db, expenseId, { receiptUrl: parsed });
+    return { expense: await toExpenseDto(request, updated) };
   });
 
   app.post("/api/groups/:groupId/expenses/:expenseId/comments", async (request) => {
@@ -217,7 +297,7 @@ async function toExpenseDto(
   e: {
     id: string;
     group_id: string;
-    payer_id: string;
+    payer_id: string | null;
     description: string;
     amount: number;
     currency: string;
@@ -227,7 +307,9 @@ async function toExpenseDto(
     created_at: string;
     updated_at: string;
     deleted: number;
-    payer_name?: string;
+    paid_from_pot: number;
+    receipt_url: string | null;
+    payer_name?: string | null;
   }
 ) {
   const participants = await expenseParticipantIds(request.db, e.id);
@@ -241,7 +323,7 @@ async function toExpenseDto(
     id: e.id,
     groupId: e.group_id,
     payerId: e.payer_id,
-    payerName: e.payer_name ?? "Usuario",
+    payerName: e.payer_name ?? (e.paid_from_pot ? "Bote común" : "Usuario"),
     description: e.description,
     amount: e.amount,
     currency: e.currency,
@@ -250,6 +332,8 @@ async function toExpenseDto(
     createdAt: e.created_at,
     updatedAt: e.updated_at,
     deleted: Boolean(e.deleted),
+    paidFromPot: Boolean(e.paid_from_pot),
+    receiptUrl: e.receipt_url,
     participants,
     shares: custom ? shares : null,
     share,
@@ -276,6 +360,16 @@ function toCommentDto(c: {
     body: c.body,
     createdAt: c.created_at,
   };
+}
+
+function parseReceiptUrl(raw: unknown): string | null {
+  if (raw === null || raw === undefined || raw === "") return null;
+  if (typeof raw !== "string") throw badRequest("Tique inválido");
+  if (!DATA_IMAGE_RE.test(raw)) throw badRequest("El tique debe ser una imagen");
+  const comma = raw.indexOf(",");
+  const bytes = Math.ceil(((raw.length - comma - 1) * 3) / 4);
+  if (bytes > MAX_RECEIPT_BYTES) throw badRequest("El tique supera los 5 MB");
+  return raw;
 }
 
 function parseShares(

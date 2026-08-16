@@ -10,7 +10,7 @@ export interface BalanceInput {
   memberIds: string[];
   names: Record<string, string>;
   expenses: Array<{
-    payerId: string;
+    payerId: string | null;
     amountGroup: number;
     participants: string[];
     /**
@@ -39,7 +39,7 @@ export interface MemberBalance {
 
 export function computeNetBalances(
   input: BalanceInput,
-  shouldInclude?: (payerId: string, participantId: string) => boolean
+  shouldInclude?: (payerId: string | null, participantId: string) => boolean
 ): MemberBalance[] {
   const net: Record<string, number> = {};
   const paid: Record<string, number> = {};
@@ -57,12 +57,14 @@ export function computeNetBalances(
     const equalShare = e.amountGroup / e.participants.length;
     const shares = e.participantShares ?? {};
     for (const p of e.participants) {
-      if (p === e.payerId) continue;
+      if (e.payerId != null && p === e.payerId) continue;
       if (shouldInclude && !shouldInclude(e.payerId, p)) continue;
       const share = shares[p] != null ? shares[p] : equalShare;
-      net[e.payerId] = (net[e.payerId] ?? 0) + share;
+      if (e.payerId != null) {
+        net[e.payerId] = (net[e.payerId] ?? 0) + share;
+        paid[e.payerId] = (paid[e.payerId] ?? 0) + share;
+      }
       net[p] = (net[p] ?? 0) - share;
-      paid[e.payerId] = (paid[e.payerId] ?? 0) + share;
       owed[p] = (owed[p] ?? 0) + share;
     }
   }

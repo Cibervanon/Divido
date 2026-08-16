@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS group_members (
 CREATE TABLE IF NOT EXISTS expenses (
   id TEXT PRIMARY KEY,
   group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-  payer_id TEXT NOT NULL REFERENCES users(id),
+  payer_id TEXT REFERENCES users(id),
   description TEXT NOT NULL,
   amount REAL NOT NULL,
   currency TEXT NOT NULL,
@@ -113,7 +113,9 @@ CREATE TABLE IF NOT EXISTS expenses (
   created_by_id TEXT NOT NULL REFERENCES users(id),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
-  deleted INTEGER NOT NULL DEFAULT 0
+  deleted INTEGER NOT NULL DEFAULT 0,
+  paid_from_pot INTEGER NOT NULL DEFAULT 0,
+  receipt_url TEXT
 );
 
 CREATE TABLE IF NOT EXISTS expense_participants (
@@ -179,9 +181,10 @@ CREATE TABLE IF NOT EXISTS informal_debts (
 CREATE TABLE IF NOT EXISTS common_pot_contributions (
   id TEXT PRIMARY KEY,
   group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id),
+  user_id TEXT REFERENCES users(id),
   amount REAL NOT NULL,
   note TEXT,
+  expense_id TEXT,
   created_at TEXT NOT NULL
 );
 
@@ -193,7 +196,8 @@ CREATE TABLE IF NOT EXISTS recurring_expenses (
   frequency TEXT NOT NULL DEFAULT 'monthly',
   responsible_id TEXT NOT NULL REFERENCES users(id),
   created_at TEXT NOT NULL,
-  active INTEGER NOT NULL DEFAULT 1
+  active INTEGER NOT NULL DEFAULT 1,
+  auto_create INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_members_user ON group_members(user_id);
@@ -224,6 +228,12 @@ const MIGRATIONS = [
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS revolut TEXT",
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS paypal TEXT",
   "ALTER TABLE group_members ADD COLUMN IF NOT EXISTS claim_token TEXT",
+  "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS paid_from_pot INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS receipt_url TEXT",
+  "ALTER TABLE expenses ALTER COLUMN payer_id DROP NOT NULL",
+  "ALTER TABLE common_pot_contributions ADD COLUMN IF NOT EXISTS expense_id TEXT",
+  "ALTER TABLE common_pot_contributions ALTER COLUMN user_id DROP NOT NULL",
+  "ALTER TABLE recurring_expenses ADD COLUMN IF NOT EXISTS auto_create INTEGER NOT NULL DEFAULT 0",
 ];
 
 export async function initDb(db: Db): Promise<void> {

@@ -45,7 +45,7 @@ export interface PersonBreakdownItem {
     exchangeRate: number;
     amount: number;
     date: string;
-    payerId: string;
+    payerId: string | null;
     paidByMe: boolean;
   }>;
   payments: Array<{ id: string; amount: number; date: string; receivedByMe: boolean }>;
@@ -96,7 +96,7 @@ export async function getGroupBalances(db: Db, groupId: string): Promise<GroupBa
 
   const balances = computeNetBalances(
     { memberIds: activeIds.size ? [...activeIds] : [], names, expenses, payments },
-    (payer, participant) => activeIds.has(payer) && activeIds.has(participant)
+    (payer, participant) => (payer === null || activeIds.has(payer)) && activeIds.has(participant)
   ).map((b) => ({ ...b, emailVerified: verified[b.userId], isGhost: ghosts[b.userId] }));
 
   const fullBalances = computeNetBalances(
@@ -167,7 +167,7 @@ export async function getPersonBreakdown(db: Db, groupId: string, userId: string
           paidByMe: true,
         });
       }
-    } else if (e.participants.includes(userId)) {
+    } else if (e.payer_id !== null && e.participants.includes(userId)) {
       const item = index.get(e.payer_id);
       if (!item) continue;
       const share = shareOf(userId);
