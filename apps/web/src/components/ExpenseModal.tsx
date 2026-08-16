@@ -65,7 +65,7 @@ function CategoryPopoverContent({
             key={cat.category}
             type="button"
             onClick={(e) => { e.stopPropagation(); onSelectCategory(e, cat); }}
-            className={`touch-manipulation flex flex-col items-center gap-1 rounded-lg px-2 py-2 text-[10px] font-medium transition ${
+            className={`touch-manipulation flex flex-col items-center justify-center min-w-0 w-full p-2 gap-1 rounded-lg text-[10px] font-medium transition ${
               isActive
                 ? `bg-[${cat.color}]/20 text-[${cat.color}] border border-[${cat.color}]/40`
                 : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
@@ -73,7 +73,7 @@ function CategoryPopoverContent({
             title={cat.label}
           >
             <CatIcon className="h-5 w-5 shrink-0" style={{ color: cat.color }} />
-            <span className="truncate">{cat.label}</span>
+            <span className="text-center w-full break-words line-clamp-2 overflow-hidden text-[10px] leading-tight">{cat.label}</span>
           </button>
         );
       })}
@@ -81,7 +81,7 @@ function CategoryPopoverContent({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onResetToAuto(e); }}
-          className="touch-manipulation flex flex-col items-center gap-1 rounded-lg px-2 py-2 text-[10px] font-medium text-slate-500 transition hover:text-slate-300"
+          className="touch-manipulation flex flex-col items-center justify-center min-w-0 w-full p-2 gap-1 rounded-lg text-[10px] font-medium text-slate-500 transition hover:text-slate-300"
           title="Detección automática"
         >
           <span className="h-5 w-5 shrink-0 rounded border border-slate-600 flex items-center justify-center">
@@ -89,7 +89,7 @@ function CategoryPopoverContent({
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </span>
-          <span className="truncate">Auto</span>
+          <span className="text-center w-full break-words line-clamp-2 overflow-hidden text-[10px] leading-tight">Auto</span>
         </button>
       )}
     </div>

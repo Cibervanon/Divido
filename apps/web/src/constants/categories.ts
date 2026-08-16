@@ -227,7 +227,7 @@ export const CATEGORIES: Record<Exclude<CategoryKey, "pot" | "bet" | "recurring"
   },
   coffee: {
     category: "coffee",
-    label: "Cafés y Desayunos",
+    label: "Café",
     iconName: "coffee",
     keywords: [
       "cafe",
@@ -257,7 +257,7 @@ export const CATEGORIES: Record<Exclude<CategoryKey, "pot" | "bet" | "recurring"
   },
   streaming: {
     category: "streaming",
-    label: "Suscripciones y TV",
+    label: "Streaming",
     iconName: "tv",
     keywords: [
       "netflix",
@@ -273,7 +273,7 @@ export const CATEGORIES: Record<Exclude<CategoryKey, "pot" | "bet" | "recurring"
   },
   sports: {
     category: "sports",
-    label: "Deporte y Pistas",
+    label: "Deportes",
     iconName: "dumbbell",
     keywords: [
       "padel",
@@ -289,7 +289,7 @@ export const CATEGORIES: Record<Exclude<CategoryKey, "pot" | "bet" | "recurring"
   },
   events: {
     category: "events",
-    label: "Barbacoas y Fiestas",
+    label: "Eventos",
     iconName: "flame",
     keywords: [
       "barbacoa",
@@ -303,7 +303,7 @@ export const CATEGORIES: Record<Exclude<CategoryKey, "pot" | "bet" | "recurring"
   },
   family: {
     category: "family",
-    label: "Niños y Familia",
+    label: "Familia",
     iconName: "baby",
     keywords: [
       "nino",
