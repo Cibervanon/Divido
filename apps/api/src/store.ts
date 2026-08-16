@@ -28,6 +28,7 @@ export interface UserRow {
   verify_token_expires: string | null;
   reset_token: string | null;
   reset_token_expires: string | null;
+  pinned_group_ids: string;
   created_at: string;
 }
 
@@ -40,6 +41,7 @@ export interface GroupRow {
   creator_id: string;
   logo_url: string | null;
   enabled_extras: string;
+  simplify_debts: number;
   created_at: string;
 }
 
@@ -120,6 +122,7 @@ export function toGroup(r: GroupRow): Group {
     creatorId: r.creator_id,
     logoUrl: r.logo_url,
     enabledExtras: parseExtras(r.enabled_extras),
+    simplifyDebts: Boolean(r.simplify_debts),
     createdAt: r.created_at,
   };
 }
@@ -132,6 +135,10 @@ function parseExtras(raw: string | null | undefined): string[] {
   } catch {
     return [];
   }
+}
+
+export function parseStringArray(raw: string | null | undefined): string[] {
+  return parseExtras(raw);
 }
 
 export function toMember(r: MemberRow): GroupMember {
@@ -177,17 +184,21 @@ export async function updateUser(
     phone?: string | null;
     revolut?: string | null;
     paypal?: string | null;
+    pinnedGroupIds?: string[];
   }
 ): Promise<UserRow> {
   const current = (await findUserById(db, userId))!;
   await db
-    .prepare("UPDATE users SET name = ?, avatar_url = ?, phone = ?, revolut = ?, paypal = ? WHERE id = ?")
+    .prepare(
+      "UPDATE users SET name = ?, avatar_url = ?, phone = ?, revolut = ?, paypal = ?, pinned_group_ids = ? WHERE id = ?"
+    )
     .run(
       patch.name?.trim() ?? current.name,
       patch.avatarUrl === undefined ? current.avatar_url : patch.avatarUrl,
       patch.phone === undefined ? current.phone : patch.phone,
       patch.revolut === undefined ? current.revolut : patch.revolut,
       patch.paypal === undefined ? current.paypal : patch.paypal,
+      patch.pinnedGroupIds === undefined ? current.pinned_group_ids : JSON.stringify(patch.pinnedGroupIds),
       userId
     );
   return (await findUserById(db, userId))!;
@@ -369,14 +380,22 @@ export async function linkGoogleToUser(
 
 export async function createGroup(
   db: Db,
-  input: { name: string; currency: string; type: GroupType; creatorId: string; logoUrl?: string | null; enabledExtras?: string[] }
+  input: {
+    name: string;
+    currency: string;
+    type: GroupType;
+    creatorId: string;
+    logoUrl?: string | null;
+    enabledExtras?: string[];
+    simplifyDebts?: boolean;
+  }
 ): Promise<Group> {
   const id = randomUUID();
   const inviteToken = randomUUID().replace(/-/g, "").slice(0, 16);
   await db
     .prepare(
-      `INSERT INTO groups (id, name, currency, type, invite_token, creator_id, logo_url, enabled_extras, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO groups (id, name, currency, type, invite_token, creator_id, logo_url, enabled_extras, simplify_debts, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       id,
@@ -387,6 +406,7 @@ export async function createGroup(
       input.creatorId,
       input.logoUrl ?? null,
       JSON.stringify(input.enabledExtras ?? []),
+      input.simplifyDebts ? 1 : 0,
       new Date().toISOString()
     );
   await addMember(db, {
@@ -413,7 +433,7 @@ export async function getGroupByInviteToken(db: Db, token: string): Promise<Grou
 export async function listGroupsForUser(
   db: Db,
   userId: string
-): Promise<Array<Group & { membership: GroupMember }>> {
+): Promise<Array<Group & { membership: GroupMember; lastActivity: string }>> {
   const rows = (await db
     .prepare(
       `SELECT g.* FROM groups g
@@ -422,11 +442,27 @@ export async function listGroupsForUser(
        ORDER BY g.created_at DESC`
     )
     .all(userId)) as unknown as GroupRow[];
-  const result: Array<Group & { membership: GroupMember }> = [];
+  const activityRows = (await db
+    .prepare(
+      `SELECT g.id AS group_id,
+              COALESCE(MAX(a.last), g.created_at) AS last_activity
+       FROM groups g
+       JOIN group_members m ON m.group_id = g.id AND m.user_id = ? AND m.status = 'active'
+       LEFT JOIN (
+         SELECT group_id, created_at AS last FROM group_events
+         UNION ALL SELECT group_id, created_at FROM expenses
+         UNION ALL SELECT group_id, created_at FROM informal_debts
+         UNION ALL SELECT group_id, created_at FROM common_pot_contributions
+       ) a ON a.group_id = g.id
+       GROUP BY g.id, g.created_at`
+    )
+    .all(userId)) as unknown as Array<{ group_id: string; last_activity: string }>;
+  const activityById = new Map(activityRows.map((r) => [r.group_id, r.last_activity]));
+  const result: Array<Group & { membership: GroupMember; lastActivity: string }> = [];
   for (const r of rows) {
     const g = toGroup(r);
     const membership = (await getMembership(db, g.id, userId))!;
-    result.push({ ...g, membership });
+    result.push({ ...g, membership, lastActivity: activityById.get(g.id) ?? g.createdAt });
   }
   return result;
 }
@@ -434,15 +470,23 @@ export async function listGroupsForUser(
 export async function updateGroup(
   db: Db,
   groupId: string,
-  patch: { name?: string; currency?: string; type?: GroupType; logoUrl?: string | null; enabledExtras?: string[] }
+  patch: {
+    name?: string;
+    currency?: string;
+    type?: GroupType;
+    logoUrl?: string | null;
+    enabledExtras?: string[];
+    simplifyDebts?: boolean;
+  }
 ): Promise<Group> {
   const current = (await getGroup(db, groupId))!;
-  await db.prepare("UPDATE groups SET name = ?, currency = ?, type = ?, logo_url = ?, enabled_extras = ? WHERE id = ?").run(
+  await db.prepare("UPDATE groups SET name = ?, currency = ?, type = ?, logo_url = ?, enabled_extras = ?, simplify_debts = ? WHERE id = ?").run(
     patch.name ?? current.name,
     patch.currency ?? current.currency,
     patch.type ?? current.type,
     patch.logoUrl === undefined ? current.logoUrl : patch.logoUrl,
     patch.enabledExtras === undefined ? JSON.stringify(current.enabledExtras) : JSON.stringify(patch.enabledExtras),
+    patch.simplifyDebts === undefined ? (current.simplifyDebts ? 1 : 0) : patch.simplifyDebts ? 1 : 0,
     groupId
   );
   return (await getGroup(db, groupId))!;

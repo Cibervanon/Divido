@@ -23,6 +23,7 @@ export interface Group {
   creatorId: string;
   logoUrl: string | null;
   enabledExtras: string[];
+  simplifyDebts: boolean;
   createdAt: string;
 }
 

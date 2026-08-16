@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { updateUser } from "../store.js";
+import { parseStringArray, updateUser } from "../store.js";
 import { badRequest } from "../errors.js";
 import { requireAuth } from "../plugins.js";
 import { sendVerificationEmail } from "../email.js";
@@ -28,6 +28,7 @@ export const userRoutes: FastifyPluginAsync = async (app) => {
       phone?: string | null;
       revolut?: string | null;
       paypal?: string | null;
+      pinnedGroupIds?: string[];
     };
     const patch: {
       name?: string;
@@ -35,6 +36,7 @@ export const userRoutes: FastifyPluginAsync = async (app) => {
       phone?: string | null;
       revolut?: string | null;
       paypal?: string | null;
+      pinnedGroupIds?: string[];
     } = {};
 
     if (body.name !== undefined) {
@@ -68,6 +70,11 @@ export const userRoutes: FastifyPluginAsync = async (app) => {
     if (body.revolut !== undefined) patch.revolut = normalizeHandle(body.revolut);
     if (body.paypal !== undefined) patch.paypal = normalizeHandle(body.paypal);
 
+    if (body.pinnedGroupIds !== undefined) {
+      const ids = Array.isArray(body.pinnedGroupIds) ? body.pinnedGroupIds.map((v) => String(v).trim()) : [];
+      patch.pinnedGroupIds = ids.slice(0, 50);
+    }
+
     if (Object.keys(patch).length === 0) throw badRequest("Sin cambios");
     const updated = await updateUser(request.db, user.id, patch);
     return { user: toPublicUser(updated) };
@@ -96,6 +103,7 @@ function toPublicUser(user: {
   phone: string | null;
   revolut: string | null;
   paypal: string | null;
+  pinned_group_ids: string;
 }) {
   return {
     id: user.id,
@@ -106,5 +114,6 @@ function toPublicUser(user: {
     phone: user.phone,
     revolut: user.revolut,
     paypal: user.paypal,
+    pinnedGroupIds: parseStringArray(user.pinned_group_ids),
   };
 }

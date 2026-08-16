@@ -16,6 +16,7 @@ export interface Me {
   phone: string | null;
   revolut: string | null;
   paypal: string | null;
+  pinnedGroupIds: string[];
 }
 
 interface AuthContextValue {

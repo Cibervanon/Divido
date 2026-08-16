@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS users (
   verify_token_expires TEXT,
   reset_token TEXT,
   reset_token_expires TEXT,
+  pinned_group_ids TEXT NOT NULL DEFAULT '[]',
   created_at TEXT NOT NULL
 );
 
@@ -86,6 +87,7 @@ CREATE TABLE IF NOT EXISTS groups (
   creator_id TEXT NOT NULL REFERENCES users(id),
   logo_url TEXT,
   enabled_extras TEXT NOT NULL DEFAULT '[]',
+  simplify_debts INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL
 );
 
@@ -234,6 +236,8 @@ const MIGRATIONS = [
   "ALTER TABLE common_pot_contributions ADD COLUMN IF NOT EXISTS expense_id TEXT",
   "ALTER TABLE common_pot_contributions ALTER COLUMN user_id DROP NOT NULL",
   "ALTER TABLE recurring_expenses ADD COLUMN IF NOT EXISTS auto_create INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS pinned_group_ids TEXT NOT NULL DEFAULT '[]'",
+  "ALTER TABLE groups ADD COLUMN IF NOT EXISTS simplify_debts INTEGER NOT NULL DEFAULT 0",
 ];
 
 export async function initDb(db: Db): Promise<void> {

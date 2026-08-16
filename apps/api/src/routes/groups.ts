@@ -75,6 +75,7 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
             totalOwedToMe: round2(Math.max(mine?.net ?? 0, 0)),
             totalOwedByMe: round2(Math.max(-(mine?.net ?? 0), 0)),
             memberCount: b.balances.length + b.exMembers.length,
+            lastActivity: g.lastActivity,
           };
         })
       ),
@@ -122,12 +123,13 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
   app.patch("/api/groups/:groupId", async (request) => {
     const { groupId } = request.params as { groupId: string };
     await requireAdmin(request, groupId);
-    const { name, currency, type, logoUrl, enabledExtras } = request.body as {
+    const { name, currency, type, logoUrl, enabledExtras, simplifyDebts } = request.body as {
       name?: string;
       currency?: string;
       type?: GroupType;
       logoUrl?: string | null;
       enabledExtras?: string[];
+      simplifyDebts?: boolean;
     };
     const cur = currency ? currency.toUpperCase() : undefined;
     if (cur && !VALID_CURRENCIES.has(cur)) throw badRequest("Moneda no soportada");
@@ -137,6 +139,7 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
       type?: GroupType;
       logoUrl?: string | null;
       enabledExtras?: string[];
+      simplifyDebts?: boolean;
     } = {};
     if (name?.trim()) patch.name = name.trim();
     if (cur) patch.currency = cur;
@@ -149,6 +152,7 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
       }
       patch.enabledExtras = [...new Set(enabledExtras)];
     }
+    if (simplifyDebts !== undefined) patch.simplifyDebts = Boolean(simplifyDebts);
     if (Object.keys(patch).length === 0) throw badRequest("Sin cambios");
     const group = await updateGroup(request.db, groupId, patch);
     return { group: await groupDetail(request.db, group, requireAuth(request).id) };
@@ -502,6 +506,7 @@ function groupToPublic(group: Group) {
     creatorId: group.creatorId,
     logoUrl: group.logoUrl,
     enabledExtras: group.enabledExtras,
+    simplifyDebts: group.simplifyDebts,
     createdAt: group.createdAt,
   };
 }
@@ -538,6 +543,7 @@ async function groupDetail(
     })),
     balances: balances.balances.map((b) => ({ ...b, isMe: b.userId === userId })),
     transfers: balances.transfers,
+    rawTransfers: balances.rawTransfers,
     exMembers: balances.exMembers,
   };
 }

@@ -14,6 +14,7 @@ export interface GroupSummary {
   totalOwedToMe: number;
   totalOwedByMe: number;
   memberCount: number;
+  lastActivity: string;
 }
 
 export interface MemberInfo {
@@ -60,6 +61,7 @@ export interface GroupDetail {
     creatorId: string;
     logoUrl: string | null;
     enabledExtras: string[];
+    simplifyDebts: boolean;
     createdAt: string;
   };
   inviteUrl: string | null;
@@ -68,6 +70,7 @@ export interface GroupDetail {
   members: MemberInfo[];
   balances: MemberBalance[];
   transfers: SettlementTransfer[];
+  rawTransfers: SettlementTransfer[];
   exMembers: ExMemberInfo[];
 }
 

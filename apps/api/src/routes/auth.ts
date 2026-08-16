@@ -8,6 +8,7 @@ import {
   findUserByVerifyToken,
   linkGoogleToUser,
   markEmailVerified,
+  parseStringArray,
   updatePassword,
 } from "../store.js";
 import {
@@ -139,6 +140,7 @@ function toAuthUser(user: {
   phone: string | null;
   revolut: string | null;
   paypal: string | null;
+  pinned_group_ids: string;
 }) {
   return {
     id: user.id,
@@ -149,5 +151,6 @@ function toAuthUser(user: {
     phone: user.phone,
     revolut: user.revolut,
     paypal: user.paypal,
+    pinnedGroupIds: parseStringArray(user.pinned_group_ids),
   };
 }

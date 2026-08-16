@@ -3,6 +3,7 @@ import {
   computeNetBalances,
   simplifyDebts,
   round2,
+  EPS,
   type MemberBalance,
   type SettlementTransfer,
 } from "@divido/shared";
@@ -27,6 +28,7 @@ export interface ExMemberBalance {
 export interface GroupBalances {
   balances: MemberBalance[];
   transfers: SettlementTransfer[];
+  rawTransfers: SettlementTransfer[];
   exMembers: ExMemberBalance[];
 }
 
@@ -107,6 +109,7 @@ export async function getGroupBalances(db: Db, groupId: string): Promise<GroupBa
   );
 
   const transfers = simplifyDebts(balances);
+  const rawTransfers = buildRawTransfers(expenses, payments, activeIds, names);
 
   const exMembers: ExMemberBalance[] = ex.map((m) => {
     const full = fullBalances.find((b) => b.userId === m.user_id);
@@ -121,8 +124,65 @@ export async function getGroupBalances(db: Db, groupId: string): Promise<GroupBa
   return {
     balances: balances.sort((a, b) => b.net - a.net),
     transfers,
+    rawTransfers,
     exMembers,
   };
+}
+
+// Deudas crudas por pares, sin optimizar: cada participante debe al pagador su
+// parte, y los pagos ya registrados descuentan esa deuda. Es la vista "sin
+// simplificar" antes de aplicar la liquidación en cadena.
+function buildRawTransfers(
+  expenses: Array<{
+    payerId: string | null;
+    amountGroup: number;
+    participants: string[];
+    participantShares?: Record<string, number>;
+    deleted?: boolean;
+  }>,
+  payments: Array<{ fromUserId: string; toUserId: string; amount: number }>,
+  activeIds: Set<string>,
+  names: Record<string, string>
+): SettlementTransfer[] {
+  const pairDebt = new Map<string, Map<string, number>>();
+  const add = (from: string, to: string, amount: number) => {
+    if (!activeIds.has(from) || !activeIds.has(to) || amount === 0) return;
+    let m = pairDebt.get(from);
+    if (!m) {
+      m = new Map();
+      pairDebt.set(from, m);
+    }
+    m.set(to, round2((m.get(to) ?? 0) + amount));
+  };
+
+  for (const e of expenses) {
+    if (e.deleted || e.participants.length === 0 || e.payerId == null) continue;
+    const equalShare = e.amountGroup / e.participants.length;
+    for (const p of e.participants) {
+      if (p === e.payerId) continue;
+      const share = e.participantShares && e.participantShares[p] != null ? e.participantShares[p] : equalShare;
+      add(p, e.payerId, share);
+    }
+  }
+  for (const pay of payments) {
+    add(pay.fromUserId, pay.toUserId, -pay.amount);
+  }
+
+  const result: SettlementTransfer[] = [];
+  for (const [from, m] of pairDebt) {
+    for (const [to, amount] of m) {
+      if (amount > EPS) {
+        result.push({
+          fromUserId: from,
+          fromName: names[from] ?? "Usuario",
+          toUserId: to,
+          toName: names[to] ?? "Usuario",
+          amount,
+        });
+      }
+    }
+  }
+  return result.sort((a, b) => b.amount - a.amount);
 }
 
 export async function getPersonBreakdown(db: Db, groupId: string, userId: string): Promise<PersonBreakdownItem[]> {

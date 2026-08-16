@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Avatar, Button, EmptyState, GhostBadge, Input, Modal, Money, Select, Spinner, Tabs, Toast, VerifiedBadge, currencySymbol } from "../components/ui";
 import { ExpenseModal } from "../components/ExpenseModal";
 import { PaymentModal } from "../components/PaymentModal";
+import { simplifyDebts, type SimplifyResult } from "../lib/debtSimplifier";
 import type {
   BreakdownItem,
   ExpenseCommentDto,
@@ -955,14 +956,25 @@ function BalancesTab({
   onOpenMember: (m: MemberInfo) => void;
   onToast: (msg: string) => void;
 }) {
-  const { group, balances, transfers, exMembers } = detail;
+  const { group, balances, rawTransfers, exMembers } = detail;
   const memberById = new Map(detail.members.map((m) => [m.userId, m]));
+
+  const [simplifyEnabled, setSimplifyEnabled] = useState(group.simplifyDebts);
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const isAdmin = detail.myRole === "admin";
+
+  const simplified = useMemo(
+    () => simplifyDebts(rawTransfers, balances.map((b) => ({ userId: b.userId, name: b.name, net: b.net }))),
+    [rawTransfers, balances]
+  );
+  const hasSavings = simplified.originalCount > 0 && simplified.transfers.length < simplified.originalCount;
+  const effectiveTransfers = simplifyEnabled ? simplified.transfers : rawTransfers;
 
   // Garantía: si un usuario tiene saldo neto negativo pero la simplificación no
   // le asignó transferencia (redondeo o descompensación residual), se le genera
   // una tarjeta de pago contra el mayor acreedor para que la deuda siempre se
   // muestre y el listado inferior nunca aparezca vacío.
-  const coveredDebtors = new Set(transfers.map((t) => t.fromUserId));
+  const coveredDebtors = new Set(effectiveTransfers.map((t) => t.fromUserId));
   const topCreditor = [...balances].sort((a, b) => b.net - a.net).find((b) => b.net > 0.004);
   const fallbackTransfers: SettlementTransfer[] = topCreditor
     ? balances
@@ -975,7 +987,23 @@ function BalancesTab({
           amount: -b.net,
         }))
     : [];
-  const displayTransfers = transfers.length > 0 ? [...transfers, ...fallbackTransfers] : fallbackTransfers;
+  const displayTransfers = effectiveTransfers.length > 0 ? [...effectiveTransfers, ...fallbackTransfers] : fallbackTransfers;
+
+  async function toggleSimplify() {
+    const next = !simplifyEnabled;
+    setSimplifyEnabled(next);
+    if (isAdmin) {
+      try {
+        await api.patch(`/groups/${group.id}`, { simplifyDebts: next });
+        onToast(next ? "Simplificación de pagos activada" : "Simplificación de pagos desactivada");
+      } catch (err) {
+        setSimplifyEnabled(!next);
+        onToast(err instanceof ApiError ? err.message : "Error al guardar");
+      }
+    } else {
+      onToast("Vista local solo para ti: un administrador puede guardar esta preferencia para el grupo");
+    }
+  }
 
   async function shareSummary() {
     const text = buildSummaryText(group.name, group.currency, displayTransfers);
@@ -1009,6 +1037,65 @@ function BalancesTab({
         </svg>
         Compartir resumen
       </button>
+
+      {hasSavings ? (
+        <div
+          className={`rounded-2xl border p-4 ${
+            simplifyEnabled ? "border-emerald-500/40 bg-emerald-500/10" : "border-indigo-500/40 bg-indigo-500/10"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <svg className={`h-5 w-5 shrink-0 ${simplifyEnabled ? "text-emerald-400" : "text-indigo-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+            </svg>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-slate-100">
+                {simplifyEnabled
+                  ? `Simplificación activada: ${simplified.transfers.length} pago${simplified.transfers.length !== 1 ? "s" : ""} en lugar de ${simplified.originalCount}`
+                  : `Simplifica tus pagos: ${simplified.originalCount} → ${simplified.transfers.length}`}
+              </p>
+              <p className="mt-0.5 text-[11px] leading-snug text-slate-400">
+                {simplifyEnabled
+                  ? "Las deudas en cadena se consolidan (si A debe a B y B a C, se propone A → C)."
+                  : "Consolida las deudas en cadena para reducir el número de pagos. Requiere un administrador."}
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
+              {simplifyEnabled ? (
+                <>
+                  <button
+                    onClick={() => setShowBreakdown(true)}
+                    className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-emerald-950 transition hover:bg-emerald-400"
+                  >
+                    Ver desglose
+                  </button>
+                  <button
+                    onClick={() => void toggleSimplify()}
+                    className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:bg-slate-700"
+                  >
+                    Desactivar
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => void toggleSimplify()}
+                  disabled={!isAdmin}
+                  className="rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Activar
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <SimplifyBreakdownModal
+        open={showBreakdown}
+        onClose={() => setShowBreakdown(false)}
+        result={simplified}
+        currency={group.currency}
+      />
 
       <div className="space-y-2">
         {balances.map((b) => {
@@ -1091,10 +1178,13 @@ function BalancesTab({
 
       {displayTransfers.length > 0 ? (
         <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-          <p className="mb-3 text-sm font-bold text-slate-100">Pagos sugeridos (liquidación optimizada)</p>
+          <p className="mb-3 text-sm font-bold text-slate-100">
+            {simplifyEnabled ? "Pagos sugeridos (liquidación optimizada)" : "Pagos sugeridos"}
+          </p>
           <p className="mb-3 text-[11px] text-slate-500">
-            {displayTransfers.length} transferencia{displayTransfers.length !== 1 ? "s" : ""} para liquidar todo el grupo.
-            Las deudas en cadena se consolidan (si A debe a B y B a C, se propone A → C).
+            {simplifyEnabled
+              ? `${displayTransfers.length} transferencia${displayTransfers.length !== 1 ? "s" : ""} para liquidar todo el grupo. Las deudas en cadena se consolidan (si A debe a B y B a C, se propone A → C).`
+              : `${displayTransfers.length} deuda${displayTransfers.length !== 1 ? "s" : ""} directa${displayTransfers.length !== 1 ? "s" : ""} entre miembros. Activa la simplificación para consolidarlas en menos pagos.`}
           </p>
           <div className="space-y-2">
             {displayTransfers.map((t, i) => (
@@ -1138,6 +1228,113 @@ function BalancesTab({
         </div>
       ) : null}
     </div>
+  );
+}
+
+// ---------- Desglose de simplificación ----------
+
+function SimplifyBreakdownModal({
+  open,
+  onClose,
+  result,
+  currency,
+}: {
+  open: boolean;
+  onClose: () => void;
+  result: SimplifyResult;
+  currency: string;
+}) {
+  if (!open) return null;
+  const unchanged = result.debts.filter((d) => d.newAmount >= d.originalAmount - 0.005);
+  const reduced = result.debts.filter((d) => d.newAmount < d.originalAmount - 0.005 && d.newAmount > 0.005);
+  const canceled = result.debts.filter((d) => d.newAmount <= 0.005);
+
+  return (
+    <Modal open={open} onClose={onClose} title="Desglose de la simplificación">
+      <p className="mb-4 rounded-xl bg-slate-800/60 px-3 py-2.5 text-sm text-slate-300">
+        <span className="font-bold text-slate-100">{result.originalCount}</span> deuda{result.originalCount !== 1 ? "s" : ""} →
+        <span className="font-bold text-emerald-400"> {result.transfers.length}</span> pago{result.transfers.length !== 1 ? "s" : ""}{" "}
+        para liquidar el grupo.
+      </p>
+
+      {canceled.length > 0 ? (
+        <div className="mb-4">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-rose-400">Se cancelan ({canceled.length})</p>
+          <div className="space-y-1.5">
+            {canceled.map((d, i) => (
+              <div key={i} className="flex items-center justify-between gap-2 rounded-xl bg-slate-800/60 px-3 py-2 text-sm">
+                <span className="truncate text-slate-300">
+                  {d.fromName} → {d.toName}
+                </span>
+                <span className="shrink-0 text-rose-400 line-through">
+                  <Money amount={d.originalAmount} currency={currency} />
+                  <span className="mx-1 text-slate-500">→</span>
+                  <Money amount={0} currency={currency} />
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {reduced.length > 0 ? (
+        <div className="mb-4">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-amber-400">Se reducen ({reduced.length})</p>
+          <div className="space-y-1.5">
+            {reduced.map((d, i) => (
+              <div key={i} className="flex items-center justify-between gap-2 rounded-xl bg-slate-800/60 px-3 py-2 text-sm">
+                <span className="truncate text-slate-300">
+                  {d.fromName} → {d.toName}
+                </span>
+                <span className="shrink-0 text-amber-300">
+                  <Money amount={d.originalAmount} currency={currency} />
+                  <span className="mx-1 text-slate-500">→</span>
+                  <Money amount={d.newAmount} currency={currency} />
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {unchanged.length > 0 ? (
+        <div className="mb-4">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">Se mantienen ({unchanged.length})</p>
+          <div className="space-y-1.5">
+            {unchanged.map((d, i) => (
+              <div key={i} className="flex items-center justify-between gap-2 rounded-xl bg-slate-800/60 px-3 py-2 text-sm">
+                <span className="truncate text-slate-300">
+                  {d.fromName} → {d.toName}
+                </span>
+                <span className="shrink-0 text-slate-400">
+                  <Money amount={d.originalAmount} currency={currency} />
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {result.transfers.length > 0 ? (
+        <div>
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-emerald-400">Transferencias resultantes</p>
+          <div className="space-y-1.5">
+            {result.transfers.map((t, i) => (
+              <div key={i} className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-3 py-2 text-sm">
+                <span className="font-medium text-slate-200">{t.fromName}</span>
+                <svg className="h-4 w-4 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+                <span className="font-medium text-slate-200">{t.toName}</span>
+                <span className="ml-auto font-bold text-emerald-400">
+                  <Money amount={t.amount} currency={currency} />
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </Modal>
   );
 }
 
@@ -2368,6 +2565,7 @@ function SettingsModal({
   const [type, setType] = useState<"open" | "closed">(group.type);
   const [logoUrl, setLogoUrl] = useState(group.logoUrl ?? "");
   const [enabledExtras, setEnabledExtras] = useState<string[]>(group.enabledExtras ?? []);
+  const [simplifyDebts, setSimplifyDebts] = useState(group.simplifyDebts);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -2379,6 +2577,7 @@ function SettingsModal({
       setType(group.type);
       setLogoUrl(group.logoUrl ?? "");
       setEnabledExtras(group.enabledExtras ?? []);
+      setSimplifyDebts(group.simplifyDebts);
       setError("");
     }
   }, [open, group]);
@@ -2394,7 +2593,7 @@ function SettingsModal({
   async function save() {
     setSaving(true);
     try {
-      await api.patch(`/groups/${group.id}`, { name, currency, type, logoUrl: logoUrl.trim() || null, enabledExtras });
+      await api.patch(`/groups/${group.id}`, { name, currency, type, logoUrl: logoUrl.trim() || null, enabledExtras, simplifyDebts });
       onChanged();
       onClose();
     } catch (err) {
@@ -2492,6 +2691,32 @@ function SettingsModal({
                   );
                 })}
               </div>
+            </div>
+            <div className="border-t border-slate-800 pt-4">
+              <button
+                type="button"
+                onClick={() => setSimplifyDebts((prev) => !prev)}
+                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-left transition hover:border-slate-600"
+              >
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-slate-200">Simplificar deudas automáticamente</span>
+                  <span className="mt-0.5 block text-[11px] text-slate-500">
+                    Consolida las deudas en cadena (si A debe a B y B a C, se propone A → C) para reducir los pagos
+                    sugeridos en la pestaña Saldos.
+                  </span>
+                </span>
+                <span
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
+                    simplifyDebts ? "bg-indigo-600" : "bg-slate-700"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${
+                      simplifyDebts ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </span>
+              </button>
             </div>
             {error ? <p className="text-xs text-rose-400">{error}</p> : null}
           </>

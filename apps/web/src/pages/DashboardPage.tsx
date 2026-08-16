@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Pin, PinOff } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Avatar, Button, Input, Modal, Money, Select, Spinner, EmptyState } from "../components/ui";
@@ -7,10 +8,14 @@ import { Logo } from "../components/Logo";
 import { ProfileModal } from "../components/ProfileModal";
 import type { GroupDetail, GroupSummary } from "../lib/types";
 
+type GroupSort = "activity" | "name" | "amount";
+
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [groups, setGroups] = useState<GroupSummary[]>([]);
+  const [pinnedIds, setPinnedIds] = useState<string[]>(user?.pinnedGroupIds ?? []);
+  const [sort, setSort] = useState<GroupSort>("activity");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -20,6 +25,33 @@ export default function DashboardPage() {
   const [type, setType] = useState<"open" | "closed">("open");
   const [creating, setCreating] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+
+  useEffect(() => {
+    if (user) setPinnedIds(user.pinnedGroupIds ?? []);
+  }, [user]);
+
+  function compareGroups(a: GroupSummary, b: GroupSummary): number {
+    if (sort === "name") return a.name.localeCompare(b.name, "es");
+    if (sort === "amount") {
+      return b.myBalance - a.myBalance || b.lastActivity.localeCompare(a.lastActivity);
+    }
+    return b.lastActivity.localeCompare(a.lastActivity) || a.name.localeCompare(b.name, "es");
+  }
+
+  const pinnedSet = new Set(pinnedIds);
+  const pinnedGroups = groups.filter((g) => pinnedSet.has(g.id)).sort(compareGroups);
+  const otherGroups = groups.filter((g) => !pinnedSet.has(g.id)).sort(compareGroups);
+
+  async function togglePin(id: string) {
+    const next = pinnedIds.includes(id) ? pinnedIds.filter((x) => x !== id) : [...pinnedIds, id];
+    setPinnedIds(next);
+    try {
+      await api.patch("/users/me", { pinnedGroupIds: next });
+      void refreshUser();
+    } catch {
+      setPinnedIds(pinnedIds);
+    }
+  }
 
   async function load() {
     try {
@@ -219,16 +251,30 @@ export default function DashboardPage() {
           </div>
         ) : null}
 
-        <div className="mb-5 flex items-center justify-between">
+        <div className="mb-5 flex items-center justify-between gap-3">
           <h1 className="text-xl font-extrabold text-slate-100">Mis grupos</h1>
-          {user?.emailVerified ? (
-            <Button onClick={() => setCreateOpen(true)} className="!py-2">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              Nuevo grupo
-            </Button>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {groups.length > 0 ? (
+              <Select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as GroupSort)}
+                className="!py-1.5 text-xs"
+                aria-label="Ordenar grupos"
+              >
+                <option value="activity">Actividad reciente</option>
+                <option value="name">Nombre A-Z</option>
+                <option value="amount">Por saldo</option>
+              </Select>
+            ) : null}
+            {user?.emailVerified ? (
+              <Button onClick={() => setCreateOpen(true)} className="!py-2">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Nuevo grupo
+              </Button>
+            ) : null}
+          </div>
         </div>
 
         {loading ? (
@@ -253,9 +299,24 @@ export default function DashboardPage() {
           />
         ) : (
           <div className="space-y-3">
-            {groups.map((g) => (
-              <GroupCard key={g.id} group={g} />
-            ))}
+            {pinnedGroups.length > 0 ? (
+              <>
+                <p className="pt-2 text-xs font-bold uppercase tracking-wider text-indigo-400">Anclados</p>
+                {pinnedGroups.map((g) => (
+                  <GroupCard key={g.id} group={g} pinned onTogglePin={() => void togglePin(g.id)} />
+                ))}
+              </>
+            ) : null}
+            {otherGroups.length > 0 ? (
+              <>
+                {pinnedGroups.length > 0 ? (
+                  <p className="pt-2 text-xs font-bold uppercase tracking-wider text-slate-500">Tus grupos</p>
+                ) : null}
+                {otherGroups.map((g) => (
+                  <GroupCard key={g.id} group={g} pinned={false} onTogglePin={() => void togglePin(g.id)} />
+                ))}
+              </>
+            ) : null}
           </div>
         )}
       </main>
@@ -306,7 +367,15 @@ export default function DashboardPage() {
   );
 }
 
-function GroupCard({ group }: { group: GroupSummary }) {
+function GroupCard({
+  group,
+  pinned,
+  onTogglePin,
+}: {
+  group: GroupSummary;
+  pinned: boolean;
+  onTogglePin: () => void;
+}) {
   const positive = group.myBalance > 0.004;
   const negative = group.myBalance < -0.004;
 
@@ -316,7 +385,9 @@ function GroupCard({ group }: { group: GroupSummary }) {
       className={`flex items-center gap-4 rounded-2xl border p-4 transition active:scale-[0.99] ${
         negative
           ? "border-rose-500/40 bg-rose-950/40 hover:border-rose-500/60 hover:bg-rose-950/60"
-          : "border-slate-800/60 bg-slate-900 hover:border-slate-700 hover:bg-slate-800/60"
+          : pinned
+            ? "border-indigo-500/50 bg-indigo-950/30 hover:border-indigo-500/70 hover:bg-indigo-950/50"
+            : "border-slate-800/60 bg-slate-900 hover:border-slate-700 hover:bg-slate-800/60"
       }`}
     >
       {group.logoUrl ? (
@@ -356,6 +427,23 @@ function GroupCard({ group }: { group: GroupSummary }) {
           Al día
         </span>
       )}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onTogglePin();
+        }}
+        aria-label={pinned ? "Quitar de anclados" : "Anclar grupo"}
+        title={pinned ? "Quitar de anclados" : "Anclar grupo"}
+        className={`shrink-0 rounded-lg p-1.5 transition ${
+          pinned
+            ? "bg-indigo-500/15 text-indigo-400 hover:bg-indigo-500/25"
+            : "text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+        }`}
+      >
+        {pinned ? <Pin className="h-4 w-4" fill="currentColor" /> : <PinOff className="h-4 w-4" />}
+      </button>
     </Link>
   );
 }
