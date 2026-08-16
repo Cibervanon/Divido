@@ -38,6 +38,7 @@ export default function DashboardPage() {
   const [showDetail, setShowDetail] = useState(false);
   const [showPushBanner, setShowPushBanner] = useState(shouldAskPush());
   const [enablingPush, setEnablingPush] = useState(false);
+  const [pushError, setPushError] = useState("");
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
 
   useEffect(() => {
@@ -102,10 +103,22 @@ export default function DashboardPage() {
 
   async function enablePush() {
     setEnablingPush(true);
-    const ok = await subscribeToPush();
-    setEnablingPush(false);
-    setShowPushBanner(false);
-    if (!ok) markPushAsked();
+    setPushError("");
+    try {
+      const result = await subscribeToPush();
+      if (result.ok) {
+        setShowPushBanner(false);
+        return;
+      }
+      if (result.permanent) markPushAsked();
+      setPushError(result.error);
+    } catch {
+      // Aunque subscribeToPush ya devuelve errores como resultado, este
+      // guard garantiza que la bandera de carga siempre se libera.
+      setPushError("No se pudo activar. Inténtalo de nuevo.");
+    } finally {
+      setEnablingPush(false);
+    }
   }
 
   // Regla estricta por grupo: el balance neto propio (myBalance) indica o bien
@@ -175,6 +188,9 @@ export default function DashboardPage() {
               <p className="mt-0.5 text-xs text-indigo-400/80">
                 Te avisaremos al instante de gastos, pagos y piques nuevos en tus grupos, incluso con la app cerrada.
               </p>
+              {pushError ? (
+                <p className="mt-1.5 text-xs font-medium text-red-400">{pushError}</p>
+              ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <button

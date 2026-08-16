@@ -1,13 +1,16 @@
 // Divido · Service Worker mínimo (estrategia network-first)
 // Satisface los criterios de instalabilidad PWA en Chrome y Safari.
-const CACHE_NAME = "divido-v1";
+const CACHE_NAME = "divido-v2";
 const APP_SHELL = ["/", "/index.html", "/manifest.json", "/logo.svg"];
 
 self.addEventListener("install", (event) => {
+  // La caché es best-effort: si un recurso del shell falla, la instalación
+  // debe completarse igualmente. Si no, el worker queda en installing/waiting
+  // y navigator.serviceWorker.ready nunca resuelve.
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
+      .then((cache) => Promise.allSettled(APP_SHELL.map((url) => cache.add(url))))
       .then(() => self.skipWaiting())
   );
 });
