@@ -21,6 +21,7 @@ export const config = {
   corsOrigin: (process.env.CORS_ORIGIN ?? "http://localhost:5173")
     .split(",")
     .map((s) => s.trim()),
+  cronSecret: process.env.CRON_SECRET ?? "",
 };
 
 export const EDIT_WINDOW_MS = config.editWindowHours * 60 * 60 * 1000;

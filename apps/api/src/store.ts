@@ -773,7 +773,7 @@ export async function updateInformalDebtStatus(db: Db, id: string, status: Infor
 
 // ---------- Bote común ----------
 
-export type RecurringFrequency = "weekly" | "monthly";
+export type RecurringFrequency = "weekly" | "monthly" | "yearly";
 
 export interface PotContribution {
   id: string;
@@ -929,9 +929,13 @@ export interface RecurringExpense {
   groupId: string;
   title: string;
   amount: number;
+  currency: string;
   frequency: RecurringFrequency;
   responsibleId: string;
   responsibleName: string;
+  payerId: string | null;
+  participants: string[];
+  nextRunAt: string | null;
   createdAt: string;
   active: boolean;
   autoCreate: boolean;
@@ -942,12 +946,17 @@ interface RecurringExpenseRow {
   group_id: string;
   title: string;
   amount: number;
+  currency: string;
   frequency: RecurringFrequency;
   responsible_id: string;
+  responsible_name: string;
+  payer_id: string | null;
+  participants: string | null;
+  created_by: string | null;
+  next_run_at: string | null;
   created_at: string;
   active: number;
   auto_create: number;
-  responsible_name: string;
 }
 
 function toRecurringExpense(r: RecurringExpenseRow): RecurringExpense {
@@ -956,9 +965,13 @@ function toRecurringExpense(r: RecurringExpenseRow): RecurringExpense {
     groupId: r.group_id,
     title: r.title,
     amount: r.amount,
+    currency: r.currency,
     frequency: r.frequency,
     responsibleId: r.responsible_id,
     responsibleName: r.responsible_name,
+    payerId: r.payer_id,
+    participants: parseStringArray(r.participants ?? "[]"),
+    nextRunAt: r.next_run_at,
     createdAt: r.created_at,
     active: Boolean(r.active),
     autoCreate: Boolean(r.auto_create),
@@ -996,37 +1009,122 @@ export async function createRecurringExpense(
     groupId: string;
     title: string;
     amount: number;
+    currency: string;
     frequency: RecurringFrequency;
     responsibleId: string;
+    payerId?: string | null;
+    participants?: string[];
     autoCreate?: boolean;
+    nextRunAt?: string;
+    createdById?: string;
   }
 ): Promise<RecurringExpense> {
   const id = randomUUID();
+  const now = new Date().toISOString();
   await db
     .prepare(
-      `INSERT INTO recurring_expenses (id, group_id, title, amount, frequency, responsible_id, created_at, active, auto_create)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`
+      `INSERT INTO recurring_expenses
+         (id, group_id, title, amount, currency, frequency, responsible_id, payer_id, participants, created_by, next_run_at, created_at, active, auto_create)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`
     )
     .run(
       id,
       input.groupId,
       input.title,
       input.amount,
+      input.currency,
       input.frequency,
       input.responsibleId,
-      new Date().toISOString(),
+      input.payerId ?? null,
+      JSON.stringify(input.participants ?? []),
+      input.createdById ?? input.responsibleId,
+      input.nextRunAt ?? now,
+      now,
       input.autoCreate ? 1 : 0
     );
   return (await getRecurringExpense(db, id))!;
 }
 
 export async function setRecurringExpenseActive(db: Db, id: string, active: boolean): Promise<RecurringExpense> {
-  await db.prepare("UPDATE recurring_expenses SET active = ? WHERE id = ?").run(active ? 1 : 0, id);
+  if (active) {
+    await db
+      .prepare("UPDATE recurring_expenses SET active = 1, next_run_at = ? WHERE id = ?")
+      .run(new Date().toISOString(), id);
+  } else {
+    await db.prepare("UPDATE recurring_expenses SET active = 0 WHERE id = ?").run(id);
+  }
   return (await getRecurringExpense(db, id))!;
+}
+
+export async function setRecurringExpenseNextRun(db: Db, id: string, nextRunAt: string): Promise<void> {
+  await db.prepare("UPDATE recurring_expenses SET next_run_at = ? WHERE id = ?").run(nextRunAt, id);
 }
 
 export async function deleteRecurringExpense(db: Db, id: string): Promise<void> {
   await db.prepare("DELETE FROM recurring_expenses WHERE id = ?").run(id);
+}
+
+export async function listDueRecurringExpenses(db: Db, now: string): Promise<RecurringExpense[]> {
+  const rows = (await db
+    .prepare(
+      `SELECT r.*, u.name AS responsible_name
+       FROM recurring_expenses r
+       JOIN users u ON u.id = r.responsible_id
+       WHERE r.active = 1 AND r.auto_create = 1 AND r.next_run_at IS NOT NULL AND r.next_run_at <= ?
+       ORDER BY r.next_run_at ASC`
+    )
+    .all(now)) as unknown as RecurringExpenseRow[];
+  return rows.map(toRecurringExpense);
+}
+
+// ---------- Push subscriptions ----------
+
+export interface PushSubscriptionRow {
+  id: string;
+  user_id: string;
+  endpoint: string;
+  keys: string;
+  created_at: string;
+}
+
+export interface PushSubscriptionKeys {
+  p256dh: string;
+  auth: string;
+}
+
+export async function upsertPushSubscription(
+  db: Db,
+  userId: string,
+  endpoint: string,
+  keys: PushSubscriptionKeys
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO push_subscriptions (id, user_id, endpoint, keys, created_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (endpoint) DO UPDATE SET user_id = excluded.user_id, keys = excluded.keys`
+    )
+    .run(randomUUID(), userId, endpoint, JSON.stringify(keys), new Date().toISOString());
+}
+
+export async function deletePushSubscription(db: Db, endpoint: string): Promise<void> {
+  await db.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?").run(endpoint);
+}
+
+export async function deletePushSubscriptionsForUser(db: Db, userId: string): Promise<void> {
+  await db.prepare("DELETE FROM push_subscriptions WHERE user_id = ?").run(userId);
+}
+
+export async function listPushSubscriptions(
+  db: Db,
+  userId: string
+): Promise<Array<{ endpoint: string; keys: PushSubscriptionKeys }>> {
+  const rows = (await db
+    .prepare("SELECT endpoint, keys FROM push_subscriptions WHERE user_id = ?")
+    .all(userId)) as unknown as Array<{ endpoint: string; keys: string }>;
+  return rows
+    .filter((r) => Boolean(r.endpoint && r.keys))
+    .map((r) => ({ endpoint: r.endpoint, keys: JSON.parse(r.keys) as PushSubscriptionKeys }));
 }
 
 // ---------- Expenses ----------

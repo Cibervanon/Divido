@@ -3,7 +3,6 @@ import { EPS } from "@divido/shared";
 import {
   createExpense,
   createExpenseComment,
-  createNotification,
   deleteExpense,
   deleteExpenseComment,
   deletePotExpenseWithdrawal,
@@ -22,6 +21,7 @@ import {
 } from "../store.js";
 import { badRequest, conflict, forbidden, notFound } from "../errors.js";
 import { requireActiveMember, requireAuth } from "../plugins.js";
+import { createAndPushNotification } from "../push.js";
 import { EDIT_WINDOW_MS } from "../config.js";
 
 const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
@@ -130,7 +130,7 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
         ? "Bote común"
         : (members.find((m) => m.user_id === payerId)?.name ?? user.name);
       for (const p of notified) {
-        await createNotification(request.db, {
+        await createAndPushNotification(request.db, {
           userId: p,
           type: "EXPENSE_ADDED",
           title: `Nuevo gasto en ${group.name}`,

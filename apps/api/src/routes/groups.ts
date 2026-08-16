@@ -8,7 +8,6 @@ import {
   createGroup,
   createGroupEvent,
   createInformalDebt,
-  createNotification,
   createRecurringExpense,
   deletePotContribution,
   deleteRecurringExpense,
@@ -33,6 +32,7 @@ import type { Group, GroupType, InformalDebtStatus } from "@divido/shared";
 import { round2 } from "@divido/shared";
 import { badRequest, conflict, forbidden, notFound } from "../errors.js";
 import { requireActiveMember, requireAdmin, requireAuth, requireGroup } from "../plugins.js";
+import { createAndPushNotification } from "../push.js";
 import { getGroupBalances } from "../services.js";
 import { config } from "../config.js";
 
@@ -329,7 +329,7 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     const debtor = members.find((m) => m.user_id === debtorId);
     const linkUrl = `/groups/${groupId}?tab=debts`;
     if (debtorId !== user.id && !ghost[debtorId]) {
-      await createNotification(request.db, {
+      await createAndPushNotification(request.db, {
         userId: debtorId,
         type: "PIQUE_CREATED",
         title: `Nuevo pique en ${group.name}`,
@@ -338,7 +338,7 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
       });
     }
     if (creditorId !== user.id && !ghost[creditorId]) {
-      await createNotification(request.db, {
+      await createAndPushNotification(request.db, {
         userId: creditorId,
         type: "PIQUE_CREATED",
         title: `Nuevo pique en ${group.name}`,
@@ -432,7 +432,7 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
 
   // ---------- Gastos fijos ----------
 
-  app.get("/api/groups/:groupId/recurring-expenses", async (request) => {
+  app.get("/api/groups/:groupId/recurring", async (request) => {
     const { groupId } = request.params as { groupId: string };
     const { group } = await requireActiveMember(request, groupId);
     if (!group.enabledExtras.includes("recurring_expenses")) {
@@ -441,48 +441,66 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     return { expenses: await listRecurringExpenses(request.db, groupId) };
   });
 
-  app.post("/api/groups/:groupId/recurring-expenses", async (request) => {
+  app.post("/api/groups/:groupId/recurring", async (request) => {
     const { groupId } = request.params as { groupId: string };
+    const user = requireAuth(request);
     const { group } = await requireActiveMember(request, groupId);
     if (!group.enabledExtras.includes("recurring_expenses")) {
       throw badRequest("El extra de gastos fijos no está activo en este grupo");
     }
-    const { title, amount, frequency, responsibleId, autoCreate } = request.body as {
+    const { title, amount, frequency, responsibleId, payerId, participants, autoCreate } = request.body as {
       title?: string;
       amount?: number;
       frequency?: string;
       responsibleId?: string;
+      payerId?: string;
+      participants?: string[];
       autoCreate?: boolean;
     };
     const cleanTitle = title?.trim() ?? "";
-    if (!cleanTitle) throw badRequest("Escribe un título para la cuota");
+    if (!cleanTitle) throw badRequest("Escribe un título para el gasto fijo");
     if (cleanTitle.length > 140) throw badRequest("El título es demasiado largo");
     const amountNum = Number(amount);
     if (!Number.isFinite(amountNum) || amountNum <= 0) throw badRequest("El importe debe ser mayor que 0");
-    if (frequency !== "monthly" && frequency !== "weekly") throw badRequest("Periodicidad inválida");
+    if (frequency !== "weekly" && frequency !== "monthly" && frequency !== "yearly") {
+      throw badRequest("Periodicidad inválida");
+    }
     if (!responsibleId) throw badRequest("Elige el miembro responsable");
     const members = await listMembers(request.db, groupId);
     const activeIds = new Set(members.filter((m) => m.status === "active").map((m) => m.user_id));
     if (!activeIds.has(responsibleId)) throw badRequest("El responsable no es un miembro activo");
+    if (payerId && !activeIds.has(payerId)) throw badRequest("El pagador no es un miembro activo");
+    if (participants !== undefined) {
+      if (!Array.isArray(participants) || participants.length === 0) {
+        throw badRequest("Selecciona al menos un participante");
+      }
+      for (const p of participants) {
+        if (!activeIds.has(p)) throw badRequest("Hay participantes que no son miembros activos");
+      }
+    }
     const expense = await createRecurringExpense(request.db, {
       groupId,
       title: cleanTitle,
       amount: Math.round(amountNum * 100) / 100,
+      currency: group.currency,
       frequency,
       responsibleId,
+      payerId,
+      participants,
       autoCreate: Boolean(autoCreate),
+      createdById: user.id,
     });
     return { expense };
   });
 
-  app.patch("/api/groups/:groupId/recurring-expenses/:expenseId", async (request) => {
-    const { groupId, expenseId } = request.params as { groupId: string; expenseId: string };
+  app.patch("/api/recurring/:expenseId/toggle", async (request) => {
     const user = requireAuth(request);
-    const { member } = await requireActiveMember(request, groupId);
+    const { expenseId } = request.params as { expenseId: string };
     const { active } = request.body as { active?: unknown };
     if (typeof active !== "boolean") throw badRequest("Falta el estado activo");
     const expense = await getRecurringExpense(request.db, expenseId);
-    if (!expense || expense.groupId !== groupId) throw notFound("Cuota fija no encontrada");
+    if (!expense) throw notFound("Gasto fijo no encontrado");
+    const { member } = await requireActiveMember(request, expense.groupId);
     if (expense.responsibleId !== user.id && member.role !== "admin") {
       throw forbidden("Solo el responsable o un administrador puede cambiar el estado");
     }
@@ -490,14 +508,14 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     return { expense: updated };
   });
 
-  app.delete("/api/groups/:groupId/recurring-expenses/:expenseId", async (request) => {
-    const { groupId, expenseId } = request.params as { groupId: string; expenseId: string };
+  app.delete("/api/recurring/:expenseId", async (request) => {
     const user = requireAuth(request);
-    const { member } = await requireActiveMember(request, groupId);
+    const { expenseId } = request.params as { expenseId: string };
     const expense = await getRecurringExpense(request.db, expenseId);
-    if (!expense || expense.groupId !== groupId) throw notFound("Cuota fija no encontrada");
+    if (!expense) throw notFound("Gasto fijo no encontrado");
+    const { member } = await requireActiveMember(request, expense.groupId);
     if (expense.responsibleId !== user.id && member.role !== "admin") {
-      throw forbidden("Solo el responsable o un administrador puede eliminar la cuota");
+      throw forbidden("Solo el responsable o un administrador puede eliminar el gasto fijo");
     }
     await deleteRecurringExpense(request.db, expenseId);
     return { ok: true };

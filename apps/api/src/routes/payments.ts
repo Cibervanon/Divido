@@ -1,6 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
 import {
-  createNotification,
   createPayment,
   deletePayment,
   getPayment,
@@ -9,6 +8,7 @@ import {
 } from "../store.js";
 import { badRequest, forbidden, notFound } from "../errors.js";
 import { requireActiveMember, requireAuth } from "../plugins.js";
+import { createAndPushNotification } from "../push.js";
 import { EDIT_WINDOW_MS } from "../config.js";
 
 export const paymentRoutes: FastifyPluginAsync = async (app) => {
@@ -44,7 +44,7 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
       createdById: user.id,
     });
     if (!target.is_ghost) {
-      await createNotification(request.db, {
+      await createAndPushNotification(request.db, {
         userId: toUserId,
         type: "PAYMENT_SETTLED",
         title: `Pago recibido en ${group.name}`,

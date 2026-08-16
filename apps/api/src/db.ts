@@ -195,11 +195,24 @@ CREATE TABLE IF NOT EXISTS recurring_expenses (
   group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   amount REAL NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'EUR',
   frequency TEXT NOT NULL DEFAULT 'monthly',
   responsible_id TEXT NOT NULL REFERENCES users(id),
+  payer_id TEXT REFERENCES users(id),
+  participants TEXT,
+  created_by TEXT REFERENCES users(id),
+  next_run_at TEXT,
   created_at TEXT NOT NULL,
   active INTEGER NOT NULL DEFAULT 1,
   auto_create INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint TEXT UNIQUE NOT NULL,
+  keys TEXT NOT NULL,
+  created_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS notifications (
@@ -225,6 +238,7 @@ CREATE INDEX IF NOT EXISTS idx_events_group ON group_events(group_id);
 CREATE INDEX IF NOT EXISTS idx_informal_debts_group ON informal_debts(group_id);
 CREATE INDEX IF NOT EXISTS idx_pot_group ON common_pot_contributions(group_id);
 CREATE INDEX IF NOT EXISTS idx_recurring_group ON recurring_expenses(group_id);
+CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
 `;
 
@@ -250,6 +264,11 @@ const MIGRATIONS = [
   "ALTER TABLE recurring_expenses ADD COLUMN IF NOT EXISTS auto_create INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS pinned_group_ids TEXT NOT NULL DEFAULT '[]'",
   "ALTER TABLE groups ADD COLUMN IF NOT EXISTS simplify_debts INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE recurring_expenses ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'EUR'",
+  "ALTER TABLE recurring_expenses ADD COLUMN IF NOT EXISTS payer_id TEXT REFERENCES users(id)",
+  "ALTER TABLE recurring_expenses ADD COLUMN IF NOT EXISTS participants TEXT",
+  "ALTER TABLE recurring_expenses ADD COLUMN IF NOT EXISTS created_by TEXT REFERENCES users(id)",
+  "ALTER TABLE recurring_expenses ADD COLUMN IF NOT EXISTS next_run_at TEXT",
 ];
 
 export async function initDb(db: Db): Promise<void> {

@@ -14,6 +14,10 @@ import { requestRoutes } from "./routes/requests.js";
 import { balanceRoutes } from "./routes/balances.js";
 import { userRoutes } from "./routes/users.js";
 import { notificationRoutes } from "./routes/notifications.js";
+import { cronRoutes } from "./routes/cron.js";
+import { processRecurringExpenses } from "./recurring.js";
+
+const CRON_INTERVAL_MS = 15 * 60 * 1000;
 
 export async function buildApp(db = createDb(config.databaseUrl)) {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? "info" } });
@@ -44,6 +48,14 @@ export async function buildApp(db = createDb(config.databaseUrl)) {
   app.register(balanceRoutes);
   app.register(userRoutes);
   app.register(notificationRoutes);
+  app.register(cronRoutes);
+
+  const recurringTimer = setInterval(() => {
+    processRecurringExpenses(db).catch((err) => {
+      app.log.error({ err }, "Recurring expenses processing failed");
+    });
+  }, CRON_INTERVAL_MS);
+  recurringTimer.unref();
 
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof HttpError) {
