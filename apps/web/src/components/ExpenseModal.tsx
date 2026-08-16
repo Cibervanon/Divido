@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../lib/api";
-import { Button, Input, Modal, Select } from "./ui";
+import { Button, DropdownMenu, Input, Modal, Select } from "./ui";
 import { CATEGORY_LIST, detectCategory, getCategoryColor, getIconComponent } from "../constants/categories";
 import type { ExpenseDto, MemberInfo } from "../lib/types";
 
@@ -58,11 +58,13 @@ export function ExpenseModal({
   const [iconName, setIconName] = useState("wallet");
   const [isCustomIcon, setIsCustomIcon] = useState(false);
   const detectedFor = useRef<string | null>(null);
+  const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
       setError("");
       setReceiptError("");
+      setCategoryPopoverOpen(false);
       if (expense) {
         setDescription(expense.description);
         setAmount(String(expense.amount));
@@ -237,6 +239,7 @@ export function ExpenseModal({
     setIconName(cat.iconName);
     setIsCustomIcon(true);
     detectedFor.current = null;
+    setCategoryPopoverOpen(false);
   }
 
   function resetToAuto() {
@@ -295,6 +298,67 @@ export function ExpenseModal({
   const currentColor = getCategoryColor(category);
   const CurrentIcon = getIconComponent(iconName);
 
+  const categoryBadge = (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setCategoryPopoverOpen((o) => !o);
+      }}
+      className="touch-manipulation flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition"
+      style={{ backgroundColor: `${currentColor}20` }}
+      aria-label={isCustomIcon ? "Categoría seleccionada manualmente. Click para cambiar o restaurar auto." : "Categoría auto-detectada. Click para elegir manualmente."}
+    >
+      <CurrentIcon className="h-4 w-4 shrink-0" style={{ color: currentColor }} />
+      {isCustomIcon && (
+        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500 text-[8px] font-bold text-white">
+          ✓
+        </span>
+      )}
+    </button>
+  );
+
+  const categoryPopoverContent = (close: () => void) => (
+    <div className="p-2 grid grid-cols-4 gap-1.5 max-w-[280px]">
+      {CATEGORY_LIST.map((cat) => {
+        const CatIcon = getIconComponent(cat.iconName);
+        const isActive = category === cat.category && iconName === cat.iconName;
+        return (
+          <button
+            key={cat.category}
+            type="button"
+            onClick={() => { selectCategory(cat); close(); }}
+            className={`touch-manipulation flex flex-col items-center gap-1 rounded-lg px-2 py-2 text-[10px] font-medium transition ${
+              isActive
+                ? `bg-[${cat.color}]/20 text-[${cat.color}] border border-[${cat.color}]/40`
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+            }`}
+            title={cat.label}
+          >
+            <CatIcon className="h-5 w-5 shrink-0" style={{ color: cat.color }} />
+            <span className="truncate">{cat.label}</span>
+          </button>
+        );
+      })}
+      {!isCustomIcon && (
+        <button
+          type="button"
+          onClick={() => { resetToAuto(); close(); }}
+          className="touch-manipulation flex flex-col items-center gap-1 rounded-lg px-2 py-2 text-[10px] font-medium text-slate-500 transition hover:text-slate-300"
+          title="Detección automática"
+        >
+          <span className="h-5 w-5 shrink-0 rounded border border-slate-600 flex items-center justify-center">
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </span>
+          <span className="truncate">Auto</span>
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <Modal
       open={open}
@@ -322,53 +386,20 @@ export function ExpenseModal({
           </p>
         ) : null}
 
+        <DropdownMenu
+          button={categoryBadge}
+          align="left"
+        >
+          {categoryPopoverContent}
+        </DropdownMenu>
+
         <Input
           label="Concepto"
           placeholder="Ej. Cena en Roma"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          rightElement={categoryBadge}
         />
-
-        <div className="flex items-center gap-2 rounded-xl bg-slate-800/50 p-3">
-          <span className="text-xs font-medium text-slate-400 shrink-0">Categoría</span>
-          <div className="flex flex-1 items-center gap-2 overflow-x-auto pb-1">
-            {CATEGORY_LIST.map((cat) => {
-              const CatIcon = getIconComponent(cat.iconName);
-              const isActive = category === cat.category && iconName === cat.iconName;
-              return (
-                <button
-                  key={cat.category}
-                  type="button"
-                  onClick={() => selectCategory(cat)}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition ${
-                    isActive
-                      ? `bg-[${cat.color}]/20 text-[${cat.color}] border border-[${cat.color}]/40`
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
-                  }`}
-                  title={cat.label}
-                >
-                  <CatIcon className="h-3.5 w-3.5 shrink-0" />
-                  <span className="hidden sm:inline">{cat.label}</span>
-                </button>
-              );
-            })}
-            {!isCustomIcon && (
-              <button
-                type="button"
-                onClick={resetToAuto}
-                className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-slate-500 transition hover:text-slate-300"
-                title="Detección automática"
-              >
-                <span className="h-3.5 w-3.5 shrink-0 rounded border border-slate-600 flex items-center justify-center">
-                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </span>
-                <span className="hidden sm:inline">Auto</span>
-              </button>
-            )}
-          </div>
-        </div>
 
         <div className="grid grid-cols-2 gap-3">
           <Input
