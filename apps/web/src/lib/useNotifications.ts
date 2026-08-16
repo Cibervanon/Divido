@@ -5,6 +5,7 @@ import type { AppNotification } from "./types";
 export function useNotifications() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [initialized, setInitialized] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -13,6 +14,10 @@ export function useNotifications() {
       setUnreadCount(res.unreadCount);
     } catch {
       // silencioso: se reintenta en el siguiente ciclo
+    } finally {
+      // Marca la primera carga como completada aunque falle, para que
+      // la campana no se quede en estado de carga indefinido.
+      setInitialized(true);
     }
   }, []);
 
@@ -47,5 +52,5 @@ export function useNotifications() {
     setUnreadCount(0);
   }
 
-  return { notifications, unreadCount, refresh, markRead, markAllRead };
+  return { notifications, unreadCount, initialized, refresh, markRead, markAllRead };
 }

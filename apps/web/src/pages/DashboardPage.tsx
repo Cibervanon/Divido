@@ -39,7 +39,7 @@ export default function DashboardPage() {
   const [showPushBanner, setShowPushBanner] = useState(shouldAskPush());
   const [enablingPush, setEnablingPush] = useState(false);
   const [pushError, setPushError] = useState("");
-  const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+  const { notifications, unreadCount, initialized, markRead, markAllRead } = useNotifications();
 
   useEffect(() => {
     if (user) setPinnedIds(user.pinnedGroupIds ?? []);
@@ -466,8 +466,13 @@ export default function DashboardPage() {
         onClose={() => setNotifOpen(false)}
         notifications={notifications}
         unreadCount={unreadCount}
-        loading={notifications.length === 0}
+        initialized={initialized}
         onMarkAllRead={() => void markAllRead()}
+        onMarkRead={(id) => void markRead(id)}
+        onOpenSettings={() => {
+          setNotifOpen(false);
+          setProfileOpen(true);
+        }}
         onOpen={(n) => {
           setNotifOpen(false);
           void markRead(n.id);

@@ -609,7 +609,11 @@ export async function listGroupEvents(db: Db, groupId: string): Promise<GroupEve
 
 // ---------- Notifications ----------
 
-export type NotificationType = "EXPENSE_ADDED" | "PAYMENT_SETTLED" | "PIQUE_CREATED";
+export type NotificationType =
+  | "EXPENSE_ADDED"
+  | "PAYMENT_SETTLED"
+  | "PIQUE_CREATED"
+  | "RECURRING_EXPENSE";
 
 export interface NotificationRow {
   id: string;
@@ -664,6 +668,65 @@ export async function markNotificationRead(db: Db, notificationId: string, userI
 
 export async function markAllNotificationsRead(db: Db, userId: string): Promise<void> {
   await db.prepare("UPDATE notifications SET read = 1 WHERE user_id = ? AND read = 0").run(userId);
+}
+
+// ---------- Notification preferences ----------
+
+export interface NotificationPreferences {
+  expense: boolean;
+  payment: boolean;
+  pique: boolean;
+  recurring: boolean;
+}
+
+const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  expense: true,
+  payment: true,
+  pique: true,
+  recurring: true,
+};
+
+export async function getNotificationPreferences(db: Db, userId: string): Promise<NotificationPreferences> {
+  const row = (await db
+    .prepare("SELECT expense, payment, pique, recurring FROM notification_preferences WHERE user_id = ?")
+    .get(userId)) as
+    | { expense: number; payment: number; pique: number; recurring: number }
+    | undefined;
+  if (!row) return { ...DEFAULT_NOTIFICATION_PREFERENCES };
+  return {
+    expense: Boolean(row.expense),
+    payment: Boolean(row.payment),
+    pique: Boolean(row.pique),
+    recurring: Boolean(row.recurring),
+  };
+}
+
+export async function setNotificationPreferences(
+  db: Db,
+  userId: string,
+  prefs: Partial<NotificationPreferences>
+): Promise<NotificationPreferences> {
+  const next = { ...(await getNotificationPreferences(db, userId)), ...prefs };
+  await db
+    .prepare(
+      `INSERT INTO notification_preferences (user_id, expense, payment, pique, recurring, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT (user_id) DO UPDATE SET
+         expense = excluded.expense,
+         payment = excluded.payment,
+         pique = excluded.pique,
+         recurring = excluded.recurring,
+         updated_at = excluded.updated_at`
+    )
+    .run(
+      userId,
+      next.expense ? 1 : 0,
+      next.payment ? 1 : 0,
+      next.pique ? 1 : 0,
+      next.recurring ? 1 : 0,
+      new Date().toISOString()
+    );
+  return next;
 }
 
 // ---------- Informal debts (piques/apuestas) ----------

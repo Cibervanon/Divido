@@ -3,10 +3,13 @@ import {
   countUnreadNotifications,
   deletePushSubscription,
   deletePushSubscriptionsForUser,
+  getNotificationPreferences,
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  setNotificationPreferences,
   upsertPushSubscription,
+  type NotificationPreferences,
   type NotificationRow,
   type PushSubscriptionKeys,
 } from "../store.js";
@@ -58,6 +61,28 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
 
   app.get("/api/notifications/vapid-public-key", async () => {
     return { publicKey: getVapidKeys().publicKey };
+  });
+
+  const PREFERENCE_KEYS = ["expense", "payment", "pique", "recurring"] as const;
+
+  app.get("/api/notifications/preferences", async (request) => {
+    const user = requireAuth(request);
+    const preferences = await getNotificationPreferences(request.db, user.id);
+    return { preferences };
+  });
+
+  app.put("/api/notifications/preferences", async (request) => {
+    const user = requireAuth(request);
+    const body = request.body as Record<string, unknown>;
+    const prefs: Partial<NotificationPreferences> = {};
+    for (const key of PREFERENCE_KEYS) {
+      if (body[key] !== undefined) {
+        if (typeof body[key] !== "boolean") throw badRequest(`Preferencia ${key} inválida`);
+        prefs[key] = body[key];
+      }
+    }
+    const preferences = await setNotificationPreferences(request.db, user.id, prefs);
+    return { preferences };
   });
 
   app.post("/api/notifications/subscribe", async (request) => {

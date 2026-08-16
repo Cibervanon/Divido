@@ -2,7 +2,47 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { getStoredTheme, setStoredTheme, THEMES, type ThemeId } from "../lib/theme";
-import { Avatar, Button, Input, Modal, VerifiedBadge } from "./ui";
+import { Avatar, Button, Input, Modal, Spinner, VerifiedBadge } from "./ui";
+import type { NotificationPreferences } from "../lib/types";
+
+function SwitchRow({
+  label,
+  description,
+  checked,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-slate-200">{label}</p>
+        <p className="text-[11px] leading-snug text-slate-500">{description}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+          checked ? "bg-indigo-500" : "bg-slate-700"
+        } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+      >
+        <span
+          className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+            checked ? "translate-x-5" : "translate-x-0"
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
 
 export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user, refreshUser, logout } = useAuth();
@@ -17,6 +57,10 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
   const [verificationUrl, setVerificationUrl] = useState("");
   const [sent, setSent] = useState(false);
   const [theme, setTheme] = useState<ThemeId>(getStoredTheme);
+  const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
+  const [prefsLoading, setPrefsLoading] = useState(false);
+  const [prefsSaving, setPrefsSaving] = useState(false);
+  const [prefsError, setPrefsError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -30,6 +74,7 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
       setError("");
       setVerificationUrl("");
       setSent(false);
+      loadPreferences();
     }
   }, [open, user]);
 
@@ -91,6 +136,38 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
       setError(err instanceof ApiError ? err.message : "Error al enviar verificación");
     } finally {
       setVerifying(false);
+    }
+  }
+
+  async function loadPreferences() {
+    setPrefsLoading(true);
+    setPrefsError("");
+    try {
+      const res = await api.get<{ preferences: NotificationPreferences }>("/notifications/preferences");
+      setPrefs(res.preferences);
+    } catch {
+      setPrefsError("No se pudieron cargar los ajustes de notificaciones.");
+    } finally {
+      setPrefsLoading(false);
+    }
+  }
+
+  async function togglePref(key: keyof NotificationPreferences, value: boolean) {
+    if (!prefs) return;
+    const prev = prefs;
+    setPrefs({ ...prefs, [key]: value });
+    setPrefsError("");
+    setPrefsSaving(true);
+    try {
+      const res = await api.put<{ preferences: NotificationPreferences }>("/notifications/preferences", {
+        [key]: value,
+      });
+      setPrefs(res.preferences);
+    } catch {
+      setPrefs(prev);
+      setPrefsError("No se pudo guardar el ajuste. Inténtalo de nuevo.");
+    } finally {
+      setPrefsSaving(false);
     }
   }
 
@@ -262,6 +339,54 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
           <p className="mt-2 text-[11px] text-slate-500">
             El tema se guarda en este dispositivo y se aplica en toda la app.
           </p>
+        </div>
+
+        <div className="border-t border-slate-800 pt-5">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Notificaciones</p>
+          <p className="mb-1 mt-0.5 text-[11px] text-slate-500">
+            Elige qué avisos quieres recibir en la campana y en las notificaciones del sistema.
+          </p>
+          {prefsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Spinner />
+            </div>
+          ) : prefs ? (
+            <div className="divide-y divide-slate-800">
+              <SwitchRow
+                label="Gastos"
+                description="Cuando se añade un gasto en un grupo."
+                checked={prefs.expense}
+                disabled={prefsSaving}
+                onChange={(v) => void togglePref("expense", v)}
+              />
+              <SwitchRow
+                label="Pagos"
+                description="Cuando recibes o realizas un pago."
+                checked={prefs.payment}
+                disabled={prefsSaving}
+                onChange={(v) => void togglePref("payment", v)}
+              />
+              <SwitchRow
+                label="Piques"
+                description="Cuando te lanzan o te cobran un pique."
+                checked={prefs.pique}
+                disabled={prefsSaving}
+                onChange={(v) => void togglePref("pique", v)}
+              />
+              <SwitchRow
+                label="Cuotas fijas"
+                description="Cuando se genera un gasto fijo recurrente."
+                checked={prefs.recurring}
+                disabled={prefsSaving}
+                onChange={(v) => void togglePref("recurring", v)}
+              />
+            </div>
+          ) : (
+            <p className="rounded-xl bg-slate-950 p-3 text-xs text-rose-400">
+              {prefsError || "No se pudieron cargar los ajustes."}
+            </p>
+          )}
+          {prefsError && prefs ? <p className="mt-2 text-xs text-rose-400">{prefsError}</p> : null}
         </div>
 
         <div className="border-t border-slate-800 pt-5">

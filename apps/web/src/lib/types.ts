@@ -228,7 +228,7 @@ export interface RecurringExpenseDto {
   autoCreate: boolean;
 }
 
-export type NotificationType = "EXPENSE_ADDED" | "PAYMENT_SETTLED" | "PIQUE_CREATED";
+export type NotificationType = "EXPENSE_ADDED" | "PAYMENT_SETTLED" | "PIQUE_CREATED" | "RECURRING_EXPENSE";
 
 export interface AppNotification {
   id: string;
@@ -238,4 +238,11 @@ export interface AppNotification {
   read: boolean;
   linkUrl: string;
   createdAt: string;
+}
+
+export interface NotificationPreferences {
+  expense: boolean;
+  payment: boolean;
+  pique: boolean;
+  recurring: boolean;
 }

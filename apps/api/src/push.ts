@@ -4,6 +4,7 @@ import webpush from "web-push";
 import {
   createNotification,
   deletePushSubscription,
+  getNotificationPreferences,
   listPushSubscriptions,
   type NotificationType,
 } from "./store.js";
@@ -86,8 +87,21 @@ export interface NotifyInput {
   linkUrl: string;
 }
 
+/** Relaciona cada tipo de aviso con la categoría de preferencias del usuario. */
+const CATEGORY_BY_TYPE: Record<NotificationType, keyof import("./store.js").NotificationPreferences> = {
+  EXPENSE_ADDED: "expense",
+  PAYMENT_SETTLED: "payment",
+  PIQUE_CREATED: "pique",
+  RECURRING_EXPENSE: "recurring",
+};
+
 /** Inserta la notificación en la tabla y dispara el push web en segundo plano. */
 export async function createAndPushNotification(db: Db, input: NotifyInput): Promise<void> {
+  // Respeta las preferencias del usuario: si desactivó la categoría,
+  // no se genera ni la notificación in-app ni el push.
+  const prefs = await getNotificationPreferences(db, input.userId);
+  if (!prefs[CATEGORY_BY_TYPE[input.type]]) return;
+
   await createNotification(db, {
     userId: input.userId,
     type: input.type,

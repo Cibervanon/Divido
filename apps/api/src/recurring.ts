@@ -64,7 +64,7 @@ export async function processRecurringExpenses(db: Db): Promise<{ created: numbe
         if (p !== payerId && !ghostIds.has(p)) {
           await createAndPushNotification(db, {
             userId: p,
-            type: "EXPENSE_ADDED",
+            type: "RECURRING_EXPENSE",
             title: `Gasto recurrente en ${group.name}`,
             body: `${rec.title} · ${amount.toFixed(2)} ${currency}.`,
             linkUrl: `/groups/${rec.groupId}`,

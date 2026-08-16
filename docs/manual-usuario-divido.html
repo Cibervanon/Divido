@@ -300,6 +300,15 @@
   .mrow .m-right { display: table-cell; width: 20mm; text-align: right; vertical-align: middle; }
   .mrow .gname { font-size: 9pt; font-weight: 700; color: #e6edf3; }
   .mrow .gmeta { font-size: 7.5pt; color: #8b949e; }
+  .prow { display: table; width: 100%; padding: 2.2mm 4mm; border-bottom: 1px solid #21262d; }
+  .prow:last-child { border-bottom: none; }
+  .prow .p-left { display: table-cell; vertical-align: middle; }
+  .prow .p-left b { font-size: 9pt; color: #e6edf3; }
+  .p-sw { display: inline-block; width: 9mm; height: 5mm; border-radius: 3mm; position: relative; margin-top: 1mm; vertical-align: middle; }
+  .p-sw::after { content: ""; position: absolute; top: 0.6mm; left: 0.6mm; width: 3.8mm; height: 3.8mm; border-radius: 50%; background: #e6edf3; transition: left .15s; }
+  .p-sw.on { background: #6366f1; }
+  .p-sw.on::after { left: 4.6mm; }
+  .p-sw.off { background: #30363d; }
   .chip { display: inline-block; width: 7mm; height: 7mm; border-radius: 5pt; color: #fff; font-weight: 800; font-size: 8pt; text-align: center; line-height: 7mm; margin-right: 2.5mm; vertical-align: middle; }
   .mockup.pinned { background: linear-gradient(180deg, #161b22 0%, #0d1117 60%); }
 
@@ -781,7 +790,9 @@
     <p>Divido funciona en dos niveles de avisos: el <strong>panel in-app</strong> (dentro de la app) y las <strong>notificaciones nativas</strong> (Web Push) que llegan incluso con la app cerrada.</p>
 
     <h3>Panel in-app</h3>
-    <p>La campana <span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span> muestra el número de avisos sin leer. Al pulsar una notificación, <strong>navegas al instante</strong> (al grupo, gasto o pago relacionado) y la lectura se marca en segundo plano: experiencia optimista, sin esperas.</p>
+    <p>La campana <span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span> muestra el número de avisos sin leer: del 1 al 9 se ve el número exacto y a partir de 10 se muestra <strong>+9</strong>. Al pulsar una notificación, <strong>navegas al instante</strong> (al grupo, gasto o pago relacionado) y la lectura se marca en segundo plano: experiencia optimista, sin esperas.</p>
+
+    <p>En el panel puedes <strong>marcar como leída</strong> una notificación individual con el botón de la derecha, o usar <strong>«Marcar todas como leídas»</strong> para limpiar el contador de golpe. El icono de <strong>ajustes</strong> de la cabecera te lleva directo al perfil, donde puedes elegir qué avisos recibes (más abajo). Cuando no hay avisos, el panel muestra un mensaje vacío: todo está al día.</p>
 
     <div class="cols">
       <div class="cell" style="width:46%"><div class="inner">
@@ -815,6 +826,28 @@
     <div class="callout tip"><span class="callout-label">Consejo</span><p>Para no perderte nada, <strong>instala la app</strong>: en <strong>iOS</strong> usa «Compartir → Añadir a pantalla de inicio»; en <strong>Android</strong> y <strong>escritorio</strong> usa el botón <strong>Instalar</strong> del navegador. Así Divido se abre a pantalla completa como una app nativa.</p></div>
 
     <div class="callout warn"><span class="callout-label">Nota</span><p>Si deniegas el permiso, el navegador no podrá volver a preguntártelo automáticamente. Puedes reactivarlo desde los <strong>ajustes del navegador</strong> (sección de notificaciones del sitio).</p></div>
+
+    <h3>Ajusta qué avisos recibes</h3>
+    <p>No todo el mundo quiere enterarse de todo. Abre <strong>Perfil → Ajustes</strong> y, en la sección <strong>Notificaciones</strong>, activa o desactiva cada tipo de aviso con un interruptor. Los cambios se guardan al instante y se aplican al <strong>panel in-app</strong> y al <strong>push</strong>.</p>
+
+    <div class="cols">
+      <div class="cell" style="width:56%"><div class="inner" style="padding:0;overflow:hidden">
+        <div class="col-head" style="border-color:#30363d; color:#e6edf3; padding:2.5mm 4mm; background:#0d1117; border-radius:0; margin:0"><span class="col-icon"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span></span><span class="col-name">Ajustes → Notificaciones</span></div>
+        <div class="prow"><span class="p-left"><b>Gastos</b><br/><span class="small muted">Cuando se añade un gasto en un grupo.</span></span><span class="p-sw on"></span></div>
+        <div class="prow"><span class="p-left"><b>Pagos</b><br/><span class="small muted">Cuando recibes o realizas un pago.</span></span><span class="p-sw on"></span></div>
+        <div class="prow"><span class="p-left"><b>Piques</b><br/><span class="small muted">Cuando te lanzan o te cobran un pique.</span></span><span class="p-sw off"></span></div>
+        <div class="prow"><span class="p-left"><b>Cuotas fijas</b><br/><span class="small muted">Cuando se genera un gasto fijo recurrente.</span></span><span class="p-sw on"></span></div>
+      </div></div>
+      <div class="cell" style="width:44%"><div class="inner">
+        <div class="col-head" style="border-color:#6366f1; color:#a5b4fc"><span class="col-icon"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg></span></span><span class="col-name">Cómo funciona</span></div>
+        <ul>
+          <li>Los interruptores se guardan <strong>al instante</strong>, sin botón de guardar.</li>
+          <li>Si desactivas un tipo, dejan de crearse avisos nuevos de ese tipo en el panel.</li>
+          <li>También dejan de llegarte las notificaciones nativas (push) correspondientes.</li>
+          <li>Los avisos que ya existen en tu panel no se borran: solo se pausan los futuros.</li>
+        </ul>
+      </div></div>
+    </div>
   </section>
 
   <!-- ============================================================
