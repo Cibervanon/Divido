@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Avatar, Button, Input, Modal, Money, Select, Spinner, EmptyState } from "../components/ui";
+import { Logo } from "../components/Logo";
 import { ExpenseModal } from "../components/ExpenseModal";
 import { ProfileModal } from "../components/ProfileModal";
 import type { GroupDetail, GroupSummary } from "../lib/types";
@@ -67,9 +68,7 @@ export default function DashboardPage() {
       <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-lg font-black text-white">
-              €
-            </div>
+            <Logo className="h-9 w-9" />
             <button
               type="button"
               onClick={() => setProfileOpen(true)}

@@ -5,9 +5,6 @@ import App from "./App";
 import { AuthProvider } from "./lib/auth";
 import { applyTheme, getStoredTheme } from "./lib/theme";
 import "./index.css";
-import { registerSW } from "virtual:pwa-register";
-
-registerSW({ immediate: true });
 
 applyTheme(getStoredTheme());
 

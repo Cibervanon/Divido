@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth, ApiError } from "../lib/auth";
 import { Button, Input, PasswordField } from "../components/ui";
+import { Logo } from "../components/Logo";
 
 export default function LoginPage() {
   const { user, login, register, googleLogin } = useAuth();
@@ -37,8 +38,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-2xl font-black text-white shadow-lg shadow-indigo-900/50">
-            €
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center">
+            <Logo className="h-14 w-14" />
           </div>
           <h1 className="text-2xl font-extrabold text-slate-100">Divido</h1>
           <p className="mt-1 text-sm text-slate-400">Gastos en grupo, saldados sin fricción</p>

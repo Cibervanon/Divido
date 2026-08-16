@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10B981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366F1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4F46E5;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0f172a" flood-opacity="0.15" />
+    </filter>
+  </defs>
+
+  <!-- Fondo redondeado estilo App Icon -->
+  <rect width="512" height="512" rx="112" fill="#0F172A" />
+
+  <g filter="url(#shadow)">
+    <!-- Forma izquierda (nodo verde) -->
+    <path d="M 160 140 C 230 140, 270 190, 270 256 C 270 322, 210 372, 140 372 C 140 372, 120 372, 120 350 C 120 328, 150 310, 180 290 C 210 270, 210 242, 180 222 C 150 202, 120 184, 120 162 C 120 140, 160 140, 160 140 Z" fill="url(#grad1)" />
+
+    <!-- Forma derecha (nodo violeta/azul) -->
+    <path d="M 352 372 C 282 372, 242 322, 242 256 C 242 190, 302 140, 372 140 C 372 140, 392 140, 392 162 C 392 184, 362 202, 332 222 C 302 242, 302 270, 332 290 C 362 310, 392 328, 392 350 C 392 372, 352 372, 352 372 Z" fill="url(#grad2)" />
+
+    <!-- Punto central de equilibrio -->
+    <circle cx="256" cy="256" r="28" fill="#F8FAFC" />
+  </g>
+</svg>

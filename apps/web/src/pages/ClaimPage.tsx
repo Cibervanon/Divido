@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Button, Spinner } from "../components/ui";
+import { Logo } from "../components/Logo";
 
 interface ClaimPreview {
   groupId: string;
@@ -48,8 +49,8 @@ export default function ClaimPage() {
     <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
       <div className="w-full max-w-md">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-2xl font-black text-white shadow-lg">
-            €
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center">
+            <Logo className="h-14 w-14" />
           </div>
           <h1 className="text-xl font-extrabold text-slate-100">Reclamar tu perfil</h1>
         </div>
