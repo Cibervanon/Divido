@@ -202,6 +202,17 @@ CREATE TABLE IF NOT EXISTS recurring_expenses (
   auto_create INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  read INTEGER NOT NULL DEFAULT 0,
+  link_url TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_members_user ON group_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_members_group ON group_members(group_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_group ON expenses(group_id);
@@ -214,6 +225,7 @@ CREATE INDEX IF NOT EXISTS idx_events_group ON group_events(group_id);
 CREATE INDEX IF NOT EXISTS idx_informal_debts_group ON informal_debts(group_id);
 CREATE INDEX IF NOT EXISTS idx_pot_group ON common_pot_contributions(group_id);
 CREATE INDEX IF NOT EXISTS idx_recurring_group ON recurring_expenses(group_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
 `;
 
 const MIGRATIONS = [

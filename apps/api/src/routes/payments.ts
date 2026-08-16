@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import {
+  createNotification,
   createPayment,
   deletePayment,
   getPayment,
@@ -21,7 +22,7 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
   app.post("/api/groups/:groupId/payments", async (request) => {
     const { groupId } = request.params as { groupId: string };
     const user = requireAuth(request);
-    await requireActiveMember(request, groupId);
+    const { group } = await requireActiveMember(request, groupId);
     const { toUserId, amount, note } = request.body as {
       toUserId?: string;
       amount?: number;
@@ -33,14 +34,24 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
     if (!Number.isFinite(num) || num <= 0) throw badRequest("Importe inválido");
     const target = await getMemberRow(request.db, groupId, toUserId);
     if (!target || target.status !== "active") throw badRequest("El destinatario debe ser miembro activo");
+    const rounded = round2(num);
     const payment = await createPayment(request.db, {
       groupId,
       fromUserId: user.id,
       toUserId,
-      amount: round2(num),
+      amount: rounded,
       note: note?.trim() || undefined,
       createdById: user.id,
     });
+    if (!target.is_ghost) {
+      await createNotification(request.db, {
+        userId: toUserId,
+        type: "PAYMENT_SETTLED",
+        title: `Pago recibido en ${group.name}`,
+        body: `${user.name} te pagó ${rounded.toFixed(2)} ${group.currency}.`,
+        linkUrl: `/groups/${groupId}`,
+      });
+    }
     return { payment };
   });
 

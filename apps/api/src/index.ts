@@ -13,6 +13,7 @@ import { paymentRoutes } from "./routes/payments.js";
 import { requestRoutes } from "./routes/requests.js";
 import { balanceRoutes } from "./routes/balances.js";
 import { userRoutes } from "./routes/users.js";
+import { notificationRoutes } from "./routes/notifications.js";
 
 export async function buildApp(db = createDb(config.databaseUrl)) {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? "info" } });
@@ -42,6 +43,7 @@ export async function buildApp(db = createDb(config.databaseUrl)) {
   app.register(requestRoutes);
   app.register(balanceRoutes);
   app.register(userRoutes);
+  app.register(notificationRoutes);
 
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof HttpError) {

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode, type InputHTMLAttributes, type ButtonHTMLAttributes, type SelectHTMLAttributes } from "react";
+import { useEffect, useRef, useState, type ReactNode, type InputHTMLAttributes, type ButtonHTMLAttributes, type SelectHTMLAttributes } from "react";
 
 export function Spinner({ className = "" }: { className?: string }) {
   return (
@@ -332,6 +332,61 @@ export function Toast({ show, children }: { show: boolean; children: ReactNode }
   return (
     <div className="pointer-events-none fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-100 shadow-2xl">
       {children}
+    </div>
+  );
+}
+
+export function DropdownMenu({
+  button,
+  children,
+  align = "right",
+  className = "",
+}: {
+  button: ReactNode;
+  children: (close: () => void) => ReactNode;
+  align?: "left" | "right";
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className={`relative ${className}`}>
+      <div
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen((o) => !o);
+        }}
+      >
+        {button}
+      </div>
+      {open ? (
+        <div
+          className={`absolute top-full z-30 mt-1.5 min-w-[11rem] origin-top rounded-xl border border-slate-700 bg-slate-900 py-1 shadow-2xl ${
+            align === "right" ? "right-0" : "left-0"
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {children(() => setOpen(false))}
+        </div>
+      ) : null}
     </div>
   );
 }

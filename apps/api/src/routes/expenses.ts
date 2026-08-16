@@ -3,6 +3,7 @@ import { EPS } from "@divido/shared";
 import {
   createExpense,
   createExpenseComment,
+  createNotification,
   deleteExpense,
   deleteExpenseComment,
   deletePotExpenseWithdrawal,
@@ -69,10 +70,9 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
     if (!Number.isFinite(amount) || amount <= 0) throw badRequest("Importe inválido");
     const paidFromPot = Boolean(body.paidFromPot);
     const receiptUrl = parseReceiptUrl(body.receiptUrl);
+    const members = await listMembers(request.db, groupId);
     const activeIds = new Set(
-      (await listMembers(request.db, groupId))
-        .filter((m) => m.status === "active")
-        .map((m) => m.user_id)
+      members.filter((m) => m.status === "active").map((m) => m.user_id)
     );
     if (paidFromPot) {
       if (!group.enabledExtras.includes("common_pot")) {
@@ -122,6 +122,22 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
         amountGroup,
         description,
       });
+    }
+    const ghostIds = new Set(members.filter((m) => m.is_ghost).map((m) => m.user_id));
+    const notified = uniqueParticipants.filter((p) => p !== user.id && !ghostIds.has(p));
+    if (notified.length > 0) {
+      const payerName = paidFromPot
+        ? "Bote común"
+        : (members.find((m) => m.user_id === payerId)?.name ?? user.name);
+      for (const p of notified) {
+        await createNotification(request.db, {
+          userId: p,
+          type: "EXPENSE_ADDED",
+          title: `Nuevo gasto en ${group.name}`,
+          body: `${payerName} añadió "${description}" por ${amountGroup.toFixed(2)} ${group.currency}.`,
+          linkUrl: `/groups/${groupId}`,
+        });
+      }
     }
     return { expense: await toExpenseDto(request, expense), editable: true };
   });

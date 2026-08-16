@@ -607,6 +607,65 @@ export async function listGroupEvents(db: Db, groupId: string): Promise<GroupEve
     .all(groupId)) as unknown as GroupEventRow[];
 }
 
+// ---------- Notifications ----------
+
+export type NotificationType = "EXPENSE_ADDED" | "PAYMENT_SETTLED" | "PIQUE_CREATED";
+
+export interface NotificationRow {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  read: number;
+  link_url: string;
+  created_at: string;
+}
+
+export async function createNotification(
+  db: Db,
+  input: { userId: string; type: NotificationType; title: string; body: string; linkUrl: string }
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO notifications (id, user_id, type, title, body, read, link_url, created_at)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?)`
+    )
+    .run(
+      randomUUID(),
+      input.userId,
+      input.type,
+      input.title,
+      input.body,
+      input.linkUrl,
+      new Date().toISOString()
+    );
+}
+
+export async function listNotifications(db: Db, userId: string, limit = 50): Promise<NotificationRow[]> {
+  return (await db
+    .prepare("SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT ?")
+    .all(userId, limit)) as unknown as NotificationRow[];
+}
+
+export async function countUnreadNotifications(db: Db, userId: string): Promise<number> {
+  const row = (await db
+    .prepare("SELECT COUNT(*) AS count FROM notifications WHERE user_id = ? AND read = 0")
+    .get(userId)) as { count: number | string } | undefined;
+  return Number(row?.count ?? 0);
+}
+
+export async function markNotificationRead(db: Db, notificationId: string, userId: string): Promise<boolean> {
+  const res = await db
+    .prepare("UPDATE notifications SET read = 1 WHERE id = ? AND user_id = ?")
+    .run(notificationId, userId);
+  return res.changes > 0;
+}
+
+export async function markAllNotificationsRead(db: Db, userId: string): Promise<void> {
+  await db.prepare("UPDATE notifications SET read = 1 WHERE user_id = ? AND read = 0").run(userId);
+}
+
 // ---------- Informal debts (piques/apuestas) ----------
 
 export interface InformalDebtRow {

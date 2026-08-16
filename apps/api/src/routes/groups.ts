@@ -8,6 +8,7 @@ import {
   createGroup,
   createGroupEvent,
   createInformalDebt,
+  createNotification,
   createRecurringExpense,
   deletePotContribution,
   deleteRecurringExpense,
@@ -326,6 +327,25 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     for (const m of members) ghost[m.user_id] = Boolean(m.is_ghost);
     const creditor = members.find((m) => m.user_id === creditorId);
     const debtor = members.find((m) => m.user_id === debtorId);
+    const linkUrl = `/groups/${groupId}?tab=debts`;
+    if (debtorId !== user.id && !ghost[debtorId]) {
+      await createNotification(request.db, {
+        userId: debtorId,
+        type: "PIQUE_CREATED",
+        title: `Nuevo pique en ${group.name}`,
+        body: `${creditor?.name ?? "Alguien"} te ha lanzado un pique de ${debt.amount.toFixed(2)} ${group.currency}: "${cleanTitle}".`,
+        linkUrl,
+      });
+    }
+    if (creditorId !== user.id && !ghost[creditorId]) {
+      await createNotification(request.db, {
+        userId: creditorId,
+        type: "PIQUE_CREATED",
+        title: `Nuevo pique en ${group.name}`,
+        body: `${debtor?.name ?? "Alguien"} te debe ${debt.amount.toFixed(2)} ${group.currency}: "${cleanTitle}".`,
+        linkUrl,
+      });
+    }
     return {
       debt: {
         ...debt,

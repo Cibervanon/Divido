@@ -1,14 +1,23 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Pin, PinOff } from "lucide-react";
+import { ArrowUpDown, Check, MoreVertical, Pin } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { Avatar, Button, Input, Modal, Money, Select, Spinner, EmptyState } from "../components/ui";
+import { useNotifications } from "../lib/useNotifications";
+import { Avatar, Button, DropdownMenu, EmptyState, Input, Modal, Money, Select, Spinner } from "../components/ui";
+import { NotificationBell } from "../components/NotificationBell";
+import { NotificationDrawer } from "../components/NotificationDrawer";
 import { Logo } from "../components/Logo";
 import { ProfileModal } from "../components/ProfileModal";
 import type { GroupDetail, GroupSummary } from "../lib/types";
 
 type GroupSort = "activity" | "name" | "amount";
+
+const SORT_OPTIONS: Array<{ value: GroupSort; label: string }> = [
+  { value: "activity", label: "Actividad reciente" },
+  { value: "name", label: "Nombre A-Z" },
+  { value: "amount", label: "Por saldo" },
+];
 
 export default function DashboardPage() {
   const { user, refreshUser } = useAuth();
@@ -20,11 +29,13 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [name, setName] = useState("");
   const [currency, setCurrency] = useState("EUR");
   const [type, setType] = useState<"open" | "closed">("open");
   const [creating, setCreating] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+  const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
 
   useEffect(() => {
     if (user) setPinnedIds(user.pinnedGroupIds ?? []);
@@ -109,14 +120,17 @@ export default function DashboardPage() {
       <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
           <Logo className="h-9 w-9" />
-          <button
-            type="button"
-            onClick={() => setProfileOpen(true)}
-            className="rounded-full transition hover:ring-2 hover:ring-indigo-500/50"
-            aria-label="Tu perfil"
-          >
-            <Avatar name={user?.name ?? ""} url={user?.avatarUrl} size="md" />
-          </button>
+          <div className="flex items-center gap-1">
+            <NotificationBell unreadCount={unreadCount} onClick={() => setNotifOpen(true)} />
+            <button
+              type="button"
+              onClick={() => setProfileOpen(true)}
+              className="rounded-full transition hover:ring-2 hover:ring-indigo-500/50"
+              aria-label="Tu perfil"
+            >
+              <Avatar name={user?.name ?? ""} url={user?.avatarUrl} size="md" />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -255,16 +269,38 @@ export default function DashboardPage() {
           <h1 className="text-xl font-extrabold text-slate-100">Mis grupos</h1>
           <div className="flex items-center gap-2">
             {groups.length > 0 ? (
-              <Select
-                value={sort}
-                onChange={(e) => setSort(e.target.value as GroupSort)}
-                className="!py-1.5 text-xs"
-                aria-label="Ordenar grupos"
+              <DropdownMenu
+                button={
+                  <button
+                    type="button"
+                    aria-label="Ordenar grupos"
+                    className="touch-manipulation rounded-xl border border-slate-700 bg-slate-900 p-2 text-slate-300 transition hover:bg-slate-800 hover:text-slate-100"
+                  >
+                    <ArrowUpDown className="h-4 w-4" />
+                  </button>
+                }
               >
-                <option value="activity">Actividad reciente</option>
-                <option value="name">Nombre A-Z</option>
-                <option value="amount">Por saldo</option>
-              </Select>
+                {(close) => (
+                  <div className="p-1">
+                    {SORT_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          setSort(opt.value);
+                          close();
+                        }}
+                        className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm transition hover:bg-slate-800"
+                      >
+                        <span className={sort === opt.value ? "font-semibold text-slate-100" : "text-slate-300"}>
+                          {opt.label}
+                        </span>
+                        {sort === opt.value ? <Check className="h-4 w-4 shrink-0 text-indigo-400" /> : null}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </DropdownMenu>
             ) : null}
             {user?.emailVerified ? (
               <Button onClick={() => setCreateOpen(true)} className="!py-2">
@@ -363,6 +399,20 @@ export default function DashboardPage() {
       </Modal>
 
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
+
+      <NotificationDrawer
+        open={notifOpen}
+        onClose={() => setNotifOpen(false)}
+        notifications={notifications}
+        unreadCount={unreadCount}
+        loading={notifications.length === 0}
+        onMarkAllRead={() => void markAllRead()}
+        onOpen={(n) => {
+          void markRead(n.id);
+          setNotifOpen(false);
+          navigate(n.linkUrl);
+        }}
+      />
     </div>
   );
 }
@@ -382,7 +432,7 @@ function GroupCard({
   return (
     <Link
       to={`/groups/${group.id}`}
-      className={`flex items-center gap-4 rounded-2xl border p-4 transition active:scale-[0.99] ${
+      className={`group flex items-center gap-4 rounded-2xl border p-4 transition active:scale-[0.99] ${
         negative
           ? "border-rose-500/40 bg-rose-950/40 hover:border-rose-500/60 hover:bg-rose-950/60"
           : pinned
@@ -404,6 +454,9 @@ function GroupCard({
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-2">
           <span className="truncate text-sm font-semibold text-slate-100">{group.name}</span>
+          {pinned ? (
+            <Pin className="h-3.5 w-3.5 shrink-0 text-amber-400" fill="currentColor" aria-label="Anclado" />
+          ) : null}
           {negative ? (
             <span className="shrink-0 rounded-md bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-400">
               Pendiente
@@ -436,14 +489,40 @@ function GroupCard({
         }}
         aria-label={pinned ? "Quitar de anclados" : "Anclar grupo"}
         title={pinned ? "Quitar de anclados" : "Anclar grupo"}
-        className={`shrink-0 rounded-lg p-1.5 transition ${
+        className={`hidden shrink-0 rounded-lg p-1.5 opacity-0 transition focus:opacity-100 group-hover:opacity-100 sm:inline-flex ${
           pinned
-            ? "bg-indigo-500/15 text-indigo-400 hover:bg-indigo-500/25"
+            ? "text-amber-400 hover:bg-amber-500/10"
             : "text-slate-500 hover:bg-slate-800 hover:text-slate-300"
         }`}
       >
-        {pinned ? <Pin className="h-4 w-4" fill="currentColor" /> : <PinOff className="h-4 w-4" />}
+        <Pin className="h-4 w-4" fill={pinned ? "currentColor" : "none"} />
       </button>
+      <DropdownMenu
+        className="shrink-0 sm:hidden"
+        button={
+          <button
+            type="button"
+            aria-label="Opciones del grupo"
+            className="touch-manipulation rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-slate-300"
+          >
+            <MoreVertical className="h-4 w-4" />
+          </button>
+        }
+      >
+        {(close) => (
+          <button
+            type="button"
+            onClick={() => {
+              onTogglePin();
+              close();
+            }}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-200 transition hover:bg-slate-800"
+          >
+            <Pin className="h-4 w-4" fill={pinned ? "currentColor" : "none"} />
+            {pinned ? "Desanclar grupo" : "Anclar grupo"}
+          </button>
+        )}
+      </DropdownMenu>
     </Link>
   );
 }
