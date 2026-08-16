@@ -410,9 +410,10 @@ export default function DashboardPage() {
         loading={notifications.length === 0}
         onMarkAllRead={() => void markAllRead()}
         onOpen={(n) => {
-          void markRead(n.id);
           setNotifOpen(false);
-          navigate(n.linkUrl);
+          void markRead(n.id);
+          const url = safeNotificationUrl(n.linkUrl);
+          if (url) navigate(url);
         }}
       />
     </div>
@@ -543,4 +544,11 @@ function debugBalances(groups: GroupSummary[]) {
   console.log(
     `[Divido] Total → Te deben: ${credit.toFixed(2)} | Debes: ${debt.toFixed(2)} | Neto: ${(credit - debt).toFixed(2)}`
   );
+}
+
+// Solo permite rutas internas de la app (evita URLs externas o javascript:).
+function safeNotificationUrl(url: string | undefined | null): string | null {
+  if (typeof url !== "string" || url === "") return null;
+  if (!url.startsWith("/") || url.startsWith("//")) return null;
+  return url;
 }

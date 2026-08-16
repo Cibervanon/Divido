@@ -28,13 +28,21 @@ export function useNotifications() {
   }, [refresh]);
 
   async function markRead(id: string) {
-    await api.patch(`/notifications/${id}/read`);
+    try {
+      await api.patch(`/notifications/${id}/read`);
+    } catch {
+      // silencioso: el estado local ya se marca como leído
+    }
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     setUnreadCount((c) => Math.max(c - 1, 0));
   }
 
   async function markAllRead() {
-    await api.patch("/notifications/read-all");
+    try {
+      await api.patch("/notifications/read-all");
+    } catch {
+      // silencioso
+    }
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     setUnreadCount(0);
   }
