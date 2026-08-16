@@ -278,12 +278,23 @@ export function currencySymbol(code: string): string {
   return SYMBOLS[code.toUpperCase()] ?? code.toUpperCase();
 }
 
-export function EmptyState({ icon, title, subtitle }: { icon?: ReactNode; title: string; subtitle?: string }) {
+export function EmptyState({
+  icon,
+  title,
+  subtitle,
+  action,
+}: {
+  icon?: ReactNode;
+  title: string;
+  subtitle?: string;
+  action?: ReactNode;
+}) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 py-12 text-center">
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 px-6 py-12 text-center">
       <div className="mb-3 text-slate-600">{icon}</div>
       <p className="text-sm font-semibold text-slate-300">{title}</p>
       {subtitle ? <p className="mt-1 text-xs text-slate-500">{subtitle}</p> : null}
+      {action ? <div className="mt-5">{action}</div> : null}
     </div>
   );
 }

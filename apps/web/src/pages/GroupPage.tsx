@@ -355,6 +355,7 @@ export default function GroupPage() {
               groupCurrency={group.currency}
               onEdit={(e) => setEditTarget(e)}
               onDelete={(e) => setDeleteTarget(e)}
+              onAdd={() => openAddExpense()}
               requests={requests}
               onDecide={decideRequest}
             />
@@ -560,6 +561,7 @@ function ExpensesTab({
   groupCurrency,
   onEdit,
   onDelete,
+  onAdd,
   requests,
   onDecide,
 }: {
@@ -571,6 +573,7 @@ function ExpensesTab({
   groupCurrency: string;
   onEdit: (e: ExpenseDto) => void;
   onDelete: (e: ExpenseDto) => void;
+  onAdd: () => void;
   requests: ModificationRequestDto[];
   onDecide: (id: string, d: "approve" | "reject") => void;
 }) {
@@ -609,12 +612,24 @@ function ExpensesTab({
 
       {expenses.length === 0 ? (
         <EmptyState
-          title="Sin gastos todavía"
-          subtitle="Añade tu primer gasto con el botón +"
+          title="Aún no hay gastos en este grupo"
+          subtitle="Añade tu primer gasto para empezar a repartir cuentas con tus compañeros"
           icon={
             <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 13.5V6.75A2.25 2.25 0 018.25 4.5h7.5A2.25 2.25 0 0118 6.75v6.75M6 13.5A1.5 1.5 0 004.5 15v3.75A2.25 2.25 0 006.75 21h10.5a2.25 2.25 0 002.25-2.25V15A1.5 1.5 0 0018 13.5M6 13.5a1.5 1.5 0 001.5 1.5h9a1.5 1.5 0 001.5-1.5M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"
+              />
             </svg>
+          }
+          action={
+            <Button onClick={onAdd}>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Añadir primer gasto
+            </Button>
           }
         />
       ) : (
@@ -1081,7 +1096,17 @@ function BalancesTab({
             ))}
           </div>
         </div>
-      ) : null}
+      ) : (
+        <EmptyState
+          title="¡Cuentas al día!"
+          subtitle="Nadie debe dinero a nadie en este momento."
+          icon={
+            <svg className="h-10 w-10 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          }
+        />
+      )}
 
       {exMembers.length > 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 p-4">
@@ -1345,24 +1370,34 @@ function DebtsTab({
 
   return (
     <div className="space-y-4">
-      <button
-        onClick={onNew}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-500/50 bg-indigo-500/5 px-4 py-3 text-sm font-semibold text-indigo-300 transition hover:bg-indigo-500/10"
-      >
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
-        Lanzar un pique o apuesta
-      </button>
+      {sorted.length > 0 ? (
+        <button
+          onClick={onNew}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-500/50 bg-indigo-500/5 px-4 py-3 text-sm font-semibold text-indigo-300 transition hover:bg-indigo-500/10"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          Lanzar un pique o apuesta
+        </button>
+      ) : null}
 
       {sorted.length === 0 ? (
         <EmptyState
-          title="Sin piques todavía"
+          title="No hay piques o apuestas activas en este grupo"
           subtitle="Registra aquí apuestas o deudas informales entre miembros, sin tocar el balance de gastos"
           icon={
             <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0" />
             </svg>
+          }
+          action={
+            <Button onClick={onNew}>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Lanzar un pique
+            </Button>
           }
         />
       ) : (
@@ -1612,11 +1647,23 @@ function PotTab({
         {contributions.length === 0 ? (
           <EmptyState
             title="El bote está vacío"
-            subtitle="Cada miembro puede aportar dinero para gastos compartidos"
+            subtitle="Cada miembro puede aportar dinero para gastos compartidos del grupo"
             icon={
               <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859m-19.5.338V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 00-2.15-1.588H6.911a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661z"
+                />
               </svg>
+            }
+            action={
+              <Button onClick={onNew}>
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Añadir dinero al bote
+              </Button>
             }
           />
         ) : (
@@ -1800,24 +1847,38 @@ function RecurringTab({
 
   return (
     <div className="space-y-4">
-      <button
-        onClick={onNew}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-500/50 bg-indigo-500/5 px-4 py-3 text-sm font-semibold text-indigo-300 transition hover:bg-indigo-500/10"
-      >
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        Añadir cuota fija
-      </button>
+      {sorted.length > 0 ? (
+        <button
+          onClick={onNew}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-500/50 bg-indigo-500/5 px-4 py-3 text-sm font-semibold text-indigo-300 transition hover:bg-indigo-500/10"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Añadir cuota fija
+        </button>
+      ) : null}
 
       {sorted.length === 0 ? (
         <EmptyState
-          title="Sin gastos fijos"
-          subtitle="Programa aquí suscripciones o cuotas que se repiten cada mes o semana"
+          title="Sin cuotas ni suscripciones periódicas configuradas"
+          subtitle="Programa aquí suscripciones o cuotas que se repiten cada mes o cada semana"
           icon={
             <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"
+              />
             </svg>
+          }
+          action={
+            <Button onClick={onNew}>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Programar gasto fijo
+            </Button>
           }
         />
       ) : (
@@ -2170,8 +2231,20 @@ function HistoryTab({
       </div>
       <div className="space-y-1">
         {events.length === 0 ? (
-        <EmptyState title="Sin actividad" subtitle="Aquí aparecerán gastos y pagos saldados en orden cronológico" />
-      ) : (
+          <EmptyState
+            title="No hay actividad registrada en este grupo"
+            subtitle="Aquí aparecerán los gastos y pagos en orden cronológico"
+            icon={
+              <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+                />
+              </svg>
+            }
+          />
+        ) : (
         events.map((e, i) => {
           const isMemberEvent = e.type === "member_joined" || e.type === "member_left" || e.type === "member_removed";
           const isExpense = e.type === "expense";
