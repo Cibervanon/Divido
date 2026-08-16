@@ -20,7 +20,7 @@ const SORT_OPTIONS: Array<{ value: GroupSort; label: string }> = [
 ];
 
 export default function DashboardPage() {
-  const { user, refreshUser } = useAuth();
+  const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const [groups, setGroups] = useState<GroupSummary[]>([]);
   const [pinnedIds, setPinnedIds] = useState<string[]>(user?.pinnedGroupIds ?? []);
@@ -54,13 +54,15 @@ export default function DashboardPage() {
   const otherGroups = groups.filter((g) => !pinnedSet.has(g.id)).sort(compareGroups);
 
   async function togglePin(id: string) {
+    const prev = pinnedIds;
     const next = pinnedIds.includes(id) ? pinnedIds.filter((x) => x !== id) : [...pinnedIds, id];
     setPinnedIds(next);
+    updateUser({ pinnedGroupIds: next });
     try {
       await api.patch("/users/me", { pinnedGroupIds: next });
-      void refreshUser();
     } catch {
-      setPinnedIds(pinnedIds);
+      setPinnedIds(prev);
+      updateUser({ pinnedGroupIds: prev });
     }
   }
 
@@ -512,7 +514,9 @@ function GroupCard({
         {(close) => (
           <button
             type="button"
-            onClick={() => {
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
               onTogglePin();
               close();
             }}

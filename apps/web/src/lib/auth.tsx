@@ -28,6 +28,7 @@ interface AuthContextValue {
   googleLogin: () => void;
   exchangeGoogleCode: (code: string, redirectUri: string) => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateUser: (patch: Partial<Me>) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -90,6 +91,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(fresh);
   }
 
+  function updateUser(patch: Partial<Me>) {
+    setUser((prev) => (prev ? { ...prev, ...patch } : prev));
+  }
+
   async function googleLogin() {
     const redirectUri = `${window.location.origin}/auth/google/callback`;
     const { url } = await api.get<{ url: string }>(
@@ -108,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, register, logout, googleLogin, exchangeGoogleCode, refreshUser }}
+      value={{ user, loading, login, register, logout, googleLogin, exchangeGoogleCode, refreshUser, updateUser }}
     >
       {children}
     </AuthContext.Provider>
