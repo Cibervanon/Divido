@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AppGastos — Manual de Usuario y Guía Oficial</title>
+<!--
+  Manual de Usuario y Guía Oficial · AppGastos
+  Autosuficiente (CSS + SVG inline) · listo para WeasyPrint o navegador.
+  Para generar el PDF:  weasyprint manual-usuario-appgastos.html manual.pdf
+-->
+<style>
+  /* ============================================================
+     1) PÁGINAS A4 · PIES DE PÁGINA AUTOMÁTICOS
+     ============================================================ */
+  @page {
+    size: A4;
+    margin: 18mm 15mm 17mm 15mm;
+    @bottom-left {
+      content: "AppGastos · Manual de Usuario y Guía Oficial";
+      font-size: 7.5pt;
+      color: #6e7681;
+      font-weight: 600;
+    }
+    @bottom-right {
+      content: "Página " counter(page) " de " counter(pages);
+      font-size: 7.5pt;
+      color: #6e7681;
+    }
+  }
+  /* La portada no lleva pie de página */
+  @page cover {
+    @bottom-left { content: none; }
+    @bottom-right { content: none; }
+  }
+  .cover { page: cover; }
+
+  /* ============================================================
+     2) BASE · TEMA DARK
+     ============================================================ */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    background: #0d1117;
+    color: #e6edf3;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", "DejaVu Sans", Arial, system-ui, sans-serif;
+    font-size: 9.5pt;
+    line-height: 1.55;
+  }
+
+  .document { max-width: 210mm; margin: 0 auto; padding: 0 8mm 8mm; }
+
+  p { color: #c9d1d9; margin-bottom: 2.6mm; text-align: justify; hyphens: auto; orphans: 3; widows: 3; }
+  strong { color: #ffffff; font-weight: 700; }
+  em { color: #a5b4fc; font-style: italic; }
+  code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 8.5pt; color: #79c0ff; background: #161b22; border: 1px solid #30363d; border-radius: 3pt; padding: 0.5pt 4pt; }
+  a { color: #a5b4fc; text-decoration: none; }
+  ul, ol { margin: 0 0 2.6mm 5mm; color: #c9d1d9; }
+  li { margin-bottom: 1.2mm; }
+
+  /* ============================================================
+     3) UTILIDADES
+     ============================================================ */
+  .muted { color: #8b949e; }
+  .small { font-size: 8pt; }
+  .center { text-align: center; }
+  .mono { font-family: "SFMono-Regular", Consolas, Menlo, monospace; }
+
+  .no-print { display: block; }
+  @media print {
+    .no-print { display: none !important; }
+    /* En impresión/PDF los márgenes los define @page; el contenedor no añade padding extra */
+    .document { max-width: none; margin: 0; padding: 0; }
+  }
+
+  .toolbar {
+    position: sticky; top: 0; z-index: 50;
+    max-width: 210mm; margin: 6mm auto 0; padding: 0 8mm;
+  }
+  .toolbar-inner {
+    display: table; width: 100%;
+    background: #161b22; border: 1px solid #30363d; border-radius: 8pt;
+    padding: 2.5mm 4mm;
+  }
+  .toolbar-inner > * { display: table-cell; vertical-align: middle; }
+  .toolbar-msg { color: #8b949e; font-size: 8pt; }
+  .toolbar-btn {
+    text-align: right;
+  }
+  .btn {
+    display: inline-block; padding: 2mm 5mm; border-radius: 6pt;
+    background: #6366f1; color: #ffffff !important; font-weight: 700; font-size: 8.5pt;
+    border: 1px solid #6366f1;
+  }
+  .btn:hover { background: #585be6; }
+
+  /* ============================================================
+     4) PORTADA
+     ============================================================ */
+  .cover {
+    display: table; width: 100%;
+    background: linear-gradient(160deg, #0d1117 0%, #131722 52%, #1b2134 100%);
+    border: 1px solid #30363d; border-radius: 12pt;
+    padding: 16mm 12mm 10mm;
+    page-break-after: always;
+    margin-bottom: 8mm;
+  }
+  .cover-badge {
+    text-align: center; margin-bottom: 6mm;
+  }
+  .cover-badge .badge { font-size: 9pt; letter-spacing: 2pt; padding: 2pt 10pt; }
+  .cover-logo { text-align: center; margin-bottom: 4mm; }
+  .cover h1 {
+    text-align: center; font-size: 30pt; font-weight: 800; color: #ffffff; letter-spacing: 0.5pt;
+    margin-bottom: 2mm;
+  }
+  .cover-subtitle {
+    text-align: center; font-size: 13pt; color: #a5b4fc; font-weight: 600; margin-bottom: 4mm;
+  }
+  .cover-tagline {
+    text-align: center; font-size: 9.5pt; color: #8b949e; max-width: 130mm; margin: 0 auto 6mm;
+  }
+  .cover-rule { height: 2pt; background: linear-gradient(90deg, #3fb950, #6366f1, #d29922); border-radius: 2pt; width: 70%; margin: 0 auto 7mm; }
+  .cover-meta { display: table; width: 100%; border-spacing: 3mm 0; margin: 0 0 8mm; }
+  .cover-meta-cell { display: table-cell; width: 25%; background: #161b22; border: 1px solid #30363d; border-radius: 7pt; padding: 3mm 3mm; text-align: center; vertical-align: top; }
+  .cover-meta-cell .k { display: block; font-size: 7pt; text-transform: uppercase; letter-spacing: 1pt; color: #8b949e; margin-bottom: 1mm; }
+  .cover-meta-cell .v { display: block; font-size: 9.5pt; font-weight: 700; color: #e6edf3; }
+
+  /* ============================================================
+     5) ÍNDICE DE CONTENIDOS
+     ============================================================ */
+  .toc {
+    background: #161b22; border: 1px solid #30363d; border-radius: 10pt;
+    padding: 6mm 7mm; margin-bottom: 6mm;
+    page-break-inside: avoid;
+  }
+  .toc h2 { border-bottom: 1px solid #30363d; padding-bottom: 2.5mm; margin-bottom: 3mm; }
+  .toc ol { list-style: none; margin: 0; counter-reset: toc; }
+  .toc li { margin: 0; border-bottom: 1px dashed #21262d; }
+  .toc li:last-child { border-bottom: none; }
+  .toc a {
+    display: block; padding: 2.2mm 0; color: #c9d1d9; font-weight: 600;
+    counter-increment: toc;
+  }
+  .toc a::before { content: counter(toc, decimal-leading-zero); color: #6366f1; font-weight: 800; margin-right: 3mm; font-family: "SFMono-Regular", Consolas, Menlo, monospace; }
+  .toc a::after { content: target-counter(attr(href), page); float: right; color: #8b949e; font-weight: 700; font-size: 8.5pt; }
+  .toc a:hover { color: #a5b4fc; }
+  .toc-desc { font-weight: 400; color: #8b949e; font-size: 8pt; display: block; }
+
+  /* ============================================================
+     6) SECCIONES Y ENCABEZADOS
+     ============================================================ */
+  body { counter-reset: section; }
+  .section { padding: 3mm 0 5mm; page-break-before: always; }
+  .section:first-of-type { page-break-before: auto; }
+  .section { counter-increment: section; }
+
+  h2 {
+    font-size: 15.5pt; font-weight: 800; color: #ffffff;
+    margin: 0 0 4mm; page-break-after: avoid;
+  }
+  h2.sec-title::before { content: counter(section, decimal-leading-zero) " · "; color: #6366f1; }
+  h2 .sec-icon { vertical-align: -2pt; margin-right: 2mm; }
+
+  h3 { font-size: 11.5pt; font-weight: 700; color: #e6edf3; margin: 5mm 0 2.2mm; page-break-after: avoid; }
+  h3::before { content: ""; display: inline-block; width: 5pt; height: 5pt; border-radius: 50%; background: #6366f1; margin-right: 2mm; vertical-align: 1pt; }
+
+  /* ============================================================
+     7) COMPONENTES · CARD / CALLOUT / BADGES
+     ============================================================ */
+  .card {
+    background: #161b22; border: 1px solid #30363d; border-radius: 9pt;
+    padding: 5mm 6mm; margin: 0 0 4mm;
+    page-break-inside: avoid;
+  }
+  .card-title { font-size: 10.5pt; font-weight: 700; color: #ffffff; margin-bottom: 2mm; }
+  .card-title .card-icon { vertical-align: -2pt; margin-right: 1.5mm; color: #6366f1; }
+
+  .callout {
+    border-radius: 7pt; padding: 3.5mm 5mm; margin: 3mm 0 4mm;
+    border-left: 3pt solid;
+    page-break-inside: avoid;
+  }
+  .callout .callout-label { font-weight: 800; font-size: 8.5pt; display: block; margin-bottom: 1mm; text-transform: uppercase; letter-spacing: 0.5pt; }
+  .callout p { margin-bottom: 0; }
+  .callout.info  { background: #1b2134; border-color: #6366f1; }
+  .callout.info  .callout-label { color: #a5b4fc; }
+  .callout.tip   { background: #15231b; border-color: #3fb950; }
+  .callout.tip   .callout-label { color: #3fb950; }
+  .callout.warn  { background: #241d12; border-color: #d29922; }
+  .callout.warn  .callout-label { color: #d29922; }
+
+  .badge {
+    display: inline-block; padding: 0.8pt 6pt; border-radius: 10pt;
+    font-size: 8pt; font-weight: 700; line-height: 1.4; vertical-align: middle;
+    border: 1px solid transparent; white-space: nowrap;
+  }
+  .badge.green  { background: rgba(63,185,80,.14);  color: #3fb950; border-color: rgba(63,185,80,.45); }
+  .badge.amber  { background: rgba(210,153,34,.14); color: #d29922; border-color: rgba(210,153,34,.45); }
+  .badge.indigo { background: rgba(99,102,241,.15); color: #a5b4fc; border-color: rgba(99,102,241,.45); }
+  .badge.red    { background: rgba(248,81,73,.14);  color: #f85149; border-color: rgba(248,81,73,.45); }
+  .badge.muted  { background: rgba(139,148,158,.12); color: #8b949e; border-color: rgba(139,148,158,.4); }
+  .badge.tiny { font-size: 7pt; padding: 0 4pt; }
+
+  /* Iconos SVG inline */
+  .ic { display: inline-block; vertical-align: middle; line-height: 0; }
+  .ic svg { display: inline-block; }
+
+  /* ============================================================
+     8) COLUMNAS CON display:table (compatibilidad WeasyPrint)
+     ============================================================ */
+  .cols { display: table; width: 100%; border-spacing: 3mm 0; margin: 0 0 4mm; }
+  .cols > .cell { display: table-cell; vertical-align: top; }
+  .cols > .cell > .inner { background: #161b22; border: 1px solid #30363d; border-radius: 8pt; padding: 4mm 4.5mm; height: 100%; }
+
+  .col-head { font-size: 10.5pt; font-weight: 800; padding: 2mm 0 2.2mm; margin: 0 0 2.5mm; border-bottom: 1.5pt solid; display: table; width: 100%; }
+  .col-head .col-icon { display: table-cell; width: 8mm; vertical-align: middle; }
+  .col-head .col-name { display: table-cell; vertical-align: middle; }
+
+  /* ============================================================
+     9) TABLAS DE DATOS
+     ============================================================ */
+  table.data { width: 100%; border-collapse: collapse; font-size: 8.8pt; margin: 2.5mm 0 4mm; }
+  table.data th { background: #1b2134; color: #e6edf3; text-align: left; padding: 2.3mm 3mm; border: 1px solid #30363d; font-weight: 700; }
+  table.data td { padding: 2.3mm 3mm; border: 1px solid #21262d; color: #c9d1d9; vertical-align: top; }
+  table.data tr:nth-child(even) td { background: #161b22; }
+  table.data .lbl { font-weight: 700; color: #e6edf3; }
+
+  /* ============================================================
+     10) PASOS · STEADER DE INICIO RÁPIDO
+     ============================================================ */
+  .stepper { display: table; width: 100%; margin: 3mm 0 6mm; }
+  .stepper .cell { display: table-cell; vertical-align: top; }
+  .stepper .sc { width: 21%; text-align: center; }
+  .stepper .sa { width: 4.5%; vertical-align: middle; text-align: center; }
+  .stepper-num {
+    width: 8mm; height: 8mm; margin: 0 auto 1.6mm; border-radius: 50%;
+    background: #6366f1; color: #ffffff; font-weight: 800; font-size: 11.5pt; line-height: 8mm; text-align: center;
+    box-shadow: 0 0 0 2.5pt rgba(99,102,241,.25);
+  }
+  .stepper-name { font-size: 8.5pt; font-weight: 700; color: #e6edf3; }
+  .stepper-sub { font-size: 7.5pt; color: #8b949e; }
+
+  .step { display: table; width: 100%; margin: 0 0 4.5mm; page-break-inside: avoid; }
+  .step-num { display: table-cell; width: 9.5mm; vertical-align: top; }
+  .step-num .n {
+    display: block; width: 7mm; height: 7mm; border-radius: 50%;
+    background: #6366f1; color: #ffffff; text-align: center; line-height: 7mm;
+    font-weight: 800; font-size: 11pt;
+  }
+  .step-body { display: table-cell; vertical-align: top; }
+  .step-body h4 { font-size: 10.5pt; font-weight: 700; color: #ffffff; margin: 0 0 1.4mm; }
+  .step-body p { margin-bottom: 1.4mm; }
+
+  /* ============================================================
+     11) MOCKUP DE LA APP (UI REAL)
+     ============================================================ */
+  .mockup {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 9pt;
+    overflow: hidden; page-break-inside: avoid; margin: 2mm 0 4mm;
+  }
+  .mockup-bar {
+    background: #161b22; border-bottom: 1px solid #30363d;
+    padding: 2mm 4mm; display: table; width: 100%;
+  }
+  .mockup-bar .dots { display: table-cell; width: 26mm; }
+  .mockup-bar .dot { display: inline-block; width: 3.2mm; height: 3.2mm; border-radius: 50%; margin-right: 1.6mm; vertical-align: middle; }
+  .mockup-bar .dot.r { background: #f85149; }
+  .mockup-bar .dot.y { background: #d29922; }
+  .mockup-bar .dot.g { background: #3fb950; }
+  .mockup-bar .url { display: table-cell; text-align: center; font-size: 7.5pt; color: #8b949e; background: #0d1117; border: 1px solid #21262d; border-radius: 4pt; padding: 0.8mm 3mm; width: auto; }
+
+  .mockup-head { display: table; width: 100%; padding: 3mm 4mm; background: #0d1117; }
+  .mockup-head .brand { display: table-cell; width: 45%; vertical-align: middle; font-size: 9pt; font-weight: 800; color: #ffffff; }
+  .mockup-head .brand .logo-mini { vertical-align: -1.5pt; margin-right: 1.5mm; }
+  .mockup-head .acts { display: table-cell; text-align: right; vertical-align: middle; }
+  .mockup-head .acts .bell-chip { display: inline-block; background: #161b22; border: 1px solid #30363d; border-radius: 5pt; padding: 1mm 2mm; vertical-align: middle; }
+  .mockup-head .acts .count { display: inline-block; background: #f85149; color: #fff; font-size: 7pt; font-weight: 800; border-radius: 50%; min-width: 3.4mm; padding: 0 0.8mm; line-height: 3.4mm; text-align: center; margin-left: 1mm; vertical-align: top; }
+  .avatar { display: inline-block; border-radius: 50%; color: #fff; font-weight: 800; font-size: 8pt; text-align: center; vertical-align: middle; width: 7mm; height: 7mm; line-height: 7mm; }
+  .avatar.indigo { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+  .avatar.green { background: linear-gradient(135deg, #3fb950, #2ea043); }
+  .avatar.amber { background: linear-gradient(135deg, #d29922, #b78114); }
+  .avatar.sky { background: linear-gradient(135deg, #58a6ff, #1f6feb); }
+  .avatar.pink { background: linear-gradient(135deg, #f778ba, #db61a2); }
+
+  .mockup-summary { display: table; width: 100%; padding: 0 4mm; margin-bottom: 3mm; }
+  .mockup-summary .cell { display: table-cell; width: 33.33%; text-align: center; background: #161b22; border: 1px solid #30363d; padding: 2.5mm 2mm; }
+  .mockup-summary .cell:first-child { border-radius: 7pt 0 0 7pt; }
+  .mockup-summary .cell:last-child { border-radius: 0 7pt 7pt 0; }
+  .mockup-summary .k { display: block; font-size: 7pt; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5pt; }
+  .mockup-summary .v { display: block; font-size: 10pt; font-weight: 800; margin-top: 0.6mm; }
+
+  .mockup-label { font-size: 7.5pt; font-weight: 700; color: #8b949e; text-transform: uppercase; letter-spacing: 1pt; padding: 2mm 4mm 1mm; }
+
+  .mrow { display: table; width: 100%; padding: 2.2mm 4mm; border-bottom: 1px solid #21262d; }
+  .mrow:last-child { border-bottom: none; }
+  .mrow .m-left { display: table-cell; vertical-align: middle; }
+  .mrow .m-right { display: table-cell; width: 20mm; text-align: right; vertical-align: middle; }
+  .mrow .gname { font-size: 9pt; font-weight: 700; color: #e6edf3; }
+  .mrow .gmeta { font-size: 7.5pt; color: #8b949e; }
+  .chip { display: inline-block; width: 7mm; height: 7mm; border-radius: 5pt; color: #fff; font-weight: 800; font-size: 8pt; text-align: center; line-height: 7mm; margin-right: 2.5mm; vertical-align: middle; }
+  .mockup.pinned { background: linear-gradient(180deg, #161b22 0%, #0d1117 60%); }
+
+  /* ============================================================
+     12) DIAGRAMAS
+     ============================================================ */
+  .mini-node {
+    display: table-cell; vertical-align: middle; text-align: center;
+  }
+  .flow-pipe { display: table; width: 100%; border-spacing: 2.5mm 0; margin: 2mm 0 4mm; }
+  .flow-pipe .cell { display: table-cell; width: 30%; vertical-align: top; }
+  .flow-pipe .cell .inner { background: #161b22; border: 1px solid #30363d; border-radius: 8pt; padding: 3mm; text-align: center; height: 100%; }
+  .flow-pipe .arr { display: table-cell; width: 5%; vertical-align: middle; text-align: center; }
+
+  .debt-chip { display: inline-block; background: #1b2134; border: 1px solid #30363d; border-radius: 6pt; padding: 1.6mm 2.6mm; margin: 0.8mm 0; font-size: 8.5pt; }
+  .debt-chip b { color: #a5b4fc; }
+  .debt-row { font-size: 9pt; padding: 1.4mm 0; }
+  .debt-row .who { display: inline-block; width: 12mm; font-weight: 700; color: #e6edf3; }
+  .debt-row .amt { display: inline-block; width: 26mm; text-align: right; font-weight: 700; }
+  .debt-row .amt.plus { color: #3fb950; }
+  .debt-row .amt.minus { color: #f85149; }
+
+  .settle-card { border: 1.5pt solid rgba(63,185,80,.4); border-radius: 7pt; padding: 2.5mm 3mm; background: rgba(63,185,80,.07); margin-top: 2mm; display: table; width: 100%; }
+  .settle-card .sc-ic { display: table-cell; width: 9mm; vertical-align: middle; color: #3fb950; }
+  .settle-card .sc-tx { display: table-cell; vertical-align: middle; font-size: 8.8pt; color: #c9d1d9; }
+
+  /* ============================================================
+     13) HISTORIAL DE GASTOS (EJEMPLO)
+     ============================================================ */
+  .exp-row { display: table; width: 100%; padding: 2.2mm 4mm; border-bottom: 1px solid #21262d; background: #0d1117; }
+  .exp-row .e-left { display: table-cell; vertical-align: middle; }
+  .exp-row .e-mid { display: table-cell; vertical-align: middle; }
+  .exp-row .e-right { display: table-cell; width: 26mm; text-align: right; vertical-align: middle; }
+  .exp-row .ename { font-size: 9pt; font-weight: 700; color: #e6edf3; }
+  .exp-row .emeta { font-size: 7.5pt; color: #8b949e; }
+  .exp-row.deleted { opacity: .5; }
+  .exp-row.deleted .ename { text-decoration: line-through; }
+
+  /* ============================================================
+     14) FAQ · ACCORDIÓN SENCILLO
+     ============================================================ */
+  .faq { background: #161b22; border: 1px solid #30363d; border-radius: 8pt; padding: 4mm 5mm; margin: 0 0 3mm; page-break-inside: avoid; }
+  .faq-q { font-size: 10pt; font-weight: 700; color: #ffffff; margin: 0 0 1.6mm; display: table; width: 100%; }
+  .faq-q .q-ic { display: table-cell; width: 7mm; color: #6366f1; }
+  .faq-q .q-tx { display: table-cell; vertical-align: middle; }
+  .faq-a { color: #c9d1d9; }
+  .faq-a p { margin-bottom: 1.4mm; }
+
+  /* ============================================================
+     15) PIE DE DOCUMENTO
+     ============================================================ */
+  .end-note { text-align: center; padding: 6mm 0 2mm; color: #8b949e; font-size: 8pt; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     BARRA DE HERRAMIENTAS (solo navegador; oculta en impresión)
+     ============================================================ -->
+<div class="toolbar no-print">
+  <div class="toolbar-inner">
+    <span class="toolbar-msg">Documento autosuficiente · Listo para WeasyPrint o navegador</span>
+    <span class="toolbar-btn"><a class="btn" href="#" onclick="window.print(); return false;">Imprimir / Guardar PDF</a></span>
+  </div>
+</div>
+
+<div class="document">
+
+  <!-- ============================================================
+       PORTADA
+       ============================================================ -->
+  <section class="cover">
+    <div class="cover-badge"><span class="badge indigo">GUÍA OFICIAL</span></div>
+
+    <div class="cover-logo">
+      <span class="ic"><svg width="52" height="52" viewBox="0 0 48 48"><rect x="2" y="2" width="44" height="44" rx="12" fill="#6366f1"/><text x="24" y="32" text-anchor="middle" font-size="26" font-weight="800" fill="#ffffff" font-family="-apple-system, Segoe UI, Arial, sans-serif">€</text></svg></span>
+    </div>
+
+    <h1>AppGastos</h1>
+    <p class="cover-subtitle">Manual de Usuario y Guía Oficial</p>
+    <p class="cover-tagline">Gestiona gastos en grupo, liquida deudas y mantén las cuentas claras con tus amigos, tu familia o tus compañeros de trabajo — desde cualquier dispositivo.</p>
+    <div class="cover-rule"></div>
+
+    <div class="cover-meta">
+      <div class="cover-meta-cell"><span class="k">Versión</span><span class="v">2.4.0</span></div>
+      <div class="cover-meta-cell"><span class="k">Fecha</span><span class="v">Agosto 2026</span></div>
+      <div class="cover-meta-cell"><span class="k">Plataforma</span><span class="v">Web App (PWA)</span></div>
+      <div class="cover-meta-cell"><span class="k">Compatibilidad</span><span class="v">iOS · Android · Escritorio</span></div>
+    </div>
+
+    <!-- Mockup de portada -->
+    <div class="mockup">
+      <div class="mockup-bar">
+        <span class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></span>
+        <span class="url">appgastos.app/dashboard</span>
+      </div>
+      <div class="mockup-head">
+        <span class="brand"><span class="ic logo-mini"><svg width="15" height="15" viewBox="0 0 48 48"><rect x="2" y="2" width="44" height="44" rx="12" fill="#6366f1"/><text x="24" y="32" text-anchor="middle" font-size="26" font-weight="800" fill="#fff" font-family="-apple-system, Segoe UI, Arial, sans-serif">€</text></svg></span> AppGastos</span>
+        <span class="acts">
+          <span class="bell-chip">
+            <span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c9d1d9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span>
+            <span class="count">3</span>
+          </span>
+          <span class="avatar indigo">M</span>
+        </span>
+      </div>
+      <div class="mockup-summary">
+        <div class="cell"><span class="k">Te deben</span><span class="v" style="color:#3fb950">+€24.00</span></div>
+        <div class="cell"><span class="k">Debes</span><span class="v" style="color:#d29922">−€18.50</span></div>
+        <div class="cell"><span class="k">Neto</span><span class="v" style="color:#a5b4fc">+€5.50</span></div>
+      </div>
+      <div class="mockup-label">Anclados <span class="badge tiny indigo">2</span></div>
+      <div class="mockup pinned">
+        <div class="mrow">
+          <span class="m-left"><span class="chip sky">CA</span><span class="gname">Casa compartida</span> <span class="badge tiny green">Al día</span></span>
+          <span class="m-right"><span class="ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span></span>
+        </div>
+        <div class="mrow">
+          <span class="m-left"><span class="chip pink">VM</span><span class="gname">Viaje Madrid</span> <span class="badge tiny amber">Debes −€18.50</span></span>
+          <span class="m-right"><span class="ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span></span>
+        </div>
+      </div>
+      <div class="mockup-label">Tus grupos</div>
+      <div class="mrow"><span class="m-left"><span class="chip green">EN</span><span class="gname">Clases de inglés</span><br/><span class="gmeta">3 miembros · hace 2 días</span></span><span class="m-right"><span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="#8b949e"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></span></span></div>
+      <div class="mrow"><span class="m-left"><span class="chip amber">CF</span><span class="gname">Cena de fin de curso</span><br/><span class="gmeta">6 miembros · hace 1 semana</span></span><span class="m-right"><span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="#8b949e"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></span></span></div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       ÍNDICE DE CONTENIDOS
+       ============================================================ -->
+  <nav class="toc">
+    <h2>Índice de contenidos</h2>
+    <ol>
+      <li><a href="#sec-1">Inicio Rápido <span class="toc-desc">Crea tu primer grupo y salda tus primeras cuentas en 4 pasos</span></a></li>
+      <li><a href="#sec-2">Dashboard y Grupos <span class="toc-desc">Ancla tus grupos, ordena y entiende tu balance</span></a></li>
+      <li><a href="#sec-3">Gastos e Historial <span class="toc-desc">Registro, validaciones, repartos y auditoría de gastos</span></a></li>
+      <li><a href="#sec-4">Simplificación de Deudas <span class="toc-desc">El algoritmo Greedy Net Debt Settlement y sus ventajas</span></a></li>
+      <li><a href="#sec-5">Bote Común y Piques <span class="toc-desc">Fondos para viajes y fiestas frente a retos 1 contra 1</span></a></li>
+      <li><a href="#sec-6">Gastos Fijos <span class="toc-desc">Cuotas semanales, mensuales y anuales automatizadas</span></a></li>
+      <li><a href="#sec-7">Notificaciones PWA <span class="toc-desc">Avisos in-app y notificaciones nativas en tu móvil</span></a></li>
+      <li><a href="#sec-8">Preguntas Frecuentes <span class="toc-desc">Instalación, fantasmas, iconos y dudas habituales</span></a></li>
+    </ol>
+  </nav>
+
+  <!-- ============================================================
+       SECCIÓN 1 · INICIO RÁPIDO
+       ============================================================ -->
+  <section id="sec-1" class="section">
+    <h2 class="sec-title">Inicio Rápido</h2>
+    <p>En menos de cinco minutos tendrás tu primer grupo creado, tu primer gasto registrado y tus cuentas saldadas. Sigue estos cuatro pasos:</p>
+
+    <!-- Stepper -->
+    <div class="stepper">
+      <div class="cell sc"><div class="stepper-num">1</div><div class="stepper-name">Crear grupo</div><div class="stepper-sub">Nombre y moneda</div></div>
+      <div class="cell sa"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
+      <div class="cell sc"><div class="stepper-num">2</div><div class="stepper-name">Añadir miembros</div><div class="stepper-sub">Personas o fantasmas</div></div>
+      <div class="cell sa"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
+      <div class="cell sc"><div class="stepper-num">3</div><div class="stepper-name">Registrar gasto</div><div class="stepper-sub">Quién pagó y reparto</div></div>
+      <div class="cell sa"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
+      <div class="cell sc"><div class="stepper-num">4</div><div class="stepper-name">Saldar cuentas</div><div class="stepper-sub">Te deben / debes</div></div>
+    </div>
+
+    <div class="step">
+      <div class="step-num"><span class="n">1</span></div>
+      <div class="step-body">
+        <h4>Crea tu primer grupo</h4>
+        <p>Desde el <strong>Dashboard</strong> pulsa <strong>Nuevo grupo</strong>. Elige un nombre claro (p. ej. «Casa compartida»), la <strong>moneda</strong> (EUR, USD…) y el tipo:</p>
+        <ul>
+          <li><strong>Grupo abierto</strong>: cualquiera puede entrar con un enlace de invitación.</li>
+          <li><strong>Grupo cerrado</strong>: solo entran quienes invites manualmente.</li>
+        </ul>
+        <div class="callout warn"><span class="callout-label">Importante</span><p>La <strong>moneda no se puede cambiar</strong> después de crear el grupo. Elige bien antes de empezar.</p></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num"><span class="n">2</span></div>
+      <div class="step-body">
+        <h4>Añade miembros o «miembros fantasma»</h4>
+        <p>Comparte el enlace del grupo con quien quieras. Si alguien no quiere (o no puede) crear cuenta, puedes añadirlo como <strong>miembro fantasma</strong>: un participante sin cuenta propia, perfecto para repartos de cenas, pisos o viajes.</p>
+        <div class="callout tip"><span class="callout-label">Consejo</span><p>Puedes vincular un miembro fantasma a una cuenta real más adelante desde <strong>Ajustes del grupo</strong>. Todos los gastos del fantasma se trasladan automáticamente.</p></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num"><span class="n">3</span></div>
+      <div class="step-body">
+        <h4>Registra tu primer gasto</h4>
+        <p>Pulsa el botón <strong>+ Gastar</strong>. Indica la descripción, el <strong>importe</strong> (siempre mayor que 0,00), <strong>quién pagó</strong> y cómo repartirlo: <strong>equitativo</strong>, <strong>personalizado</strong> o desde el <strong>bote común</strong>. La app valida los datos antes de guardar.</p>
+        <div class="callout info"><span class="callout-label">Validación</span><p>Los importes deben ser <strong>&gt; €0.00</strong>. No se admiten importes cero ni negativos; verás un aviso en el formulario si intentas guardarlos.</p></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num"><span class="n">4</span></div>
+      <div class="step-body">
+        <h4>Saldas cuentas</h4>
+        <p>Abre la pestaña <strong>Saldos</strong> del grupo. Verás quién debe a quién (<span class="badge tiny amber">Debes</span> y <span class="badge tiny green">Te deben</span>). Pulsa <strong>Pagar</strong> en una deuda para marcarla como saldada: la app la registra y notifica a la otra persona.</p>
+        <div class="callout tip"><span class="callout-label">Consejo</span><p>Activa la <strong>simplificación de deudas</strong> para convertir un enredo de pagos cruzados en un número mínimo de transferencias. Lo explicamos en la <a href="#sec-4">Sección 4</a>.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       SECCIÓN 2 · DASHBOARD Y GRUPOS
+       ============================================================ -->
+  <section id="sec-2" class="section">
+    <h2 class="sec-title">Dashboard y Grupos</h2>
+    <p>El <strong>Dashboard</strong> es tu centro de control: un resumen de tu balance global y la lista de todos tus grupos. Cada grupo muestra su <strong>saldo neto</strong> — positivo si te deben y negativo si debes — para que sepas de un vistazo dónde estás.</p>
+
+    <h3>Ancla tus grupos con 📌</h3>
+    <p>Los grupos que más uses pueden quedar <strong>fijados arriba</strong> para tenerlos siempre a mano:</p>
+    <div class="cols">
+      <div class="cell"><div class="inner">
+        <div class="col-head" style="border-color:#6366f1; color:#a5b4fc"><span class="col-icon"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg></span></span><span class="col-name">En escritorio</span></div>
+        <p>Pasa el cursor sobre la tarjeta del grupo y pulsa el icono <strong>📌</strong> que aparece. Un grupo anclado se mueve a la parte superior con su saldo neto.</p>
+      </div></div>
+      <div class="cell"><div class="inner">
+        <div class="col-head" style="border-color:#d29922; color:#d29922"><span class="col-icon"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></span></span><span class="col-name">En móvil</span></div>
+        <p>Abre el menú <strong>⋮</strong> de la tarjeta y elige <strong>Anclar al inicio</strong>. Repite la operación con <strong>Desanclar</strong> para revertirlo.</p>
+      </div></div>
+    </div>
+
+    <h3>Ordenación inteligente ⇅</h3>
+    <p>Ordena tu lista de grupos por el selector <strong>⇅</strong>: por <strong>actividad reciente</strong>, por <strong>nombre (A–Z)</strong> o por <strong>saldo</strong>. Los grupos anclados siempre se mantienen por encima del resto, ordenados según este criterio.</p>
+
+    <h3>Así se ve el Dashboard</h3>
+    <div class="mockup">
+      <div class="mockup-bar">
+        <span class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></span>
+        <span class="url">appgastos.app/dashboard</span>
+      </div>
+      <div class="mockup-head">
+        <span class="brand"><span class="ic logo-mini"><svg width="15" height="15" viewBox="0 0 48 48"><rect x="2" y="2" width="44" height="44" rx="12" fill="#6366f1"/><text x="24" y="32" text-anchor="middle" font-size="26" font-weight="800" fill="#fff" font-family="-apple-system, Segoe UI, Arial, sans-serif">€</text></svg></span> AppGastos</span>
+        <span class="acts">
+          <span class="bell-chip"><span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c9d1d9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><span class="count">3</span></span>
+          <span class="avatar indigo">M</span>
+        </span>
+      </div>
+      <div class="mockup-summary">
+        <div class="cell"><span class="k">Te deben</span><span class="v" style="color:#3fb950">+€24.00</span></div>
+        <div class="cell"><span class="k">Debes</span><span class="v" style="color:#d29922">−€18.50</span></div>
+        <div class="cell"><span class="k">Neto</span><span class="v" style="color:#a5b4fc">+€5.50</span></div>
+      </div>
+      <div class="mockup-label">Anclados <span class="badge tiny indigo">2</span></div>
+      <div class="mockup pinned">
+        <div class="mrow">
+          <span class="m-left"><span class="chip sky">CA</span><span class="gname">Casa compartida</span> <span class="badge tiny green">Al día</span></span>
+          <span class="m-right"><span class="ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span></span>
+        </div>
+        <div class="mrow">
+          <span class="m-left"><span class="chip pink">VM</span><span class="gname">Viaje Madrid</span> <span class="badge tiny amber">Debes −€18.50</span></span>
+          <span class="m-right"><span class="ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span></span>
+        </div>
+      </div>
+      <div class="mockup-label">Tus grupos</div>
+      <div class="mrow"><span class="m-left"><span class="chip green">EN</span><span class="gname">Clases de inglés</span> <span class="badge tiny green">+€8.00</span><br/><span class="gmeta">3 miembros · hace 2 días</span></span><span class="m-right"><span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="#8b949e"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></span></span></div>
+      <div class="mrow"><span class="m-left"><span class="chip amber">CF</span><span class="gname">Cena de fin de curso</span> <span class="badge tiny amber">−€5.25</span><br/><span class="gmeta">6 miembros · hace 1 semana</span></span><span class="m-right"><span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="#8b949e"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></span></span></div>
+    </div>
+
+    <div class="callout info"><span class="callout-label">Cómo se calcula</span><p>Los totales del Dashboard son <strong>estrictos por grupo</strong>: tu balance neto (<span class="mono">myBalance</span>) indica o bien «te deben» (positivo) o bien «debes» (negativo). Nunca se mezclan ambos signos en un mismo grupo.</p></div>
+  </section>
+
+  <!-- ============================================================
+       SECCIÓN 3 · GASTOS E HISTORIAL
+       ============================================================ -->
+  <section id="sec-3" class="section">
+    <h2 class="sec-title">Gastos e Historial</h2>
+    <p>Cada gasto queda registrado en el <strong>historial del grupo</strong> con su fecha, pagador, participantes y reparto. Este es el corazón de la app: un registro limpio y auditable de todo lo que se mueve.</p>
+
+    <h3>Reglas de validación al registrar un gasto</h3>
+    <table class="data">
+      <thead>
+        <tr><th style="width:30%">Regla</th><th style="width:44%">Detalle</th><th>Si no se cumple</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="lbl">Importe &gt; €0.00</td><td>El importe debe ser mayor que cero en la moneda del grupo.</td><td>Aviso de validación; no se guarda.</td></tr>
+        <tr><td class="lbl">Descripción</td><td>Texto identificativo del gasto (obligatorio).</td><td>Aviso de validación; no se guarda.</td></tr>
+        <tr><td class="lbl">Quién pagó</td><td>Un miembro activo (o el bote común).</td><td>No se permite guardar sin pagador.</td></tr>
+        <tr><td class="lbl">Moneda</td><td>La moneda del grupo; los importes se convierten a la divisa del grupo.</td><td>Se convierte con el tipo de cambio indicado.</td></tr>
+        <tr><td class="lbl">Reparto</td><td>Equitativo, personalizado o desde el bote.</td><td>Si el reparto no cubre el total, aviso.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Repartos: equitativo o personalizado</h3>
+    <div class="cols">
+      <div class="cell"><div class="inner">
+        <div class="col-head" style="border-color:#3fb950; color:#3fb950"><span class="col-icon"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span></span><span class="col-name">Equitativo</span></div>
+        <p>Divide el gasto a partes iguales entre los participantes seleccionados. Perfecto para cenas, regalos o compras conjuntas.</p>
+      </div></div>
+      <div class="cell"><div class="inner">
+        <div class="col-head" style="border-color:#d29922; color:#d29922"><span class="col-icon"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></span></span><span class="col-name">Personalizado</span></div>
+        <p>Define cuánto paga cada participante (importes exactos o porcentajes). Útil cuando alguien comió más, una persona invitaba o hay acuerdos distintos.</p>
+      </div></div>
+    </div>
+
+    <h3>Historial y auditoría de gastos borrados</h3>
+    <p>Un gasto <strong>eliminado</strong> nunca desaparece del historial: se <strong>atenúa visualmente</strong> (opacity 50%), se tacha y se etiqueta como <span class="badge tiny muted">Borrado</span>. Así el historial es una auditoría completa y siempre puedes reconstruir qué pasó.</p>
+
+    <div class="mockup">
+      <div class="mockup-bar"><span class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></span><span class="url">appgastos.app/grupos/…/gastos</span></div>
+      <div class="mrow">
+        <span class="m-left"><span class="chip sky">CA</span></span>
+        <span class="m-mid" style="display:table-cell;vertical-align:middle;padding-left:2.5mm"><span class="ename">Compra del súper</span><br/><span class="emeta">12 ago · María pagó · 4 participantes</span></span>
+        <span class="m-right"><span class="badge tiny green">+€9.50</span></span>
+      </div>
+      <div class="exp-row deleted">
+        <span class="m-left"><span class="chip amber">CF</span></span>
+        <span class="e-mid"><span class="ename">Pizza de anoche</span> <span class="badge tiny muted">Borrado</span><br/><span class="emeta">10 ago · eliminado · se revirtió el reparto</span></span>
+        <span class="e-right"><span class="badge tiny muted">−€18.00</span></span>
+      </div>
+      <div class="mrow">
+        <span class="m-left"><span class="chip pink">VM</span></span>
+        <span class="e-mid"><span class="ename">Alquiler de coche</span><br/><span class="emeta">8 ago · pago desde el bote · 3 participantes</span></span>
+        <span class="e-right"><span class="badge tiny amber">−€42.00</span></span>
+      </div>
+    </div>
+
+    <div class="callout warn"><span class="callout-label">Ojo</span><p>Si eliminas un gasto <strong>pagado desde el bote común</strong>, el dinero vuelve al bote. El importe se revierte automáticamente para mantener el saldo coherente.</p></div>
+  </section>
+
+  <!-- ============================================================
+       SECCIÓN 4 · SIMPLIFICACIÓN DE DEUDAS
+       ============================================================ -->
+  <section id="sec-4" class="section">
+    <h2 class="sec-title">Simplificación de Deudas</h2>
+    <p>En un grupo con varios participantes es fácil acabar con un <strong>enredo de deudas cruzadas</strong>: A debe a B, B debe a C y C debe a A. La simplificación reduce ese enredo a un número mínimo de transferencias.</p>
+
+    <h3>El algoritmo: Greedy Net Debt Settlement</h3>
+    <p>AppGastos aplica un algoritmo <strong>voraz de saldo neto</strong> (Greedy Net Debt Settlement):</p>
+
+    <div class="flow-pipe">
+      <div class="cell"><div class="inner">
+        <span class="ic" style="margin-bottom:1.5mm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+        <div style="font-weight:700;color:#e6edf3">1 · Balance neto</div>
+        <div style="font-size:8pt;color:#8b949e">Se calcula lo que cada miembro gana o pierde en total.</div>
+      </div></div>
+      <div class="arr"><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span></div>
+      <div class="cell"><div class="inner">
+        <span class="ic" style="margin-bottom:1.5mm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+        <div style="font-weight:700;color:#e6edf3">2 · Deudores → acreedores</div>
+        <div style="font-size:8pt;color:#8b949e">Cada deudor paga a quien más crédito tiene, en orden.</div>
+      </div></div>
+      <div class="arr"><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span></div>
+      <div class="cell"><div class="inner">
+        <span class="ic" style="margin-bottom:1.5mm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3fb950" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <div style="font-weight:700;color:#3fb950">3 · Transferencias mínimas</div>
+        <div style="font-size:8pt;color:#8b949e">El menor número posible de pagos para dejar todo a cero.</div>
+      </div></div>
+    </div>
+
+    <h3>Comparativa visual</h3>
+    <div class="cols">
+      <div class="cell" style="width:41%"><div class="inner">
+        <div class="col-head" style="border-color:#f85149; color:#f85149"><span class="col-icon"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span></span><span class="col-name">Sin simplificación</span></div>
+        <div class="center" style="margin-bottom:2mm"><span class="badge red">4 transferencias</span></div>
+        <div class="debt-chip"><b>Ana</b> → Bea · €40.00</div>
+        <div class="debt-chip"><b>Bea</b> → Car <b>· €25.00</b></div>
+        <div class="debt-chip"><b>Car</b> → Ana <b>· €15.00</b></div>
+        <div class="debt-chip"><b>Diego</b> → Bea <b>· €10.00</b></div>
+        <p class="small muted" style="margin-top:2mm">Cuatro pagos cruzados: dinero que va y viene varias veces.</p>
+      </div></div>
+      <div class="cell" style="width:18%; vertical-align:middle"><div class="inner" style="background:transparent;border:none;text-align:center">
+        <span class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3fb950" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
+        <div class="small" style="color:#3fb950;font-weight:700">SIMPLIFICA</div>
+      </div></div>
+      <div class="cell" style="width:41%"><div class="inner">
+        <div class="col-head" style="border-color:#3fb950; color:#3fb950"><span class="col-icon"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span></span><span class="col-name">Con simplificación</span></div>
+        <div class="center" style="margin-bottom:2mm"><span class="badge green">1 transferencia</span></div>
+        <div class="debt-chip"><b>Car</b> → Ana <b>· €15.00</b></div>
+        <p class="small muted" style="margin-top:2mm">Saldo neto de Ana: +€15.00. Un único pago liquida todo el grupo.</p>
+        <div class="settle-card">
+          <span class="sc-ic"><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3fb950" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span></span>
+          <span class="sc-tx"><strong>Desglose:</strong> Car le debe €15.00 a Ana. Bea y Diego quedan a cero.</span>
+        </div>
+      </div></div>
+    </div>
+
+    <h3>Panel de desglose</h3>
+    <div class="card">
+      <div class="card-title">Saldos del grupo «Casa compartida»</div>
+      <div class="debt-row"><span class="who">Ana</span><span class="amt plus">+€24.00</span><span class="muted small">te deben €24.00</span></div>
+      <div class="debt-row"><span class="who">Bea</span><span class="amt">€0.00</span><span class="muted small">saldado</span></div>
+      <div class="debt-row"><span class="who">Car</span><span class="amt minus">−€15.00</span><span class="muted small">debe €15.00</span></div>
+      <div class="debt-row"><span class="who">Diego</span><span class="amt minus">−€9.00</span><span class="muted small">debe €9.00</span></div>
+      <div class="callout tip" style="margin-bottom:0"><span class="callout-label">Resultado</span><p>En lugar de 6 pagos cruzados, solo hace falta un pago: <strong>Car paga €15.00 a Ana</strong> y <strong>Diego paga €9.00 a Ana</strong>.</p></div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       SECCIÓN 5 · BOTE COMÚN Y PIQUES
+       ============================================================ -->
+  <section id="sec-5" class="section">
+    <h2 class="sec-title">Bote Común y Piques</h2>
+    <p>Dos herramientas para dos situaciones muy distintas: el <strong>bote común</strong> reúne dinero compartido, mientras que los <strong>piques</strong> anotan deudas informales 1 contra 1.</p>
+
+    <div class="cols">
+      <div class="cell"><div class="inner">
+        <div class="col-head" style="border-color:#6366f1; color:#a5b4fc"><span class="col-icon"><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9h14v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/><path d="M8 14h8"/></svg></span></span><span class="col-name">Bote Común</span></div>
+        <ul>
+          <li><strong>Qué es:</strong> un fondo de dinero que comparten los miembros del grupo.</li>
+          <li><strong>Para qué:</strong> viajes, fiestas, comidas grupales, compras conjuntas.</li>
+          <li><strong>Aportaciones:</strong> cada miembro ingresa dinero al bote con un clic.</li>
+          <li><strong>Pagos:</strong> un gasto puede abonarse «desde el bote» sin que nadie adelante el dinero.</li>
+          <li><strong>Saldo visible:</strong> el bote muestra su saldo actual y el historial de movimientos.</li>
+        </ul>
+        <div class="callout tip"><span class="callout-label">Ejemplo</span><p>Un grupo de 5 organiza un viaje: aportan €40 cada uno y pagan el alquiler del coche con el bote. Nadie tiene que pedir dinero a nadie a mitad de viaje.</p></div>
+      </div></div>
+      <div class="cell"><div class="inner">
+        <div class="col-head" style="border-color:#d29922; color:#d29922"><span class="col-icon"><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg></span></span><span class="col-name">Piques</span></div>
+        <ul>
+          <li><strong>Qué son:</strong> deudas informales <strong>1 contra 1</strong> entre dos personas.</li>
+          <li><strong>Para qué:</strong> retos, invitaciones, apuestas, favores pagados.</li>
+          <li><strong>Registrar:</strong> indica quién debe, a quién, el importe y un título (p. ej. «La cena que me invitaste»).</li>
+          <li><strong>Cobrar:</strong> el acreedor puede <strong>cobrar</strong> el pique y marcarlo como saldado.</li>
+          <li><strong>Notificación:</strong> la otra persona recibe el aviso del pique y de su cobro.</li>
+        </ul>
+        <div class="callout warn"><span class="callout-label">Ejemplo</span><p>«Te apunto el partido de pádel que perdiste: me debes €5.00». Un pique se cobra y se cierra cuando quieras.</p></div>
+      </div></div>
+    </div>
+
+    <h3>¿Cuál uso?</h3>
+    <table class="data">
+      <thead><tr><th>Necesidad</th><th>Bote Común</th><th>Piques</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">Cena de grupo / fiesta</td><td><span class="badge tiny indigo">Bote</span> reunid el dinero antes y pagad desde ahí.</td><td>—</td></tr>
+        <tr><td class="lbl">Pagar algo entre varios</td><td><span class="badge tiny indigo">Bote</span> el grupo entero participa.</td><td>—</td></tr>
+        <tr><td class="lbl">Apuesta o reto 1 contra 1</td><td>—</td><td><span class="badge tiny amber">Pique</span> se anota una deuda informal.</td></tr>
+        <tr><td class="lbl">«Tú me debes de ayer»</td><td>—</td><td><span class="badge tiny amber">Pique</span> déjalo anotado y no se olvida.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============================================================
+       SECCIÓN 6 · GASTOS FIJOS
+       ============================================================ -->
+  <section id="sec-6" class="section">
+    <h2 class="sec-title">Gastos Fijos</h2>
+    <p>Los <strong>gastos fijos</strong> son cuotas que se repiten cada cierto tiempo: el alquiler, la factura de la luz, el gimnasio, las suscripciones… En lugar de registrarlos a mano cada mes, configúralos una sola vez.</p>
+
+    <h3>Frecuencias disponibles</h3>
+    <table class="data">
+      <thead><tr><th style="width:22%">Frecuencia</th><th style="width:33%">Cuándo se genera</th><th>Ejemplos típicos</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge indigo">Semanal</span></td><td>Cada 7 días desde la fecha de inicio.</td><td>Clases particulares, comida preparada, box de entrenamiento.</td></tr>
+        <tr><td><span class="badge indigo">Mensual</span></td><td>El mismo día de cada mes.</td><td>Alquiler, facturas, streaming, gimnasio.</td></tr>
+        <tr><td><span class="badge indigo">Anual</span></td><td>El mismo día de cada año.</td><td>Seguros, suscripciones anuales, matrículas, impuestos.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Motor de automatización</h3>
+    <p>Un proceso que se ejecuta en el <strong>servidor</strong> (vía cron, periódicamente) revisa todos los gastos fijos <strong>activos con autoregistro</strong> y genera automáticamente el gasto cuando vence su fecha. Tú solo eliges:</p>
+    <div class="cols">
+      <div class="cell"><div class="inner">
+        <div class="col-head" style="border-color:#3fb950; color:#3fb950"><span class="col-icon"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span></span><span class="col-name">Autoregistro ON</span></div>
+        <p>Al vencer la cuota, la app crea el gasto <strong>automáticamente</strong>, reparte entre los participantes y notifica a todos. Tú no tienes que hacer nada.</p>
+      </div></div>
+      <div class="cell"><div class="inner">
+        <div class="col-head" style="border-color:#d29922; color:#d29922"><span class="col-icon"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M6 12h12"/></svg></span></span><span class="col-name">Autoregistro OFF</span></div>
+        <p>Solo se marca el vencimiento y se recuerda. Tú decides cuándo crear el gasto a mano. Útil si el importe varía cada mes.</p>
+      </div></div>
+    </div>
+
+    <h3>Pausa y gestión</h3>
+    <ul>
+      <li><strong>Pausar</strong>: detiene la generación futura sin borrar la configuración. Ideal para vacaciones.</li>
+      <li><strong>Reanudar</strong>: vuelve a activar la cuota; el motor la retoma.</li>
+      <li><strong>Eliminar</strong>: borra la cuota de forma definitiva. Los gastos ya generados se mantienen en el historial.</li>
+    </ul>
+    <div class="callout info"><span class="callout-label">Truco</span><p>Si una cuota se genera por error (por ejemplo, un importe mal configurado), <strong>elimina el gasto</strong> como cualquier otro: aparecerá atenuado en el historial para auditoría (ver <a href="#sec-3">Sección 3</a>).</p></div>
+  </section>
+
+  <!-- ============================================================
+       SECCIÓN 7 · NOTIFICACIONES PWA
+       ============================================================ -->
+  <section id="sec-7" class="section">
+    <h2 class="sec-title">Notificaciones PWA</h2>
+    <p>AppGastos funciona en dos niveles de avisos: el <strong>panel in-app</strong> (dentro de la app) y las <strong>notificaciones nativas</strong> (Web Push) que llegan incluso con la app cerrada.</p>
+
+    <h3>Panel in-app</h3>
+    <p>La campana <span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span> muestra el número de avisos sin leer. Al pulsar una notificación, <strong>navegas al instante</strong> (al grupo, gasto o pago relacionado) y la lectura se marca en segundo plano: experiencia optimista, sin esperas.</p>
+
+    <div class="cols">
+      <div class="cell" style="width:46%"><div class="inner">
+        <div class="col-head" style="border-color:#6366f1; color:#a5b4fc"><span class="col-icon"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span></span><span class="col-name">Tipos de avisos</span></div>
+        <ul>
+          <li><span class="badge tiny indigo">Gasto nuevo</span> alguien añadió un gasto en tu grupo.</li>
+          <li><span class="badge tiny green">Pago</span> te han pagado o has pagado una deuda.</li>
+          <li><span class="badge tiny amber">Pique</span> te lanzan o te cobran un pique.</li>
+          <li><span class="badge tiny indigo">Cuota fija</span> se generó un gasto recurrente.</li>
+        </ul>
+      </div></div>
+      <div class="cell" style="width:54%"><div class="inner" style="padding:0;overflow:hidden">
+        <div class="col-head" style="border-color:#30363d; color:#e6edf3; padding:2.5mm 4mm; background:#0d1117; border-radius:0; margin:0"><span class="col-icon"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span></span><span class="col-name">Panel de notificaciones</span></div>
+        <div class="mrow"><span class="m-left"><span class="chip sky">CA</span><span class="gname">Nuevo gasto · Casa compartida</span><br/><span class="gmeta">María añadió «Compra del súper» por €38.00</span></span><span class="m-right"><span class="ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8b949e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></span></div>
+        <div class="mrow"><span class="m-left"><span class="chip green">EN</span><span class="gname">Pago recibido · Clases de inglés</span><br/><span class="gmeta">Pablo te pagó €8.00</span></span><span class="m-right"><span class="ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8b949e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></span></div>
+        <div class="mrow" style="opacity:.55"><span class="m-left"><span class="chip amber">CF</span><span class="gname">Nuevo pique · Cena de fin de curso</span><br/><span class="gmeta">Luis te debe €5.00</span></span><span class="m-right"><span class="badge tiny muted">Leída</span></span></div>
+      </div></div>
+    </div>
+
+    <h3>Notificaciones nativas (Web Push)</h3>
+    <p>Cuando activas el push, las notificaciones llegan al <strong>sistema operativo</strong>: verás el aviso en la pantalla del móvil o del escritorio, aunque la app esté cerrada.</p>
+
+    <div class="stepper">
+      <div class="cell sc"><div class="stepper-num">1</div><div class="stepper-name">Toca «Activar»</div><div class="stepper-sub">Banner del dashboard o Ajustes</div></div>
+      <div class="cell sa"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
+      <div class="cell sc"><div class="stepper-num">2</div><div class="stepper-name">Acepta el permiso</div><div class="stepper-sub">Diálogo del sistema</div></div>
+      <div class="cell sa"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
+      <div class="cell sc"><div class="stepper-num">3</div><div class="stepper-name">Listo</div><div class="stepper-sub">Recibes avisos nativos</div></div>
+    </div>
+
+    <div class="callout tip"><span class="callout-label">Consejo</span><p>Para no perderte nada, <strong>instala la app</strong>: en <strong>iOS</strong> usa «Compartir → Añadir a pantalla de inicio»; en <strong>Android</strong> y <strong>escritorio</strong> usa el botón <strong>Instalar</strong> del navegador. Así AppGastos se abre a pantalla completa como una app nativa.</p></div>
+
+    <div class="callout warn"><span class="callout-label">Nota</span><p>Si deniegas el permiso, el navegador no podrá volver a preguntártelo automáticamente. Puedes reactivarlo desde los <strong>ajustes del navegador</strong> (sección de notificaciones del sitio).</p></div>
+  </section>
+
+  <!-- ============================================================
+       SECCIÓN 8 · FAQ
+       ============================================================ -->
+  <section id="sec-8" class="section">
+    <h2 class="sec-title">Preguntas Frecuentes</h2>
+
+    <div class="faq">
+      <div class="faq-q"><span class="q-ic"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg></span></span><span class="q-tx">¿Cómo instalo la app en mi móvil?</span></div>
+      <div class="faq-a"><p><strong>Android / escritorio:</strong> abre AppGastos en Chrome o Edge y pulsa <strong>Instalar</strong> en la barra del navegador. <strong>iOS:</strong> abre AppGastos en Safari, pulsa <strong>Compartir</strong> y elige <strong>Añadir a pantalla de inicio</strong>. La app se guarda como una app nativa, sin tiendas ni descargas.</p></div>
+    </div>
+
+    <div class="faq">
+      <div class="faq-q"><span class="q-ic"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span></span><span class="q-tx">¿Qué es un miembro fantasma y cómo lo vinculo?</span></div>
+      <div class="faq-a"><p>Un <strong>miembro fantasma</strong> es un participante sin cuenta, útil para repartos donde alguien no quiere crearse un perfil. Para vincularlo, ve a <strong>Miembros del grupo → Fantasmas</strong> y conecta su identidad con una cuenta real: todos sus gastos se le asignan automáticamente.</p></div>
+    </div>
+
+    <div class="faq">
+      <div class="faq-q"><span class="q-ic"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="m17 5 5 5-5 5"/><path d="M7 19 2 14l5-5"/></svg></span></span><span class="q-tx">¿Qué significan los iconos de la interfaz?</span></div>
+      <div class="faq-a">
+        <table class="data">
+          <thead><tr><th style="width:22%">Icono</th><th>Significado</th></tr></thead>
+          <tbody>
+            <tr><td><span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span> Anclar</td><td>Fija el grupo al inicio del dashboard.</td></tr>
+            <tr><td><span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="#8b949e"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></span> ⋮ Menú</td><td>Abre las opciones del grupo (anclar, ajustes, salir…).</td></tr>
+            <tr><td><span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg></span> ⇅ Ordenar</td><td>Cambia el criterio de ordenación de los grupos.</td></tr>
+            <tr><td><span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span> 🔔 Campana</td><td>Abre el panel de notificaciones in-app.</td></tr>
+            <tr><td><span class="badge tiny green">+€24.00</span> Verde</td><td>Saldo a tu favor: te deben ese importe.</td></tr>
+            <tr><td><span class="badge tiny amber">−€18.50</span> Ámbar</td><td>Saldo en contra: debes ese importe.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="faq">
+      <div class="faq-q"><span class="q-ic"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></span></span><span class="q-tx">¿Puedo deshacer un gasto o un pago?</span></div>
+      <div class="faq-a"><p>Sí. Puedes <strong>editar</strong> o <strong>eliminar</strong> un gasto y <strong>eliminar</strong> un pago dentro de la ventana de edición (24 horas) si eres quien lo registró. Al eliminar, el reparto se revierte y el historial conserva la marca de <span class="badge tiny muted">Borrado</span>.</p></div>
+    </div>
+
+    <div class="faq">
+      <div class="faq-q"><span class="q-ic"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></span></span><span class="q-tx">¿Por qué un gasto aparece atenuado?</span></div>
+      <div class="faq-a"><p>Es un gasto <strong>eliminado</strong>. Se muestra con opacidad reducida y una etiqueta para mantener la <strong>auditoría completa</strong> del grupo: sabes qué hubo y qué se revirtió, sin borrar el rastro.</p></div>
+    </div>
+
+    <div class="faq">
+      <div class="faq-q"><span class="q-ic"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span></span><span class="q-tx">¿Los gastos fijos requieren la app abierta?</span></div>
+      <div class="faq-a"><p>No. El <strong>motor de automatización</strong> se ejecuta en el servidor de AppGastos de forma periódica: aunque cierres el navegador, las cuotas vencidas se generan y reparten igualmente, y tú recibes la notificación.</p></div>
+    </div>
+
+    <div class="faq">
+      <div class="faq-q"><span class="q-ic"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span></span><span class="q-tx">¿Puedo cambiar la moneda o el tipo de un grupo?</span></div>
+      <div class="faq-a"><p>La <strong>moneda no se puede cambiar</strong> tras crear el grupo para mantener los registros coherentes. El <strong>tipo</strong> (abierto/cerrado) sí puedes ajustarlo en cualquier momento desde los ajustes del grupo.</p></div>
+    </div>
+
+    <div class="end-note">
+      <p class="center" style="text-align:center">— Fin del manual · AppGastos 2.4.0 · Documentación de agosto 2026 —</p>
+      <p class="center small muted" style="text-align:center">¿Tienes dudas? Escribe a soporte@appgastos.app · Gracias por usar AppGastos 💙</p>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>
