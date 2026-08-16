@@ -1,4 +1,4 @@
-import type { GroupType, InformalDebtStatus, SettlementTransfer } from "@divido/shared";
+import type { GroupType, InformalDebtStatus, PiqueKind, SettlementTransfer } from "@divido/shared";
 
 export interface GroupSummary {
   id: string;
@@ -193,16 +193,18 @@ export interface InformalDebtDto {
   id: string;
   groupId: string;
   creatorId: string;
-  creditorId: string;
-  debtorId: string;
+  kind: PiqueKind;
   amount: number;
+  prize: string | null;
+  winnerIds: string[];
+  loserIds: string[];
   title: string;
   status: InformalDebtStatus;
   createdAt: string;
-  creditorName: string;
-  debtorName: string;
-  creditorIsGhost: boolean;
-  debtorIsGhost: boolean;
+  winnerNames: string[];
+  loserNames: string[];
+  winnerIsGhost: boolean[];
+  loserIsGhost: boolean[];
 }
 
 export type RecurringFrequency = "weekly" | "monthly";

@@ -3,6 +3,7 @@ export type MemberRole = "admin" | "member";
 export type MemberStatus = "active" | "inactive" | "ex_member";
 export type RequestStatus = "pending" | "approved" | "rejected";
 export type InformalDebtStatus = "pending" | "accepted" | "settled" | "rejected";
+export type PiqueKind = "money" | "prize";
 export type PaymentStatus = "confirmed" | "pending_confirmation" | "rejected";
 
 export interface User {
@@ -114,9 +115,13 @@ export interface InformalDebt {
   id: string;
   groupId: string;
   creatorId: string;
-  creditorId: string;
-  debtorId: string;
+  kind: PiqueKind;
+  /** Importe total (solo piques monetarios). 0 para premios no monetarios. */
   amount: number;
+  /** Descripción del premio en apuestas no monetarias (ej. "Una comida"). */
+  prize: string | null;
+  winnerIds: string[];
+  loserIds: string[];
   title: string;
   status: InformalDebtStatus;
   createdAt: string;

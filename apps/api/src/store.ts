@@ -8,6 +8,7 @@ import type {
   MemberRole,
   MemberStatus,
   PaymentStatus,
+  PiqueKind,
 } from "@divido/shared";
 import type { Db } from "./db.js";
 
@@ -743,22 +744,26 @@ export interface InformalDebtRow {
   creator_id: string;
   creditor_id: string;
   debtor_id: string;
+  kind: PiqueKind;
+  prize: string | null;
+  winner_ids: string | null;
+  loser_ids: string | null;
   amount: number;
   title: string;
   status: InformalDebtStatus;
   created_at: string;
 }
 
-export type InformalDebtWithNames = InformalDebt & { creditorName: string; debtorName: string };
-
 export function toInformalDebt(r: InformalDebtRow): InformalDebt {
   return {
     id: r.id,
     groupId: r.group_id,
     creatorId: r.creator_id,
-    creditorId: r.creditor_id,
-    debtorId: r.debtor_id,
+    kind: r.kind,
     amount: r.amount,
+    prize: r.prize,
+    winnerIds: r.winner_ids ? parseStringArray(r.winner_ids) : [r.creditor_id],
+    loserIds: r.loser_ids ? parseStringArray(r.loser_ids) : [r.debtor_id],
     title: r.title,
     status: r.status,
     createdAt: r.created_at,
@@ -767,20 +772,35 @@ export function toInformalDebt(r: InformalDebtRow): InformalDebt {
 
 export async function createInformalDebt(
   db: Db,
-  input: { groupId: string; creatorId: string; creditorId: string; debtorId: string; amount: number; title: string }
+  input: {
+    groupId: string;
+    creatorId: string;
+    winnerIds: string[];
+    loserIds: string[];
+    kind: PiqueKind;
+    amount: number;
+    prize?: string | null;
+    title: string;
+  }
 ): Promise<InformalDebt> {
   const id = randomUUID();
+  const creditorId = input.winnerIds[0] ?? "";
+  const debtorId = input.loserIds[0] ?? "";
   await db
     .prepare(
-      `INSERT INTO informal_debts (id, group_id, creator_id, creditor_id, debtor_id, amount, title, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`
+      `INSERT INTO informal_debts (id, group_id, creator_id, creditor_id, debtor_id, kind, prize, winner_ids, loser_ids, amount, title, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`
     )
     .run(
       id,
       input.groupId,
       input.creatorId,
-      input.creditorId,
-      input.debtorId,
+      creditorId,
+      debtorId,
+      input.kind,
+      input.prize ?? null,
+      JSON.stringify(input.winnerIds),
+      JSON.stringify(input.loserIds),
       input.amount,
       input.title,
       new Date().toISOString()
@@ -795,32 +815,22 @@ export async function getInformalDebt(db: Db, id: string): Promise<InformalDebt 
   return row ? toInformalDebt(row) : undefined;
 }
 
-export async function listInformalDebts(db: Db, groupId: string): Promise<InformalDebtWithNames[]> {
+export async function listInformalDebts(db: Db, groupId: string): Promise<InformalDebt[]> {
   const rows = (await db
-    .prepare(
-      `SELECT d.*, cu.name AS creditor_name, du.name AS debtor_name
-       FROM informal_debts d
-       JOIN users cu ON cu.id = d.creditor_id
-       JOIN users du ON du.id = d.debtor_id
-       WHERE d.group_id = ?
-       ORDER BY d.created_at DESC`
-    )
-    .all(groupId)) as unknown as Array<InformalDebtRow & { creditor_name: string; debtor_name: string }>;
-  return rows.map((r) => ({ ...toInformalDebt(r), creditorName: r.creditor_name, debtorName: r.debtor_name }));
+    .prepare("SELECT * FROM informal_debts WHERE group_id = ? ORDER BY created_at DESC")
+    .all(groupId)) as unknown as InformalDebtRow[];
+  return rows.map(toInformalDebt);
 }
 
-export async function listInformalDebtsForUser(db: Db, userId: string): Promise<InformalDebtWithNames[]> {
+export async function listInformalDebtsForUser(db: Db, userId: string): Promise<InformalDebt[]> {
   const rows = (await db
     .prepare(
-      `SELECT d.*, cu.name AS creditor_name, du.name AS debtor_name
-       FROM informal_debts d
-       JOIN users cu ON cu.id = d.creditor_id
-       JOIN users du ON du.id = d.debtor_id
-       WHERE d.creditor_id = ? OR d.debtor_id = ?
-       ORDER BY d.created_at DESC`
+      `SELECT * FROM informal_debts
+       WHERE creditor_id = ? OR debtor_id = ? OR winner_ids LIKE ? OR loser_ids LIKE ?
+       ORDER BY created_at DESC`
     )
-    .all(userId, userId)) as unknown as Array<InformalDebtRow & { creditor_name: string; debtor_name: string }>;
-  return rows.map((r) => ({ ...toInformalDebt(r), creditorName: r.creditor_name, debtorName: r.debtor_name }));
+    .all(userId, userId, `%${userId}%`, `%${userId}%`)) as unknown as InformalDebtRow[];
+  return rows.map(toInformalDebt);
 }
 
 export async function updateInformalDebt(

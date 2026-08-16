@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type Dispatch, type SetStateAction } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -19,7 +19,7 @@ import type {
   RecurringExpenseDto,
   RecurringFrequency,
 } from "../lib/types";
-import type { InformalDebtStatus, SettlementTransfer } from "@divido/shared";
+import type { InformalDebtStatus, PiqueKind, SettlementTransfer } from "@divido/shared";
 
 type Tab = "expenses" | "balances" | "members" | "history" | "debts" | "pot" | "recurring";
 
@@ -1652,23 +1652,21 @@ function DebtsTab({
       ) : (
         <div className="space-y-2">
           {sorted.map((d) => {
-            const iAmCreditor = d.creditorId === myUserId;
-            const iAmDebtor = d.debtorId === myUserId;
+            const iAmWinner = d.winnerIds.includes(myUserId);
+            const iAmLoser = d.loserIds.includes(myUserId);
+            const isMoney = d.kind === "money";
+            const solePair = d.winnerIds.length === 1 && d.loserIds.length === 1;
             return (
               <div key={d.id} className={`rounded-2xl border p-4 ${DEBT_STATUS_BORDER[d.status]}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-slate-100">{d.title}</p>
-                    <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-400">
-                      <span className="flex min-w-0 items-center gap-1">
-                        <span className="truncate">{d.debtorName}</span>
-                        {d.debtorIsGhost ? <GhostBadge showLabel={false} /> : null}
-                      </span>
-                      <span>debe a</span>
-                      <span className="flex min-w-0 items-center gap-1">
-                        <span className="truncate">{d.creditorName}</span>
-                        {d.creditorIsGhost ? <GhostBadge showLabel={false} /> : null}
-                      </span>
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      <span className="font-medium text-slate-300">{isMoney ? "Dinero" : "Premio"}</span>
+                      <span className="text-slate-600"> · </span>
+                      <PiqueNames names={d.loserNames} ghosts={d.loserIsGhost} />
+                      <span className="text-slate-500"> {solePair ? "debe" : "deben"} </span>
+                      <PiqueNames names={d.winnerNames} ghosts={d.winnerIsGhost} />
                     </p>
                   </div>
                   <span
@@ -1678,11 +1676,18 @@ function DebtsTab({
                   </span>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-lg font-extrabold text-slate-100">
-                    <Money amount={d.amount} currency={currency} />
-                  </span>
+                  {isMoney ? (
+                    <span className="text-lg font-extrabold text-slate-100">
+                      <Money amount={d.amount} currency={currency} />
+                    </span>
+                  ) : (
+                    <span className="min-w-0 text-sm font-semibold text-indigo-300">
+                      <span className="font-medium text-slate-400">Premio: </span>
+                      <span className="truncate">{d.prize}</span>
+                    </span>
+                  )}
                   <div className="flex flex-wrap gap-1.5">
-                    {d.status === "pending" && iAmDebtor ? (
+                    {d.status === "pending" && iAmLoser ? (
                       <>
                         <Button
                           variant="secondary"
@@ -1700,7 +1705,7 @@ function DebtsTab({
                         </Button>
                       </>
                     ) : null}
-                    {d.status === "accepted" && iAmCreditor ? (
+                    {d.status === "accepted" && iAmWinner ? (
                       <Button
                         variant="secondary"
                         className="!px-3 !py-1.5 text-xs text-emerald-400"
@@ -1709,11 +1714,15 @@ function DebtsTab({
                         Marcar como pagado
                       </Button>
                     ) : null}
-                    {d.status === "pending" && !iAmDebtor ? (
-                      <span className="text-[11px] text-slate-500">A la espera de que {d.debtorName} acepte</span>
+                    {d.status === "pending" && !iAmLoser ? (
+                      <span className="text-[11px] text-slate-500">
+                        A la espera de que {d.loserNames.join(", ")} acepten
+                      </span>
                     ) : null}
-                    {d.status === "accepted" && !iAmCreditor ? (
-                      <span className="text-[11px] text-slate-500">A la espera de que {d.creditorName} confirme el pago</span>
+                    {d.status === "accepted" && !iAmWinner ? (
+                      <span className="text-[11px] text-slate-500">
+                        A la espera de que {d.winnerNames.join(", ")} confirmen el pago
+                      </span>
                     ) : null}
                   </div>
                 </div>
@@ -1724,9 +1733,24 @@ function DebtsTab({
       )}
 
       <p className="text-center text-[11px] text-slate-600">
-        Los piques se gestionan de forma independiente y no afectan al balance de gastos compartidos.
+        Los piques de dinero aceptados o pagados se suman al balance de gastos; los pendientes y los de premio no afectan
+        al balance.
       </p>
     </div>
+  );
+}
+
+function PiqueNames({ names, ghosts }: { names: string[]; ghosts: boolean[] }) {
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-1">
+      {names.map((n, i) => (
+        <span key={i} className="flex min-w-0 items-center gap-1">
+          <span className="truncate font-medium text-slate-300">{n}</span>
+          {ghosts[i] ? <GhostBadge showLabel={false} /> : null}
+          {i < names.length - 1 ? <span className="text-slate-600">,</span> : null}
+        </span>
+      ))}
+    </span>
   );
 }
 
@@ -1746,31 +1770,41 @@ function NewDebtModal({
   onCreated: () => void;
 }) {
   const active = members.filter((m) => m.status === "active");
-  const [debtorId, setDebtorId] = useState("");
-  const [creditorId, setCreditorId] = useState("");
+  const [kind, setKind] = useState<PiqueKind>("money");
+  const [winnerIds, setWinnerIds] = useState<string[]>([]);
+  const [loserIds, setLoserIds] = useState<string[]>([]);
   const [amount, setAmount] = useState("");
+  const [prize, setPrize] = useState("");
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (open) {
-      setDebtorId("");
-      setCreditorId("");
+      setKind("money");
+      setWinnerIds([]);
+      setLoserIds([]);
       setAmount("");
+      setPrize("");
       setTitle("");
       setError("");
     }
   }, [open]);
+
+  function toggle(setter: Dispatch<SetStateAction<string[]>>, id: string) {
+    setter((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
 
   async function submit() {
     setLoading(true);
     setError("");
     try {
       await api.post(`/groups/${groupId}/informal-debts`, {
-        creditorId,
-        debtorId,
-        amount: parseFloat(amount),
+        kind,
+        winnerIds,
+        loserIds,
+        amount: kind === "money" ? parseFloat(amount) : undefined,
+        prize: kind === "prize" ? prize : undefined,
         title,
       });
       onCreated();
@@ -1782,15 +1816,20 @@ function NewDebtModal({
     }
   }
 
+  const overlap = winnerIds.some((id) => loserIds.includes(id));
   const amountNum = parseFloat(amount);
   const canSubmit =
-    Boolean(debtorId) &&
-    Boolean(creditorId) &&
-    debtorId !== creditorId &&
+    winnerIds.length > 0 &&
+    loserIds.length > 0 &&
+    !overlap &&
     title.trim().length > 0 &&
-    Number.isFinite(amountNum) &&
-    amountNum > 0 &&
+    (kind === "money" ? Number.isFinite(amountNum) && amountNum > 0 : prize.trim().length > 0) &&
     !loading;
+
+  const chipBase =
+    "rounded-full border px-3 py-1.5 text-xs font-semibold transition";
+  const chipSelected = "border-indigo-500/60 bg-indigo-500/20 text-indigo-200";
+  const chipIdle = "border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600 hover:text-slate-300";
 
   return (
     <Modal
@@ -1810,38 +1849,84 @@ function NewDebtModal({
     >
       <div className="space-y-4">
         <p className="text-xs text-slate-400">
-          Un pique es una deuda informal entre dos miembros (apuestas, favores, recuerdos...). El deudor deberá aceptarlo
-          para que quede cerrado y el acreedor podrá marcarlo como pagado.
+          Un pique es una apuesta o deuda informal entre miembros. Los piques de dinero aceptados o pagados se suman al
+          balance del grupo; los pendientes y los de premio no afectan a los saldos.
         </p>
-        <div className="grid grid-cols-2 gap-3">
-          <Select label="Quién debe" value={debtorId} onChange={(e) => setDebtorId(e.target.value)}>
-            <option value="">Elegir...</option>
-            {active.map((m) => (
-              <option key={m.userId} value={m.userId}>
-                {m.name}
-              </option>
-            ))}
-          </Select>
-          <Select label="A quién" value={creditorId} onChange={(e) => setCreditorId(e.target.value)}>
-            <option value="">Elegir...</option>
-            {active.map((m) => (
-              <option key={m.userId} value={m.userId}>
-                {m.name}
-              </option>
-            ))}
-          </Select>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setKind("money")}
+            className={`${chipBase} ${kind === "money" ? chipSelected : chipIdle}`}
+          >
+            Dinero
+          </button>
+          <button
+            type="button"
+            onClick={() => setKind("prize")}
+            className={`${chipBase} ${kind === "prize" ? chipSelected : chipIdle}`}
+          >
+            Premio
+          </button>
         </div>
-        <Input
-          label="Importe"
-          type="number"
-          min="0"
-          step="0.01"
-          inputMode="decimal"
-          placeholder="0.00"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          rightElement={<span className="text-xs font-semibold text-slate-400">{currency}</span>}
-        />
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Quiénes ganan
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {active.map((m) => (
+              <button
+                key={m.userId}
+                type="button"
+                onClick={() => toggle(setWinnerIds, m.userId)}
+                className={`${chipBase} ${winnerIds.includes(m.userId) ? chipSelected : chipIdle}`}
+              >
+                {m.name}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Quiénes deben
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {active.map((m) => (
+              <button
+                key={m.userId}
+                type="button"
+                onClick={() => toggle(setLoserIds, m.userId)}
+                className={`${chipBase} ${loserIds.includes(m.userId) ? chipSelected : chipIdle}`}
+              >
+                {m.name}
+              </button>
+            ))}
+          </div>
+          {overlap ? (
+            <p className="mt-1 text-[11px] font-medium text-rose-400">
+              Una persona no puede ser ganadora y perdedora a la vez
+            </p>
+          ) : null}
+        </div>
+        {kind === "money" ? (
+          <Input
+            label="Importe"
+            type="number"
+            min="0"
+            step="0.01"
+            inputMode="decimal"
+            placeholder="0.00"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            rightElement={<span className="text-xs font-semibold text-slate-400">{currency}</span>}
+          />
+        ) : (
+          <Input
+            label="Premio"
+            placeholder="Ej. Una comida, Un café..."
+            value={prize}
+            onChange={(e) => setPrize(e.target.value)}
+          />
+        )}
         <Input label="Concepto" placeholder="Ej. Apuesta Clásico" value={title} onChange={(e) => setTitle(e.target.value)} />
         {error ? <p className="text-xs font-medium text-rose-400">{error}</p> : null}
       </div>

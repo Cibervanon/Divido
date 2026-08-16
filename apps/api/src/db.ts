@@ -177,6 +177,10 @@ CREATE TABLE IF NOT EXISTS informal_debts (
   creator_id TEXT NOT NULL REFERENCES users(id),
   creditor_id TEXT NOT NULL REFERENCES users(id),
   debtor_id TEXT NOT NULL REFERENCES users(id),
+  kind TEXT NOT NULL DEFAULT 'money',
+  prize TEXT,
+  winner_ids TEXT,
+  loser_ids TEXT,
   amount REAL NOT NULL,
   title TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending',
@@ -284,6 +288,11 @@ const MIGRATIONS = [
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS auto_confirm_payments INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE payments ADD COLUMN IF NOT EXISTS proof_url TEXT",
   "ALTER TABLE payments ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'confirmed'",
+  "ALTER TABLE informal_debts ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'money'",
+  "ALTER TABLE informal_debts ADD COLUMN IF NOT EXISTS prize TEXT",
+  "ALTER TABLE informal_debts ADD COLUMN IF NOT EXISTS winner_ids TEXT",
+  "ALTER TABLE informal_debts ADD COLUMN IF NOT EXISTS loser_ids TEXT",
+  "UPDATE informal_debts SET loser_ids = json_build_array(debtor_id)::text, winner_ids = json_build_array(creditor_id)::text WHERE loser_ids IS NULL",
 ];
 
 export async function initDb(db: Db): Promise<void> {

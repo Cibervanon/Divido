@@ -11,6 +11,7 @@ import {
   expenseParticipantIds,
   expenseParticipantShares,
   listExpenses,
+  listInformalDebts,
   listMembers,
   listPayments,
   type ExpenseRow,
@@ -93,6 +94,28 @@ export async function getGroupBalances(db: Db, groupId: string): Promise<GroupBa
       participantShares: Object.keys(e.shares).length ? e.shares : undefined,
       deleted: Boolean(e.deleted),
     }));
+
+  // Los piques de dinero aceptados o pagados se integran en el balance como
+  // micro-gastos: cada ganador paga su parte a cada perdedor. Los piques
+  // "pendientes" y los de premio (no monetarios) no afectan a los saldos.
+  for (const p of (await listInformalDebts(db, groupId)).filter(
+    (d) => d.kind === "money" && (d.status === "accepted" || d.status === "settled")
+  )) {
+    const pairs = p.winnerIds.length * p.loserIds.length;
+    if (pairs === 0) continue;
+    const share = p.amount / pairs;
+    for (const loser of p.loserIds) {
+      for (const winner of p.winnerIds) {
+        expenses.push({
+          payerId: winner,
+          amountGroup: share,
+          participants: [loser],
+          participantShares: undefined,
+          deleted: false,
+        });
+      }
+    }
+  }
   const payments = (await listPayments(db, groupId))
     .filter((p) => p.status === "confirmed")
     .map((p) => ({

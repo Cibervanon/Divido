@@ -28,7 +28,7 @@ import {
   updateGroup,
   updateInformalDebtStatus,
 } from "../store.js";
-import type { Group, GroupType, InformalDebtStatus } from "@divido/shared";
+import type { Group, GroupType, InformalDebtStatus, PiqueKind } from "@divido/shared";
 import { round2 } from "@divido/shared";
 import { badRequest, conflict, forbidden, notFound } from "../errors.js";
 import { requireActiveMember, requireAdmin, requireAuth, requireGroup } from "../plugins.js";
@@ -280,13 +280,19 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
       listInformalDebts(request.db, groupId),
       listMembers(request.db, groupId),
     ]);
+    const names: Record<string, string> = {};
     const ghost: Record<string, boolean> = {};
-    for (const m of members) ghost[m.user_id] = Boolean(m.is_ghost);
+    for (const m of members) {
+      names[m.user_id] = m.name;
+      ghost[m.user_id] = Boolean(m.is_ghost);
+    }
     return {
       debts: debts.map((d) => ({
         ...d,
-        creditorIsGhost: Boolean(ghost[d.creditorId]),
-        debtorIsGhost: Boolean(ghost[d.debtorId]),
+        winnerNames: d.winnerIds.map((id) => names[id] ?? "Usuario"),
+        loserNames: d.loserIds.map((id) => names[id] ?? "Usuario"),
+        winnerIsGhost: d.winnerIds.map((id) => Boolean(ghost[id])),
+        loserIsGhost: d.loserIds.map((id) => Boolean(ghost[id])),
       })),
     };
   });
@@ -298,61 +304,101 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     if (!group.enabledExtras.includes("informal_debts")) {
       throw badRequest("El extra de piques y apuestas no está activo en este grupo");
     }
-    const { creditorId, debtorId, amount, title } = request.body as {
+    const body = request.body as {
+      kind?: string;
+      winnerIds?: string[];
+      loserIds?: string[];
       creditorId?: string;
       debtorId?: string;
       amount?: number;
+      prize?: string;
       title?: string;
     };
-    const cleanTitle = title?.trim() ?? "";
+    // Compatibilidad con la antigua forma de un único par (acreedor/deudor).
+    const winners = body.winnerIds ?? (body.creditorId ? [body.creditorId] : []);
+    const losers = body.loserIds ?? (body.debtorId ? [body.debtorId] : []);
+    const kind: PiqueKind = body.kind === "prize" ? "prize" : "money";
+    const cleanTitle = body.title?.trim() ?? "";
     if (!cleanTitle) throw badRequest("Escribe un concepto para el pique");
     if (cleanTitle.length > 140) throw badRequest("El concepto es demasiado largo");
-    const amountNum = Number(amount);
-    if (!Number.isFinite(amountNum) || amountNum <= 0) throw badRequest("El importe debe ser mayor que 0");
-    if (!creditorId || !debtorId) throw badRequest("Debes elegir quién debe y a quién");
-    if (creditorId === debtorId) throw badRequest("Acreedor y deudor deben ser personas distintas");
+    if (!Array.isArray(winners) || winners.length === 0 || !Array.isArray(losers) || losers.length === 0) {
+      throw badRequest("Debes elegir quiénes ganan y quiénes deben");
+    }
+    const winnersSet = new Set(winners.map(String));
+    const losersSet = new Set(losers.map(String));
+    for (const id of [...winnersSet, ...losersSet]) {
+      if (winnersSet.has(id) && losersSet.has(id)) {
+        throw badRequest("Una persona no puede ser ganadora y perdedora a la vez");
+      }
+    }
     const members = await listMembers(request.db, groupId);
     const activeIds = new Set(members.filter((m) => m.status === "active").map((m) => m.user_id));
-    if (!activeIds.has(creditorId)) throw badRequest("El acreedor no es un miembro activo");
-    if (!activeIds.has(debtorId)) throw badRequest("El deudor no es un miembro activo");
+    for (const id of [...winnersSet, ...losersSet]) {
+      if (!activeIds.has(id)) throw badRequest("Todos los participantes deben ser miembros activos");
+    }
+    let amount = 0;
+    let prize: string | null = null;
+    if (kind === "money") {
+      const amountNum = Number(body.amount);
+      if (!Number.isFinite(amountNum) || amountNum <= 0) throw badRequest("El importe debe ser mayor que 0");
+      amount = Math.round(amountNum * 100) / 100;
+    } else {
+      const cleanPrize = body.prize?.trim() ?? "";
+      if (!cleanPrize) throw badRequest("Describe el premio (ej. Una comida, Un café)");
+      if (cleanPrize.length > 140) throw badRequest("El premio es demasiado largo");
+      prize = cleanPrize;
+    }
     const debt = await createInformalDebt(request.db, {
       groupId,
       creatorId: user.id,
-      creditorId,
-      debtorId,
-      amount: Math.round(amountNum * 100) / 100,
+      winnerIds: [...winnersSet],
+      loserIds: [...losersSet],
+      kind,
+      amount,
+      prize,
       title: cleanTitle,
     });
     const ghost: Record<string, boolean> = {};
     for (const m of members) ghost[m.user_id] = Boolean(m.is_ghost);
-    const creditor = members.find((m) => m.user_id === creditorId);
-    const debtor = members.find((m) => m.user_id === debtorId);
+    const nameOf = (id: string) => members.find((m) => m.user_id === id)?.name ?? "Usuario";
+    const winnerNames = debt.winnerIds.map(nameOf);
+    const loserNames = debt.loserIds.map(nameOf);
     const linkUrl = `/groups/${groupId}?tab=debts`;
-    if (debtorId !== user.id && !ghost[debtorId]) {
-      await createAndPushNotification(request.db, {
-        userId: debtorId,
-        type: "PIQUE_CREATED",
-        title: `Nuevo pique en ${group.name}`,
-        body: `${creditor?.name ?? "Alguien"} te ha lanzado un pique de ${debt.amount.toFixed(2)} ${group.currency}: "${cleanTitle}".`,
-        linkUrl,
-      });
+    for (const loserId of debt.loserIds) {
+      if (loserId !== user.id && !ghost[loserId]) {
+        await createAndPushNotification(request.db, {
+          userId: loserId,
+          type: "PIQUE_CREATED",
+          title: `Nuevo pique en ${group.name}`,
+          body:
+            kind === "money"
+              ? `${user.name} te lanzó un pique de ${debt.amount.toFixed(2)} ${group.currency}: "${cleanTitle}".`
+              : `${user.name} te lanzó un pique: deberéis "${cleanTitle}" (premio: ${prize}).`,
+          linkUrl,
+        });
+      }
     }
-    if (creditorId !== user.id && !ghost[creditorId]) {
-      await createAndPushNotification(request.db, {
-        userId: creditorId,
-        type: "PIQUE_CREATED",
-        title: `Nuevo pique en ${group.name}`,
-        body: `${debtor?.name ?? "Alguien"} te debe ${debt.amount.toFixed(2)} ${group.currency}: "${cleanTitle}".`,
-        linkUrl,
-      });
+    for (const winnerId of debt.winnerIds) {
+      if (winnerId !== user.id && !ghost[winnerId]) {
+        await createAndPushNotification(request.db, {
+          userId: winnerId,
+          type: "PIQUE_CREATED",
+          title: `Nuevo pique en ${group.name}`,
+          body:
+            kind === "money"
+              ? `${user.name} te apuntó como ganador de ${debt.amount.toFixed(2)} ${group.currency}: "${cleanTitle}".`
+              : `${user.name} te apuntó como ganador: "${prize}" por "${cleanTitle}".`,
+          linkUrl,
+        });
+      }
     }
     return {
       debt: {
         ...debt,
-        creditorName: creditor?.name ?? "Usuario",
-        debtorName: debtor?.name ?? "Usuario",
-        creditorIsGhost: Boolean(ghost[creditorId]),
-        debtorIsGhost: Boolean(ghost[debtorId]),
+        winnerNames,
+        loserNames,
+        winnerIsGhost: debt.winnerIds.map((id) => Boolean(ghost[id])),
+        loserIsGhost: debt.loserIds.map((id) => Boolean(ghost[id])),
       },
     };
   });
@@ -367,9 +413,9 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     if (!debt || debt.groupId !== groupId) throw notFound("Pique no encontrado");
     const next = status as InformalDebtStatus;
     if (debt.status === "pending" && (next === "accepted" || next === "rejected")) {
-      if (user.id !== debt.debtorId) throw forbidden("Solo el deudor puede aceptar o rechazar el pique");
+      if (!debt.loserIds.includes(user.id)) throw forbidden("Solo los perdedores pueden aceptar o rechazar el pique");
     } else if (debt.status === "accepted" && next === "settled") {
-      if (user.id !== debt.creditorId) throw forbidden("Solo el acreedor puede marcar el pique como pagado");
+      if (!debt.winnerIds.includes(user.id)) throw forbidden("Solo los ganadores pueden marcar el pique como pagado");
     } else {
       throw badRequest("No se puede pasar a ese estado");
     }
