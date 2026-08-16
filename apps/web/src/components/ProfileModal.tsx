@@ -5,7 +5,7 @@ import { getStoredTheme, setStoredTheme, THEMES, type ThemeId } from "../lib/the
 import { Avatar, Button, Input, Modal, VerifiedBadge } from "./ui";
 
 export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
   const [name, setName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [phone, setPhone] = useState("");
@@ -39,8 +39,6 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
   }
 
   if (!user) return null;
-
-  const isDataUrl = avatarUrl.startsWith("data:image");
 
   function onPickFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -96,6 +94,11 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
     }
   }
 
+  function closeAndLogout() {
+    onClose();
+    logout();
+  }
+
   return (
     <Modal
       open={open}
@@ -112,32 +115,74 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
         </>
       }
     >
-      <div className="space-y-5">
-        <div className="flex items-center gap-4">
-          <Avatar name={name || user.name} url={avatarUrl || null} size="lg" />
-          <div className="flex flex-col gap-2">
-            <Button variant="secondary" className="!px-3 !py-1.5 text-xs" onClick={() => fileRef.current?.click()}>
-              Subir foto
-            </Button>
-            {avatarUrl ? (
-              <Button variant="ghost" className="!px-3 !py-1.5 text-xs" onClick={() => setAvatarUrl("")}>
-                Quitar foto
+      <div className="space-y-6">
+        <section>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Datos personales</p>
+          <div className="mt-3 flex items-center gap-4">
+            <Avatar name={name || user.name} url={avatarUrl || null} size="lg" />
+            <div className="flex flex-col gap-2">
+              <Button variant="secondary" className="!px-3 !py-1.5 text-xs" onClick={() => fileRef.current?.click()}>
+                Subir foto
               </Button>
-            ) : null}
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickFile} />
+              {avatarUrl ? (
+                <Button variant="ghost" className="!px-3 !py-1.5 text-xs" onClick={() => setAvatarUrl("")}>
+                  Quitar foto
+                </Button>
+              ) : null}
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickFile} />
+            </div>
           </div>
-        </div>
+          <div className="mt-4 space-y-3">
+            <Input label="Nombre" value={name} onChange={(e) => setName(e.target.value)} />
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+              <p className="text-xs font-medium text-slate-400">Email</p>
+              <p className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-200">
+                <span className="truncate">{user.email}</span>
+                {user.emailVerified ? <VerifiedBadge /> : null}
+              </p>
+              {user.emailVerified ? (
+                <span className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400">
+                  Verificado
+                </span>
+              ) : (
+                <div className="mt-2 space-y-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-400">
+                    Sin verificar
+                  </span>
+                  <div>
+                    <Button
+                      variant="secondary"
+                      className="!px-3 !py-1.5 text-xs"
+                      onClick={sendVerification}
+                      loading={verifying}
+                    >
+                      Enviar enlace de verificación
+                    </Button>
+                  </div>
+                  {sent ? (
+                    <p className="rounded-xl bg-emerald-500/10 p-3 text-xs text-emerald-300">
+                      Te hemos enviado un email con el enlace de verificación.
+                    </p>
+                  ) : verificationUrl ? (
+                    <div className="rounded-xl bg-slate-950 p-3 text-xs">
+                      <p className="text-slate-400">
+                        (Demo: no se pudo enviar el email. Haz clic para verificar):
+                      </p>
+                      <a
+                        href={verificationUrl}
+                        className="mt-1 block break-all font-medium text-indigo-400 hover:text-indigo-300"
+                      >
+                        {verificationUrl}
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
 
-        <Input label="Nombre" value={name} onChange={(e) => setName(e.target.value)} />
-        <Input
-          label="Foto (URL)"
-          placeholder="https://... o déjalo vacío"
-          value={isDataUrl ? "Imagen subida desde tu dispositivo" : avatarUrl}
-          readOnly={isDataUrl}
-          onChange={(e) => setAvatarUrl(e.target.value)}
-        />
-
-        <div className="border-t border-slate-800 pt-4">
+        <div className="border-t border-slate-800 pt-5">
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Métodos de pago</p>
           <p className="mb-3 mt-0.5 text-[11px] text-slate-500">
             Así los demás podrán pagarte al instante desde la vista de saldos del grupo.
@@ -165,54 +210,8 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-          <p className="text-xs font-medium text-slate-400">Email</p>
-          <p className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-200">
-            <span className="truncate">{user.email}</span>
-            {user.emailVerified ? <VerifiedBadge /> : null}
-          </p>
-          {user.emailVerified ? (
-            <span className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400">
-              Verificado
-            </span>
-          ) : (
-            <div className="mt-2 space-y-2">
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-400">
-                Sin verificar
-              </span>
-              <div>
-                <Button
-                  variant="secondary"
-                  className="!px-3 !py-1.5 text-xs"
-                  onClick={sendVerification}
-                  loading={verifying}
-                >
-                  Enviar enlace de verificación
-                </Button>
-              </div>
-              {sent ? (
-                <p className="rounded-xl bg-emerald-500/10 p-3 text-xs text-emerald-300">
-                  Te hemos enviado un email con el enlace de verificación.
-                </p>
-              ) : verificationUrl ? (
-                <div className="rounded-xl bg-slate-950 p-3 text-xs">
-                  <p className="text-slate-400">
-                    (Demo: no se pudo enviar el email. Haz clic para verificar):
-                  </p>
-                  <a
-                    href={verificationUrl}
-                    className="mt-1 block break-all font-medium text-indigo-400 hover:text-indigo-300"
-                  >
-                    {verificationUrl}
-                  </a>
-                </div>
-              ) : null}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-slate-400">
+        <div className="border-t border-slate-800 pt-5">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path
                 strokeLinecap="round"
@@ -220,7 +219,7 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
                 d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 0c0 3.314-2.017 6-4.5 6S3 6.314 3 9a9 9 0 009 9c2.76 0 5-1.79 5-4 0-2.21-2.24-4-5-4s-5-1.79-5-4 2.24-4 5-4z"
               />
             </svg>
-            Tema de color
+            Tema visual
           </p>
           <div className="grid grid-cols-3 gap-2">
             {THEMES.map((t) => {
@@ -263,6 +262,20 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
           <p className="mt-2 text-[11px] text-slate-500">
             El tema se guarda en este dispositivo y se aplica en toda la app.
           </p>
+        </div>
+
+        <div className="border-t border-slate-800 pt-5">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Cuenta</p>
+          <Button variant="danger" className="w-full" onClick={closeAndLogout}>
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"
+              />
+            </svg>
+            Cerrar sesión
+          </Button>
         </div>
 
         {error ? <p className="text-xs text-rose-400">{error}</p> : null}

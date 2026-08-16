@@ -4,12 +4,11 @@ import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Avatar, Button, Input, Modal, Money, Select, Spinner, EmptyState } from "../components/ui";
 import { Logo } from "../components/Logo";
-import { ExpenseModal } from "../components/ExpenseModal";
 import { ProfileModal } from "../components/ProfileModal";
 import type { GroupDetail, GroupSummary } from "../lib/types";
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [groups, setGroups] = useState<GroupSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,8 +19,6 @@ export default function DashboardPage() {
   const [currency, setCurrency] = useState("EUR");
   const [type, setType] = useState<"open" | "closed">("open");
   const [creating, setCreating] = useState(false);
-  const [quickExpense, setQuickExpense] = useState<GroupSummary | null>(null);
-  const [quickMembers, setQuickMembers] = useState<GroupDetail["members"]>([]);
 
   async function load() {
     try {
@@ -53,46 +50,24 @@ export default function DashboardPage() {
     }
   }
 
-  async function openQuickExpense(group: GroupSummary) {
-    try {
-      const res = await api.get<GroupDetail>(`/groups/${group.id}`);
-      setQuickMembers(res.members);
-      setQuickExpense(group);
-    } catch {
-      setError("No se pudo abrir la acción rápida");
-    }
-  }
+  const owedToMe = groups.reduce((s, g) => s + g.totalOwedToMe, 0);
+  const owedByMe = groups.reduce((s, g) => s + g.totalOwedByMe, 0);
+  const netTotal = owedToMe - owedByMe;
+  const allSettled = owedToMe < 0.005 && owedByMe < 0.005;
+  const summaryCurrency = groups[0]?.currency ?? "EUR";
 
   return (
     <div className="min-h-screen bg-slate-950">
       <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
-            <Logo className="h-9 w-9" />
-            <button
-              type="button"
-              onClick={() => setProfileOpen(true)}
-              className="flex touch-manipulation items-center gap-2 rounded-lg px-1.5 py-1 text-left transition hover:bg-slate-800"
-            >
-              <Avatar name={user?.name ?? ""} url={user?.avatarUrl} size="sm" />
-              <span>
-                <p className="text-sm font-bold leading-tight text-slate-100">Divido</p>
-                <p className="text-[11px] text-slate-500">{user?.name}</p>
-              </span>
-            </button>
-          </div>
+          <Logo className="h-9 w-9" />
           <button
-            onClick={logout}
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+            type="button"
+            onClick={() => setProfileOpen(true)}
+            className="rounded-full transition hover:ring-2 hover:ring-indigo-500/50"
+            aria-label="Tu perfil"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"
-              />
-            </svg>
-            Salir
+            <Avatar name={user?.name ?? ""} url={user?.avatarUrl} size="md" />
           </button>
         </div>
       </header>
@@ -114,6 +89,33 @@ export default function DashboardPage() {
             >
               Verificar
             </Button>
+          </div>
+        ) : null}
+
+        {groups.length > 0 ? (
+          <div className="mb-5 rounded-2xl border border-slate-800/60 bg-gradient-to-br from-slate-900 to-slate-900/50 p-5">
+            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Balance total</p>
+            {allSettled ? (
+              <p className="mt-2 text-lg font-extrabold text-emerald-400">Estás al día en todos tus grupos</p>
+            ) : (
+              <>
+                <p
+                  className={`mt-1 text-3xl font-extrabold ${
+                    netTotal > 0.004 ? "text-emerald-400" : netTotal < -0.004 ? "text-rose-400" : "text-slate-100"
+                  }`}
+                >
+                  <Money amount={netTotal} currency={summaryCurrency} />
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-lg bg-emerald-500/10 px-2.5 py-1 font-semibold text-emerald-400">
+                    Te deben <Money amount={owedToMe} currency={summaryCurrency} />
+                  </span>
+                  <span className="rounded-lg bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-400">
+                    Debes <Money amount={owedByMe} currency={summaryCurrency} />
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         ) : null}
 
@@ -152,7 +154,7 @@ export default function DashboardPage() {
         ) : (
           <div className="space-y-3">
             {groups.map((g) => (
-              <GroupCard key={g.id} group={g} onQuickAdd={() => openQuickExpense(g)} />
+              <GroupCard key={g.id} group={g} />
             ))}
           </div>
         )}
@@ -167,20 +169,23 @@ export default function DashboardPage() {
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={createGroup} loading={creating} disabled={!name.trim()}>
+            <Button onClick={createGroup} loading={creating} disabled={!name.trim()} className="flex-1">
               Crear grupo
             </Button>
           </>
         }
       >
-        <div className="space-y-4">
+        <p className="mb-4 text-sm text-slate-400">
+          Crea un grupo para empezar a repartir gastos y llevar las cuentas con tus compañeros.
+        </p>
+        <div className="space-y-4 pb-1">
           <Input
             label="Nombre del grupo"
             placeholder="Ej. Viaje a Roma"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Select label="Moneda principal" value={currency} onChange={(e) => setCurrency(e.target.value)}>
               {["EUR", "USD", "GBP", "MXN", "ARS", "COP", "CLP", "PEN", "BRL", "CHF", "CAD"].map((c) => (
                 <option key={c} value={c}>
@@ -196,39 +201,19 @@ export default function DashboardPage() {
         </div>
       </Modal>
 
-      {quickExpense ? (
-        <ExpenseModal
-          open={Boolean(quickExpense)}
-          onClose={() => setQuickExpense(null)}
-          groupId={quickExpense.id}
-          groupCurrency={quickExpense.currency}
-          members={quickMembers}
-          defaultPayerId={user?.id ?? ""}
-          onCreated={() => {
-            load();
-            if (quickExpense) navigate(`/groups/${quickExpense.id}`);
-          }}
-        />
-      ) : null}
-
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
     </div>
   );
 }
 
-function GroupCard({ group, onQuickAdd }: { group: GroupSummary; onQuickAdd: () => void }) {
+function GroupCard({ group }: { group: GroupSummary }) {
   const positive = group.myBalance > 0.004;
   const negative = group.myBalance < -0.004;
-  const color = positive
-    ? "text-emerald-400"
-    : negative
-      ? "text-rose-400"
-      : "text-slate-500";
 
   return (
     <Link
       to={`/groups/${group.id}`}
-      className="group relative flex items-center gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-4 transition hover:border-slate-700 hover:bg-slate-800/60"
+      className="flex items-center gap-4 rounded-2xl border border-slate-800/60 bg-slate-900 p-4 transition hover:border-slate-700 hover:bg-slate-800/60 active:scale-[0.99]"
     >
       {group.logoUrl ? (
         <img
@@ -246,24 +231,20 @@ function GroupCard({ group, onQuickAdd }: { group: GroupSummary; onQuickAdd: () 
         <p className="mt-0.5 text-xs text-slate-500">
           {group.memberCount} miembro{group.memberCount !== 1 ? "s" : ""} · {group.currency}
         </p>
-        <p className={`mt-1 text-sm font-bold ${color}`}>
-          {negative ? "Debes " : positive ? "Te deben " : "Al día "}
-          <Money amount={Math.abs(group.myBalance)} currency={group.currency} />
-        </p>
       </div>
-      <button
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onQuickAdd();
-        }}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white opacity-90 shadow transition hover:bg-indigo-500 active:scale-95"
-        aria-label="Añadir gasto rápido"
-      >
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
-      </button>
+      {positive ? (
+        <span className="shrink-0 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400">
+          +<Money amount={group.myBalance} currency={group.currency} />
+        </span>
+      ) : negative ? (
+        <span className="shrink-0 rounded-full bg-rose-500/10 px-3 py-1 text-xs font-bold text-rose-400">
+          <Money amount={group.myBalance} currency={group.currency} />
+        </span>
+      ) : (
+        <span className="shrink-0 rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-400">
+          Al día
+        </span>
+      )}
     </Link>
   );
 }
