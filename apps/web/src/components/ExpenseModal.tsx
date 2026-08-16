@@ -437,13 +437,14 @@ export function ExpenseModal({
             placeholder="Ej. Cena en Roma"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-          />
-          <CategoryBadge
-            category={category}
-            iconName={iconName}
-            isCustomIcon={isCustomIcon}
-            onClick={() => setCategoryPopoverOpen((o) => !o)}
-            className="absolute right-3 top-[calc(100% - 2.5rem)] z-10"
+            rightElement={
+              <CategoryBadge
+                category={category}
+                iconName={iconName}
+                isCustomIcon={isCustomIcon}
+                onClick={() => setCategoryPopoverOpen((o) => !o)}
+              />
+            }
           />
           {categoryPopoverOpen && (
             <div
