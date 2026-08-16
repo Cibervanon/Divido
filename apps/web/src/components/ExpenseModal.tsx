@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../lib/api";
 import { Button, Input, Modal, Select } from "./ui";
+import { CATEGORY_LIST, detectCategory, getCategoryColor, getIconComponent } from "../constants/categories";
 import type { ExpenseDto, MemberInfo } from "../lib/types";
 
 const FOREIGN_CURRENCIES = ["USD", "GBP", "MXN", "ARS", "COP", "CLP", "PEN", "BRL", "CHF", "CAD", "JPY"];
@@ -53,6 +54,11 @@ export function ExpenseModal({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [category, setCategory] = useState("general");
+  const [iconName, setIconName] = useState("wallet");
+  const [isCustomIcon, setIsCustomIcon] = useState(false);
+  const detectedFor = useRef<string | null>(null);
+
   useEffect(() => {
     if (open) {
       setError("");
@@ -66,6 +72,10 @@ export function ExpenseModal({
         setParticipants(expense.participants);
         setPaidFromPot(expense.paidFromPot);
         setReceiptUrl(expense.receiptUrl);
+        setCategory(expense.category);
+        setIconName(expense.iconName);
+        setIsCustomIcon(expense.isCustomIcon);
+        detectedFor.current = expense.description;
         initCustomFromShares(expense.participants, expense.shares);
       } else {
         const all = activeMembers.map((m) => m.userId);
@@ -80,10 +90,23 @@ export function ExpenseModal({
         setAmounts({});
         setPaidFromPot(false);
         setReceiptUrl(null);
+        const detected = detectCategory(defaultDescription);
+        setCategory(detected.category);
+        setIconName(detected.iconName);
+        setIsCustomIcon(false);
+        detectedFor.current = null;
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, groupId, expense]);
+  }, [open, groupId, expense, defaultDescription, activeMembers]);
+
+  useEffect(() => {
+    if (isCustomIcon) return;
+    if (description === detectedFor.current) return;
+    detectedFor.current = description;
+    const detected = detectCategory(description);
+    setCategory(detected.category);
+    setIconName(detected.iconName);
+  }, [description, isCustomIcon]);
 
   function initCustomFromShares(ids: string[], shares: Record<string, number> | null) {
     setPercents({});
@@ -209,6 +232,21 @@ export function ExpenseModal({
     reader.readAsDataURL(file);
   }
 
+  function selectCategory(cat: { category: string; iconName: string }) {
+    setCategory(cat.category);
+    setIconName(cat.iconName);
+    setIsCustomIcon(true);
+    detectedFor.current = null;
+  }
+
+  function resetToAuto() {
+    setIsCustomIcon(false);
+    detectedFor.current = null;
+    const detected = detectCategory(description);
+    setCategory(detected.category);
+    setIconName(detected.iconName);
+  }
+
   async function submit() {
     setError("");
     let shares: Record<string, number> | null = null;
@@ -227,6 +265,9 @@ export function ExpenseModal({
         participants,
         paidFromPot,
         receiptUrl,
+        category,
+        iconName,
+        isCustomIcon,
       };
       if (!paidFromPot) body.payerId = payerId;
       if (isForeign) body.exchangeRate = Number(exchangeRate);
@@ -251,6 +292,8 @@ export function ExpenseModal({
   }
 
   const submitLabel = locked ? "Solicitar modificación" : expense ? "Guardar cambios" : "Añadir gasto";
+  const currentColor = getCategoryColor(category);
+  const CurrentIcon = getIconComponent(iconName);
 
   return (
     <Modal
@@ -278,12 +321,55 @@ export function ExpenseModal({
             Este gasto supera las 24 horas. El cambio se enviará a un administrador para su aprobación.
           </p>
         ) : null}
+
         <Input
           label="Concepto"
           placeholder="Ej. Cena en Roma"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
+
+        <div className="flex items-center gap-2 rounded-xl bg-slate-800/50 p-3">
+          <span className="text-xs font-medium text-slate-400 shrink-0">Categoría</span>
+          <div className="flex flex-1 items-center gap-2 overflow-x-auto pb-1">
+            {CATEGORY_LIST.map((cat) => {
+              const CatIcon = getIconComponent(cat.iconName);
+              const isActive = category === cat.category && iconName === cat.iconName;
+              return (
+                <button
+                  key={cat.category}
+                  type="button"
+                  onClick={() => selectCategory(cat)}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition ${
+                    isActive
+                      ? `bg-[${cat.color}]/20 text-[${cat.color}] border border-[${cat.color}]/40`
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                  }`}
+                  title={cat.label}
+                >
+                  <CatIcon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="hidden sm:inline">{cat.label}</span>
+                </button>
+              );
+            })}
+            {!isCustomIcon && (
+              <button
+                type="button"
+                onClick={resetToAuto}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-slate-500 transition hover:text-slate-300"
+                title="Detección automática"
+              >
+                <span className="h-3.5 w-3.5 shrink-0 rounded border border-slate-600 flex items-center justify-center">
+                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </span>
+                <span className="hidden sm:inline">Auto</span>
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <Input
             label="Importe"

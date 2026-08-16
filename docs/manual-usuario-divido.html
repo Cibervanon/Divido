@@ -446,6 +446,7 @@
       <li><a href="#sec-1">Inicio Rápido <span class="toc-desc">Crea tu primer grupo y salda tus primeras cuentas en 4 pasos</span></a></li>
       <li><a href="#sec-2">Dashboard y Grupos <span class="toc-desc">Ancla tus grupos, ordena y entiende tu balance</span></a></li>
       <li><a href="#sec-3">Gastos e Historial <span class="toc-desc">Registro, validaciones, repartos y auditoría de gastos</span></a></li>
+      <li><a href="#sec-3b">Categorías e Iconos <span class="toc-desc">Iconos dinámicos por categoría y detección automática</span></a></li>
       <li><a href="#sec-4">Simplificación de Deudas <span class="toc-desc">El algoritmo Greedy Net Debt Settlement y sus ventajas</span></a></li>
       <li><a href="#sec-5">Bote Común y Piques <span class="toc-desc">Fondos para viajes y fiestas frente a retos 1 contra 1</span></a></li>
       <li><a href="#sec-6">Gastos Fijos <span class="toc-desc">Cuotas semanales, mensuales y anuales automatizadas</span></a></li>
@@ -629,6 +630,90 @@
     </div>
 
     <div class="callout warn"><span class="callout-label">Ojo</span><p>Si eliminas un gasto <strong>pagado desde el bote común</strong>, el dinero vuelve al bote. El importe se revierte automáticamente para mantener el saldo coherente.</p></div>
+  </section>
+
+  <!-- ============================================================
+       SECCIÓN 3B · CATEGORÍAS E ICONOS
+       ============================================================ -->
+  <section id="sec-3b" class="section">
+    <h2 class="sec-title">Categorías e Iconos</h2>
+    <p>Los gastos, el bote común, los piques y los gastos fijos tienen un <strong>icono de identificación</strong> que ayuda a distinguirlos de un vistazo en listas, tarjetas y el historial.</p>
+
+    <h3>Categorías de gastos</h3>
+    <p>Cada gasto pertenece a una <strong>categoría</strong> que define su icono y color. La app detecta la categoría automáticamente a partir de la descripción (título) del gasto, buscando palabras clave. Si la detección no acierta, puedes elegir la categoría manualmente.</p>
+
+    <div class="cols">
+      <div class="cell"><div class="inner">
+        <div class="col-head" style="border-color:#f97316; color:#f97316"><span class="col-icon"><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h4Z"/><path d="M7 22H7a2 2 0 0 1-2-2v-7"/><path d="M11 2h10"/></svg></span></span><span class="col-name">Comida</span></div>
+        <ul>
+          <li>Icono: <code>utensils</code> · Color: <span class="badge green">#f97316</span></li>
+          <li>Palabras: cena, almuerzo, restaurante, supermercado, mercado, pizza, café, etc.</li>
+        </ul>
+      </div></div>
+      <div class="cell"><div class="inner">
+        <div class="col-head" style="border-color:#3b82f6; color:#3b82f6"><span class="col-icon"><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/></svg></span></span><span class="col-name">Transporte</span></div>
+        <ul>
+          <li>Icono: <code>car</code> · Color: <span class="badge indigo">#3b82f6</span></li>
+          <li>Palabras: uber, taxi, bus, tren, avión, gasolina, parking, metro, vuelo, etc.</li>
+        </ul>
+      </div></div>
+      <div class="cell"><div class="inner">
+        <div class="col-head" style="border-color:#ec4899; color:#ec4899"><span class="col-icon"><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 11.3 2 22l10.7-3.7"/><path d="M19.5 3.5a2.828 2.828 0 0 1 4 4l-2.6 2.6a2.828 2.828 0 0 1 0 4l2.6 2.6a2.828 2.828 0 0 1-4 4l-2.6-2.6a2.828 2.828 0 0 1 0-4l2.6-2.6a2.828 2.828 0 0 1 4 4H4a2.828 2.828 0 0 1-2.8-2.8V4.828A2.828 2.828 0 0 1 4 2h11.5"/></svg></span></span><span class="col-name">Ocio</span></div>
+        <ul>
+          <li>Icono: <code>party-popper</code> · Color: <span class="badge pink">#ec4899</span></li>
+          <li>Palabras: cine, fiesta, concierto, viaje, hotel, museo, teatro, etc.</li>
+        </ul>
+      </div></div>
+      <div class="cell"><div class="inner">
+        <div class="col-head" style="border-color:#22c55e; color:#22c55e"><span class="col-icon"><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9 9 15 21 3"/><path d="M9 22v-8h6v8"/></svg></span></span><span class="col-name">Vivienda</span></div>
+        <ul>
+          <li>Icono: <code>home</code> · Color: <span class="badge green">#22c55e</span></li>
+          <li>Palabras: alquiler, hipoteca, casa, agua, luz, internet, comunidad, etc.</li>
+        </ul>
+      </div></div>
+      <div class="cell"><div class="inner">
+        <div class="col-head" style="border-color:#ef4444; color:#ef4444"><span class="col-icon"><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span></span><span class="col-name">Salud</span></div>
+        <ul>
+          <li>Icono: <code>activity</code> · Color: <span class="badge red">#ef4444</span></li>
+          <li>Palabras: farmacia, médico, dentista, hospital, gimnasio, fisio, vacuna, etc.</li>
+        </ul>
+      </div></div>
+      <div class="cell"><div class="inner">
+        <div class="col-head" style="border-color:#8b5cf6; color:#8b5cf6"><span class="col-icon"><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></span></span><span class="col-name">Compras</span></div>
+        <ul>
+          <li>Icono: <code>shopping-bag</code> · Color: <span class="badge purple">#8b5cf6</span></li>
+          <li>Palabras: ropa, zapatos, amazon, zara, compras, regalo, etc.</li>
+        </ul>
+      </div></div>
+      <div class="cell"><div class="inner">
+        <div class="col-head" style="border-color:#94a3b8; color:#94a3b8"><span class="col-icon"><span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/></svg></span></span><span class="col-name">General</span></div>
+        <ul>
+          <li>Icono: <code>wallet</code> · Color: <span class="badge muted">#94a3b8</span></li>
+          <li>Fallback cuando no hay coincidencias.</li>
+        </ul>
+      </div></div>
+    </div>
+
+    <h3>Detección automática</h3>
+    <p>Al escribir la <strong>descripción del gasto</strong>, la app compara el texto (normalizado: minúsculas, sin tildes) con las palabras clave de cada categoría. La primera categoría con coincidencias gana. Si no hay coincidencias, se usa <strong>General (wallet)</strong>.</p>
+    <div class="callout tip"><span class="callout-label">Ejemplo</span><p>Escribes «Cena con los compis en el italiano». Palabras detectadas: <strong>cena</strong>, <strong>italiano</strong> → Categoría <strong>Comida</strong>, icono <code>utensils</code> naranja.</p></div>
+
+    <h3>Selección manual</h3>
+    <p>En el formulario del gasto hay una fila de <strong>chips de categoría</strong>. Al pulsar uno, la categoría se fija (modo manual) y deja de detectarse automáticamente aunque cambies la descripción. Para volver al modo automático, pulsa el chip <span class="badge tiny indigo">Auto</span>.</p>
+
+    <h3>Iconos de módulo (fallbacks)</h3>
+    <p>Además de los gastos, los otros módulos tienen su icono fijo:</p>
+    <table class="data">
+      <thead><tr><th style="width:28%">Módulo</th><th style="width:22%">Icono</th><th style="width:18%">Color</th><th>Dónde aparece</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">Bote común</td><td><code>piggy-bank</code></td><td><span class="badge green">#34d399</span></td><td>Pestaña Bote, tarjeta de saldo, aportaciones, EmptyState</td></tr>
+        <tr><td class="lbl">Piques / Apuestas</td><td><code>trophy</code></td><td><span class="badge amber">#fbbf24</span></td><td>Pestaña Piques, encabezado, EmptyState</td></tr>
+        <tr><td class="lbl">Gastos fijos</td><td><code>repeat</code></td><td><span class="badge indigo">#818cf8</span></td><td>Pestaña Gastos fijos, encabezado, EmptyState, gastos generados</td></tr>
+        <tr><td class="lbl">Gasto normal</td><td><code>wallet</code></td><td><span class="badge muted">#94a3b8</span></td><td>Fallback de gastos sin categoría detectada</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout info"><span class="callout-label">Nota</span><p>Los gastos generados automáticamente desde <strong>Gastos fijos</strong> se crean con categoría <code>recurring</code> e icono <code>repeat</code>. Si editas su descripción y no has fijado la categoría manualmente, la app re-detectará la categoría según el nuevo texto.</p></div>
   </section>
 
   <!-- ============================================================

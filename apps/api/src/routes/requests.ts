@@ -96,6 +96,13 @@ function sanitizeEdit(changes: Record<string, unknown>, groupCurrency: string) {
   }
   if (typeof changes.payerId === "string" || changes.payerId === null) out.payerId = changes.payerId;
   if (typeof changes.paidFromPot === "boolean") out.paidFromPot = changes.paidFromPot;
+  if (typeof changes.category === "string" && /^[a-z0-9_-]{1,40}$/i.test(changes.category)) {
+    out.category = changes.category.toLowerCase();
+  }
+  if (typeof changes.iconName === "string" && /^[a-z0-9-]{1,40}$/i.test(changes.iconName)) {
+    out.iconName = changes.iconName;
+  }
+  if (typeof changes.isCustomIcon === "boolean") out.isCustomIcon = changes.isCustomIcon;
   if ("receiptUrl" in changes && (changes.receiptUrl === null || typeof changes.receiptUrl === "string")) {
     const parsed = parseReceiptUrl(changes.receiptUrl);
     if (parsed !== null || changes.receiptUrl === null) out.receiptUrl = parsed;
@@ -204,6 +211,9 @@ async function applyRequest(
     receiptUrl,
     participants,
     shares,
+    category: typeof changes.category === "string" ? changes.category : expense.category,
+    iconName: typeof changes.iconName === "string" ? changes.iconName : expense.icon_name,
+    isCustomIcon: typeof changes.isCustomIcon === "boolean" ? changes.isCustomIcon : Boolean(expense.is_custom_icon),
   });
   const description = typeof changes.description === "string" ? changes.description : expense.description;
   if (paidFromPot) {

@@ -85,6 +85,9 @@ export interface ExpenseRow {
   deleted: number;
   paid_from_pot: number;
   receipt_url: string | null;
+  category: string;
+  icon_name: string;
+  is_custom_icon: number;
   payer_name: string | null;
 }
 
@@ -1228,6 +1231,9 @@ export interface CreateExpenseInput {
   shares?: Record<string, number> | null;
   paidFromPot?: boolean;
   receiptUrl?: string | null;
+  category?: string;
+  iconName?: string;
+  isCustomIcon?: boolean;
 }
 
 export async function createExpense(db: Db, input: CreateExpenseInput): Promise<ExpenseRow> {
@@ -1235,8 +1241,8 @@ export async function createExpense(db: Db, input: CreateExpenseInput): Promise<
   const now = new Date().toISOString();
   await db
     .prepare(
-      `INSERT INTO expenses (id, group_id, payer_id, description, amount, currency, exchange_rate, amount_group, created_by_id, created_at, updated_at, deleted, paid_from_pot, receipt_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
+      `INSERT INTO expenses (id, group_id, payer_id, description, amount, currency, exchange_rate, amount_group, created_by_id, created_at, updated_at, deleted, paid_from_pot, receipt_url, category, icon_name, is_custom_icon)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`
     )
     .run(
       id,
@@ -1251,7 +1257,10 @@ export async function createExpense(db: Db, input: CreateExpenseInput): Promise<
       now,
       now,
       input.paidFromPot ? 1 : 0,
-      input.receiptUrl ?? null
+      input.receiptUrl ?? null,
+      input.category ?? "general",
+      input.iconName ?? "wallet",
+      input.isCustomIcon ? 1 : 0
     );
   const ins = db.prepare(
     "INSERT INTO expense_participants (expense_id, user_id, share_amount) VALUES (?, ?, ?)"
@@ -1326,6 +1335,9 @@ export async function updateExpense(
     shares?: Record<string, number> | null;
     paidFromPot?: boolean;
     receiptUrl?: string | null;
+    category?: string;
+    iconName?: string;
+    isCustomIcon?: boolean;
   }
 ): Promise<ExpenseRow> {
   const current = (await getExpense(db, expenseId))!;
@@ -1333,7 +1345,7 @@ export async function updateExpense(
   await db
     .prepare(
       `UPDATE expenses SET
-         description = ?, amount = ?, currency = ?, exchange_rate = ?, amount_group = ?, payer_id = ?, paid_from_pot = ?, receipt_url = ?, updated_at = ?
+         description = ?, amount = ?, currency = ?, exchange_rate = ?, amount_group = ?, payer_id = ?, paid_from_pot = ?, receipt_url = ?, category = ?, icon_name = ?, is_custom_icon = ?, updated_at = ?
        WHERE id = ?`
     )
     .run(
@@ -1345,6 +1357,9 @@ export async function updateExpense(
       patch.payerId === undefined ? current.payer_id : patch.payerId,
       (patch.paidFromPot ?? Boolean(current.paid_from_pot)) ? 1 : 0,
       patch.receiptUrl === undefined ? current.receipt_url : patch.receiptUrl,
+      patch.category ?? current.category,
+      patch.iconName ?? current.icon_name,
+      patch.isCustomIcon === undefined ? current.is_custom_icon : (patch.isCustomIcon ? 1 : 0),
       now,
       expenseId
     );

@@ -58,6 +58,8 @@ export async function processRecurringExpenses(db: Db): Promise<{ created: numbe
         amountGroup: amount,
         createdById: payerId,
         participants,
+        category: "recurring",
+        iconName: "repeat",
       });
       const ghostIds = new Set(active.filter((m) => m.is_ghost).map((m) => m.user_id));
       for (const p of new Set(participants)) {

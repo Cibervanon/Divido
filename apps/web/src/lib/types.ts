@@ -105,6 +105,9 @@ export interface ExpenseDto {
   participantsCount: number;
   comments: ExpenseCommentDto[];
   editable: boolean;
+  category: string;
+  iconName: string;
+  isCustomIcon: boolean;
 }
 
 export interface PaymentDto {

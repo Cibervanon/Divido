@@ -6,6 +6,7 @@ import { Avatar, Button, EmptyState, GhostBadge, Input, Modal, Money, Select, Sp
 import { ExpenseModal } from "../components/ExpenseModal";
 import { PaymentModal } from "../components/PaymentModal";
 import { simplifyDebts, type SimplifyResult } from "../lib/debtSimplifier";
+import { getCategoryColor, getIconComponent, MODULE_FALLBACKS } from "../constants/categories";
 import type {
   BreakdownItem,
   ExpenseCommentDto,

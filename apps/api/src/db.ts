@@ -118,7 +118,10 @@ CREATE TABLE IF NOT EXISTS expenses (
   updated_at TEXT NOT NULL,
   deleted INTEGER NOT NULL DEFAULT 0,
   paid_from_pot INTEGER NOT NULL DEFAULT 0,
-  receipt_url TEXT
+  receipt_url TEXT,
+  category TEXT NOT NULL DEFAULT 'general',
+  icon_name TEXT NOT NULL DEFAULT 'wallet',
+  is_custom_icon INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS expense_participants (
@@ -293,6 +296,9 @@ const MIGRATIONS = [
   "ALTER TABLE informal_debts ADD COLUMN IF NOT EXISTS winner_ids TEXT",
   "ALTER TABLE informal_debts ADD COLUMN IF NOT EXISTS loser_ids TEXT",
   "UPDATE informal_debts SET loser_ids = json_build_array(debtor_id)::text, winner_ids = json_build_array(creditor_id)::text WHERE loser_ids IS NULL",
+  "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'general'",
+  "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS icon_name TEXT NOT NULL DEFAULT 'wallet'",
+  "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS is_custom_icon INTEGER NOT NULL DEFAULT 0",
 ];
 
 export async function initDb(db: Db): Promise<void> {

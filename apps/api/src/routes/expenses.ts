@@ -63,6 +63,9 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       shares?: Record<string, number>;
       paidFromPot?: boolean;
       receiptUrl?: unknown;
+      category?: unknown;
+      iconName?: unknown;
+      isCustomIcon?: unknown;
     };
     const description = body.description?.trim();
     const amount = Number(body.amount);
@@ -70,6 +73,9 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
     if (!Number.isFinite(amount) || amount <= 0) throw badRequest("Importe inválido");
     const paidFromPot = Boolean(body.paidFromPot);
     const receiptUrl = parseReceiptUrl(body.receiptUrl);
+    const category = parseCategory(body.category);
+    const iconName = parseIconName(body.iconName);
+    const isCustomIcon = body.isCustomIcon === true;
     const members = await listMembers(request.db, groupId);
     const activeIds = new Set(
       members.filter((m) => m.status === "active").map((m) => m.user_id)
@@ -114,6 +120,9 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       shares: parseShares(body.shares, uniqueParticipants, amountGroup),
       paidFromPot,
       receiptUrl,
+      category,
+      iconName,
+      isCustomIcon,
     });
     if (paidFromPot) {
       await upsertPotExpenseWithdrawal(request.db, {
@@ -166,6 +175,9 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       shares?: Record<string, number> | null;
       paidFromPot?: boolean;
       receiptUrl?: unknown;
+      category?: unknown;
+      iconName?: unknown;
+      isCustomIcon?: unknown;
     };
     const wasPaidFromPot = Boolean(expense.paid_from_pot);
     const paidFromPot = body.paidFromPot !== undefined ? Boolean(body.paidFromPot) : wasPaidFromPot;
@@ -210,6 +222,9 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       body.shares === undefined || body.shares === null
         ? undefined
         : parseShares(body.shares, participants, amountGroup);
+    const category = body.category === undefined ? undefined : parseCategory(body.category);
+    const iconName = body.iconName === undefined ? undefined : parseIconName(body.iconName);
+    const isCustomIcon = body.isCustomIcon === undefined ? undefined : body.isCustomIcon === true;
     const updated = await updateExpense(request.db, expenseId, {
       description,
       amount,
@@ -221,6 +236,9 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       shares: hasShares,
       paidFromPot,
       receiptUrl,
+      category,
+      iconName,
+      isCustomIcon,
     });
     if (paidFromPot) {
       await upsertPotExpenseWithdrawal(request.db, {
@@ -325,6 +343,9 @@ async function toExpenseDto(
     deleted: number;
     paid_from_pot: number;
     receipt_url: string | null;
+    category: string;
+    icon_name: string;
+    is_custom_icon: number;
     payer_name?: string | null;
   }
 ) {
@@ -350,6 +371,9 @@ async function toExpenseDto(
     deleted: Boolean(e.deleted),
     paidFromPot: Boolean(e.paid_from_pot),
     receiptUrl: e.receipt_url,
+    category: e.category,
+    iconName: e.icon_name,
+    isCustomIcon: Boolean(e.is_custom_icon),
     participants,
     shares: custom ? shares : null,
     share,
@@ -386,6 +410,22 @@ function parseReceiptUrl(raw: unknown): string | null {
   const bytes = Math.ceil(((raw.length - comma - 1) * 3) / 4);
   if (bytes > MAX_RECEIPT_BYTES) throw badRequest("El tique supera los 5 MB");
   return raw;
+}
+
+function parseCategory(raw: unknown): string {
+  if (raw === undefined || raw === null || raw === "") return "general";
+  if (typeof raw !== "string") throw badRequest("Categoría inválida");
+  const s = raw.trim().toLowerCase();
+  if (!/^[a-z0-9_-]{1,40}$/.test(s)) throw badRequest("Categoría inválida");
+  return s;
+}
+
+function parseIconName(raw: unknown): string {
+  if (raw === undefined || raw === null || raw === "") return "wallet";
+  if (typeof raw !== "string") throw badRequest("Icono inválido");
+  const s = raw.trim();
+  if (!/^[a-z0-9-]{1,40}$/i.test(s)) throw badRequest("Icono inválido");
+  return s;
 }
 
 function parseShares(
