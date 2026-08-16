@@ -20,7 +20,7 @@ export function Button({
   loading?: boolean;
 }) {
   const base =
-    "inline-flex touch-manipulation select-none items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none";
+    "inline-flex touch-manipulation select-none items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed";
   const variants = {
     primary: "bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-900/30",
     secondary: "bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700",
@@ -309,12 +309,12 @@ export function Tabs({
   onChange: (key: string) => void;
 }) {
   return (
-    <div className="flex gap-1 overflow-x-auto rounded-xl border border-slate-800 bg-slate-900 p-1">
+    <div className="scrollbar-none flex snap-x snap-proximity gap-1 overflow-x-auto rounded-xl border border-slate-800 bg-slate-900 p-1">
       {tabs.map((t) => (
         <button
           key={t.key}
           onClick={() => onChange(t.key)}
-          className={`flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition ${
+          className={`snap-start flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition ${
             active === t.key
               ? "bg-indigo-600 text-white shadow"
               : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"

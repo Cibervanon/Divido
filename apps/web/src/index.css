@@ -112,3 +112,10 @@ button {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}

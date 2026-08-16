@@ -265,7 +265,7 @@ export function ExpenseModal({
           <Button
             onClick={submit}
             loading={loading}
-            disabled={!description.trim() || !amount || participants.length === 0}
+            disabled={!description.trim() || Number(amount) <= 0 || participants.length === 0}
           >
             {submitLabel}
           </Button>

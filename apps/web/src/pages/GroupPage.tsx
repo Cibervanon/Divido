@@ -317,7 +317,7 @@ export default function GroupPage() {
         </div>
       ) : null}
 
-      <main className="mx-auto max-w-2xl px-4 pt-5">
+      <main className="mx-auto max-w-2xl px-4 pt-5 pb-32">
         <div className="mb-5 rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-900/50 p-5">
           <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Tu balance</p>
           <p className={`mt-1 text-3xl font-extrabold ${balanceColor}`}>
@@ -325,12 +325,21 @@ export default function GroupPage() {
             <Money amount={Math.abs(myBalance)} currency={group.currency} />
           </p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            <span className="rounded-lg bg-emerald-500/10 px-2.5 py-1 font-semibold text-emerald-400">
-              Te deben <Money amount={myBalance > 0.004 ? myBalance : 0} currency={group.currency} />
-            </span>
-            <span className="rounded-lg bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-400">
-              Debes <Money amount={myBalance < -0.004 ? -myBalance : 0} currency={group.currency} />
-            </span>
+            {positive ? (
+              <span className="rounded-lg bg-emerald-500/10 px-2.5 py-1 font-semibold text-emerald-400">
+                Te deben <Money amount={myBalance} currency={group.currency} />
+              </span>
+            ) : null}
+            {negative ? (
+              <span className="rounded-lg bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-400">
+                Debes <Money amount={-myBalance} currency={group.currency} />
+              </span>
+            ) : null}
+            {!positive && !negative ? (
+              <span className="rounded-lg bg-emerald-500/10 px-2.5 py-1 font-semibold text-emerald-400">
+                Al día
+              </span>
+            ) : null}
           </div>
         </div>
 
@@ -641,7 +650,9 @@ function ExpensesTab({
           {expenses.map((e) => (
             <div
               key={e.id}
-              className="rounded-2xl border border-slate-800 bg-slate-900 p-4 transition hover:border-slate-700"
+              className={`rounded-2xl border border-slate-800 bg-slate-900 p-4 transition hover:border-slate-700 ${
+                e.deleted ? "opacity-50 grayscale" : ""
+              }`}
             >
               <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -1641,9 +1652,11 @@ function PotTab({
           <Money amount={balance} currency={currency} />
         </p>
         <p className="mt-1 text-xs text-slate-500">Dinero aportado por los miembros para gastos compartidos del grupo</p>
-        <Button variant="secondary" className="mt-4" onClick={onNew}>
-          Aportar al bote
-        </Button>
+        {contributions.length > 0 ? (
+          <Button variant="secondary" className="mt-4" onClick={onNew}>
+            Aportar al bote
+          </Button>
+        ) : null}
       </div>
 
       <div className="space-y-2">
@@ -2370,8 +2383,6 @@ function SettingsModal({
     }
   }, [open, group]);
 
-  const isDataUrl = logoUrl.startsWith("data:image");
-
   function onPickFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -2432,13 +2443,6 @@ function SettingsModal({
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickFile} />
               </div>
             </div>
-            <Input
-              label="Logo (URL)"
-              placeholder="https://... o déjalo vacío"
-              value={isDataUrl ? "Imagen subida desde tu dispositivo" : logoUrl}
-              readOnly={isDataUrl}
-              onChange={(e) => setLogoUrl(e.target.value)}
-            />
             <Input label="Nombre" value={name} onChange={(e) => setName(e.target.value)} />
             <div className="grid grid-cols-2 gap-3">
               <Select label="Moneda" value={currency} onChange={(e) => setCurrency(e.target.value)}>

@@ -63,7 +63,7 @@ export function PaymentModal({
           <Button variant="ghost" onClick={onClose}>
             Cancelar
           </Button>
-          <Button onClick={submit} loading={loading} disabled={!toUserId || !amount}>
+          <Button onClick={submit} loading={loading} disabled={!toUserId || Number(amount) <= 0}>
             Guardar pago
           </Button>
         </>
