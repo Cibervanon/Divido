@@ -59,6 +59,20 @@ const GROUP_EXTRAS: Array<{ key: string; label: string; description: string }> =
   },
 ];
 
+// Caché de sesión por grupo: permite navegar entre pestañas (y volver a un grupo)
+// de forma instantánea sin pantallas de carga, refrescando en segundo plano.
+interface GroupCacheData {
+  detail: GroupDetail;
+  expenses: ExpenseDto[];
+  history: HistoryEvent[];
+  requests: ModificationRequestDto[];
+  debts: InformalDebtDto[];
+  potBalance: number;
+  potContributions: PotContributionDto[];
+  recurringExpenses: RecurringExpenseDto[];
+}
+const groupCache = new Map<string, GroupCacheData>();
+
 export default function GroupPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const { user } = useAuth();
@@ -100,44 +114,72 @@ export default function GroupPage() {
 
   const isAdmin = detail?.myRole === "admin";
 
-  const load = useCallback(async () => {
-    if (!groupId) return;
-    setLoading(true);
-    try {
-      const [d, e, h, r, dd, pot, rec] = await Promise.all([
-        api.get<GroupDetail>(`/groups/${groupId}`),
-        api.get<{ expenses: ExpenseDto[] }>(`/groups/${groupId}/expenses`),
-        api.get<{ events: HistoryEvent[] }>(`/groups/${groupId}/history`),
-        api.get<{ requests: ModificationRequestDto[] }>(`/groups/${groupId}/requests`).catch(() => null),
-        api.get<{ debts: InformalDebtDto[] }>(`/groups/${groupId}/informal-debts`).catch(() => null),
-        api
-          .get<{ balance: number; contributions: PotContributionDto[] }>(`/groups/${groupId}/common-pot`)
-          .catch(() => null),
-        api.get<{ expenses: RecurringExpenseDto[] }>(`/groups/${groupId}/recurring-expenses`).catch(() => null),
-      ]);
-      setDetail(d);
-      setExpenses(e.expenses);
-      setHistory(h.events);
-      if (r) setRequests(r.requests);
-      if (dd) setDebts(dd.debts);
-      if (pot) {
-        setPotBalance(pot.balance);
-        setPotContributions(pot.contributions);
+  const applyData = useCallback((data: GroupCacheData) => {
+    setDetail(data.detail);
+    setExpenses(data.expenses);
+    setHistory(data.history);
+    setRequests(data.requests);
+    setDebts(data.debts);
+    setPotBalance(data.potBalance);
+    setPotContributions(data.potContributions);
+    setRecurringExpenses(data.recurringExpenses);
+  }, []);
+
+  const load = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!groupId) return;
+      const cached = groupCache.get(groupId);
+      // Solo mostramos la pantalla de carga si no hay nada que pintar todavía.
+      if (!cached && !opts?.silent) setLoading(true);
+      try {
+        const [d, e, h, r, dd, pot, rec] = await Promise.all([
+          api.get<GroupDetail>(`/groups/${groupId}`),
+          api.get<{ expenses: ExpenseDto[] }>(`/groups/${groupId}/expenses`),
+          api.get<{ events: HistoryEvent[] }>(`/groups/${groupId}/history`),
+          api.get<{ requests: ModificationRequestDto[] }>(`/groups/${groupId}/requests`).catch(() => null),
+          api.get<{ debts: InformalDebtDto[] }>(`/groups/${groupId}/informal-debts`).catch(() => null),
+          api
+            .get<{ balance: number; contributions: PotContributionDto[] }>(`/groups/${groupId}/common-pot`)
+            .catch(() => null),
+          api.get<{ expenses: RecurringExpenseDto[] }>(`/groups/${groupId}/recurring-expenses`).catch(() => null),
+        ]);
+        const data: GroupCacheData = {
+          detail: d,
+          expenses: e.expenses,
+          history: h.events,
+          requests: r?.requests ?? [],
+          debts: dd?.debts ?? [],
+          potBalance: pot?.balance ?? 0,
+          potContributions: pot?.contributions ?? [],
+          recurringExpenses: rec?.expenses ?? [],
+        };
+        groupCache.set(groupId, data);
+        applyData(data);
+        setError("");
+      } catch (err) {
+        if (!cached) setError(err instanceof ApiError ? err.message : "Error cargando el grupo");
+      } finally {
+        setLoading(false);
       }
-      if (rec) setRecurringExpenses(rec.expenses);
-      setError("");
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Error cargando el grupo");
-    } finally {
-      setLoading(false);
-    }
-  }, [groupId]);
+    },
+    [groupId, applyData]
+  );
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!groupId) return;
+    const cached = groupCache.get(groupId);
+    if (cached) {
+      // Render inmediato desde caché y refresco silencioso en segundo plano.
+      applyData(cached);
+      setLoading(false);
+      load({ silent: true });
+    } else {
+      load();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [load, groupId]);
 
-  if (loading) {
+  if (loading && !detail) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-950">
         <Spinner className="h-8 w-8" />
@@ -886,8 +928,27 @@ function BalancesTab({
   const { group, balances, transfers, exMembers } = detail;
   const memberById = new Map(detail.members.map((m) => [m.userId, m]));
 
+  // Garantía: si un usuario tiene saldo neto negativo pero la simplificación no
+  // le asignó transferencia (redondeo o descompensación residual), se le genera
+  // una tarjeta de pago contra el mayor acreedor para que la deuda siempre se
+  // muestre y el listado inferior nunca aparezca vacío.
+  const coveredDebtors = new Set(transfers.map((t) => t.fromUserId));
+  const topCreditor = [...balances].sort((a, b) => b.net - a.net).find((b) => b.net > 0.004);
+  const fallbackTransfers: SettlementTransfer[] = topCreditor
+    ? balances
+        .filter((b) => b.net < -0.004 && !coveredDebtors.has(b.userId))
+        .map((b) => ({
+          fromUserId: b.userId,
+          fromName: b.name,
+          toUserId: topCreditor.userId,
+          toName: topCreditor.name,
+          amount: -b.net,
+        }))
+    : [];
+  const displayTransfers = transfers.length > 0 ? [...transfers, ...fallbackTransfers] : fallbackTransfers;
+
   async function shareSummary() {
-    const text = buildSummaryText(group.name, group.currency, transfers);
+    const text = buildSummaryText(group.name, group.currency, displayTransfers);
     if (navigator.share) {
       try {
         await navigator.share({ text });
@@ -998,15 +1059,15 @@ function BalancesTab({
         })}
       </div>
 
-      {transfers.length > 0 ? (
+      {displayTransfers.length > 0 ? (
         <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
           <p className="mb-3 text-sm font-bold text-slate-100">Pagos sugeridos (liquidación optimizada)</p>
           <p className="mb-3 text-[11px] text-slate-500">
-            {transfers.length} transferencia{transfers.length !== 1 ? "s" : ""} para liquidar todo el grupo.
+            {displayTransfers.length} transferencia{displayTransfers.length !== 1 ? "s" : ""} para liquidar todo el grupo.
             Las deudas en cadena se consolidan (si A debe a B y B a C, se propone A → C).
           </p>
           <div className="space-y-2">
-            {transfers.map((t, i) => (
+            {displayTransfers.map((t, i) => (
               <div key={i} className="flex items-center gap-2 rounded-xl bg-slate-800/60 px-3 py-2.5 text-sm">
                 <span className="font-medium text-slate-200">{t.fromName}</span>
                 <svg className="h-4 w-4 shrink-0 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

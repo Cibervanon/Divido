@@ -81,13 +81,18 @@ export async function getGroupBalances(db: Db, groupId: string): Promise<GroupBa
     ghosts[m.user_id] = Boolean(m.is_ghost);
   }
 
-  const expenses = (await expensePairs(db, groupId)).map((e) => ({
-    payerId: e.payer_id,
-    amountGroup: e.amount_group,
-    participants: e.participants,
-    participantShares: Object.keys(e.shares).length ? e.shares : undefined,
-    deleted: Boolean(e.deleted),
-  }));
+  // Los gastos pagados con el bote común se aíslan del balance personal entre
+  // miembros: solo reducen el saldo del bote (common_pot_contributions) y no
+  // generan deudas ni créditos entre las personas.
+  const expenses = (await expensePairs(db, groupId))
+    .filter((e) => !e.paid_from_pot)
+    .map((e) => ({
+      payerId: e.payer_id,
+      amountGroup: e.amount_group,
+      participants: e.participants,
+      participantShares: Object.keys(e.shares).length ? e.shares : undefined,
+      deleted: Boolean(e.deleted),
+    }));
   const payments = (await listPayments(db, groupId)).map((p) => ({
     fromUserId: p.from_user_id,
     toUserId: p.to_user_id,

@@ -97,18 +97,41 @@ export function computeNetBalances(
  *     lo que garantiza a lo sumo n-1 transferencias.
  */
 export function simplifyDebts(balances: MemberBalance[]): SettlementTransfer[] {
-  const nameOf = (id: string) => balances.find((b) => b.userId === id)?.name ?? "Usuario";
+  // Normaliza el residuo de redondeo: al repartir un importe no divisible entre
+  // varios participantes (p. ej. 10.01 / 3), los saldos redondeados no suman 0
+  // y un deudor puede quedarse sin acreedor para el céntimo sobrante. Se ajusta
+  // el balance de mayor magnitud para que la suma sea exactamente 0 y así todo
+  // deudor tenga su acreedor.
+  const normalized = balances.map((b) => ({ ...b }));
+  const sum = normalized.reduce((s, b) => s + b.net, 0);
+  if (Math.abs(sum) > EPS) {
+    const target = normalized.reduce((a, b) => (Math.abs(b.net) > Math.abs(a.net) ? b : a));
+    target.net = round2(target.net - sum);
+  }
 
-  const debtors = balances
+  const nameOf = (id: string) => normalized.find((b) => b.userId === id)?.name ?? "Usuario";
+
+  const debtors = normalized
     .filter((b) => b.net < -EPS)
     .map((b) => ({ id: b.userId, amount: -b.net }))
     .sort((a, b) => b.amount - a.amount);
-  const creditors = balances
+  const creditors = normalized
     .filter((b) => b.net > EPS)
     .map((b) => ({ id: b.userId, amount: b.net, settled: false }))
     .sort((a, b) => b.amount - a.amount);
 
   const transfers: SettlementTransfer[] = [];
+  const push = (from: { id: string }, to: { id: string }, amount: number) => {
+    const a = round2(amount);
+    if (a <= 0) return;
+    transfers.push({
+      fromUserId: from.id,
+      fromName: nameOf(from.id),
+      toUserId: to.id,
+      toName: nameOf(to.id),
+      amount: a,
+    });
+  };
 
   const byAmount = new Map<number, Array<(typeof creditors)[number]>>();
   for (const c of creditors) {
@@ -130,13 +153,7 @@ export function simplifyDebts(balances: MemberBalance[]): SettlementTransfer[] {
       }
     }
     if (matched) {
-      transfers.push({
-        fromUserId: d.id,
-        fromName: nameOf(d.id),
-        toUserId: matched.id,
-        toName: nameOf(matched.id),
-        amount: d.amount,
-      });
+      push(d, matched, d.amount);
     } else {
       pendingDebtors.push(d);
     }
@@ -150,13 +167,7 @@ export function simplifyDebts(balances: MemberBalance[]): SettlementTransfer[] {
     const d = pendingDebtors[i];
     const c = pendingCreditors[j];
     const amount = Math.min(d.amount, c.amount);
-    transfers.push({
-      fromUserId: d.id,
-      fromName: nameOf(d.id),
-      toUserId: c.id,
-      toName: nameOf(c.id),
-      amount: round2(amount),
-    });
+    push(d, c, amount);
     d.amount -= amount;
     c.amount -= amount;
     if (d.amount < EPS) i++;
