@@ -93,11 +93,13 @@ export async function getGroupBalances(db: Db, groupId: string): Promise<GroupBa
       participantShares: Object.keys(e.shares).length ? e.shares : undefined,
       deleted: Boolean(e.deleted),
     }));
-  const payments = (await listPayments(db, groupId)).map((p) => ({
-    fromUserId: p.from_user_id,
-    toUserId: p.to_user_id,
-    amount: p.amount,
-  }));
+  const payments = (await listPayments(db, groupId))
+    .filter((p) => p.status === "confirmed")
+    .map((p) => ({
+      fromUserId: p.from_user_id,
+      toUserId: p.to_user_id,
+      amount: p.amount,
+    }));
 
   const balances = computeNetBalances(
     { memberIds: activeIds.size ? [...activeIds] : [], names, expenses, payments },

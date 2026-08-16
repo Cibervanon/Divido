@@ -141,6 +141,7 @@ function toAuthUser(user: {
   revolut: string | null;
   paypal: string | null;
   pinned_group_ids: string;
+  auto_confirm_payments: number;
 }) {
   return {
     id: user.id,
@@ -152,5 +153,6 @@ function toAuthUser(user: {
     revolut: user.revolut,
     paypal: user.paypal,
     pinnedGroupIds: parseStringArray(user.pinned_group_ids),
+    autoConfirmPayments: Boolean(user.auto_confirm_payments),
   };
 }

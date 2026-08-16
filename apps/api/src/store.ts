@@ -7,6 +7,7 @@ import type {
   InformalDebtStatus,
   MemberRole,
   MemberStatus,
+  PaymentStatus,
 } from "@divido/shared";
 import type { Db } from "./db.js";
 
@@ -29,6 +30,7 @@ export interface UserRow {
   reset_token: string | null;
   reset_token_expires: string | null;
   pinned_group_ids: string;
+  auto_confirm_payments: number;
   created_at: string;
 }
 
@@ -92,6 +94,8 @@ export interface PaymentRow {
   to_user_id: string;
   amount: number;
   note: string | null;
+  proof_url: string | null;
+  status: string;
   created_by_id: string;
   created_at: string;
   from_name: string;
@@ -185,12 +189,13 @@ export async function updateUser(
     revolut?: string | null;
     paypal?: string | null;
     pinnedGroupIds?: string[];
+    autoConfirmPayments?: boolean;
   }
 ): Promise<UserRow> {
   const current = (await findUserById(db, userId))!;
   await db
     .prepare(
-      "UPDATE users SET name = ?, avatar_url = ?, phone = ?, revolut = ?, paypal = ?, pinned_group_ids = ? WHERE id = ?"
+      "UPDATE users SET name = ?, avatar_url = ?, phone = ?, revolut = ?, paypal = ?, pinned_group_ids = ?, auto_confirm_payments = ? WHERE id = ?"
     )
     .run(
       patch.name?.trim() ?? current.name,
@@ -199,6 +204,7 @@ export async function updateUser(
       patch.revolut === undefined ? current.revolut : patch.revolut,
       patch.paypal === undefined ? current.paypal : patch.paypal,
       patch.pinnedGroupIds === undefined ? current.pinned_group_ids : JSON.stringify(patch.pinnedGroupIds),
+      patch.autoConfirmPayments === undefined ? current.auto_confirm_payments : patch.autoConfirmPayments ? 1 : 0,
       userId
     );
   return (await findUserById(db, userId))!;
@@ -1355,14 +1361,16 @@ export async function createPayment(
     toUserId: string;
     amount: number;
     note?: string;
+    proofUrl?: string | null;
+    status: PaymentStatus;
     createdById: string;
   }
 ): Promise<PaymentRow> {
   const id = randomUUID();
   await db
     .prepare(
-      `INSERT INTO payments (id, group_id, from_user_id, to_user_id, amount, note, created_by_id, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO payments (id, group_id, from_user_id, to_user_id, amount, note, proof_url, status, created_by_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       id,
@@ -1371,6 +1379,8 @@ export async function createPayment(
       input.toUserId,
       input.amount,
       input.note ?? null,
+      input.proofUrl ?? null,
+      input.status,
       input.createdById,
       new Date().toISOString()
     );
@@ -1404,6 +1414,11 @@ export async function listPayments(db: Db, groupId: string): Promise<PaymentRow[
 
 export async function deletePayment(db: Db, paymentId: string): Promise<void> {
   await db.prepare("DELETE FROM payments WHERE id = ?").run(paymentId);
+}
+
+export async function updatePaymentStatus(db: Db, paymentId: string, status: PaymentStatus): Promise<PaymentRow> {
+  await db.prepare("UPDATE payments SET status = ? WHERE id = ?").run(status, paymentId);
+  return (await getPayment(db, paymentId))!;
 }
 
 // ---------- Comentarios de gasto ----------

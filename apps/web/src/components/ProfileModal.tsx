@@ -45,7 +45,7 @@ function SwitchRow({
 }
 
 export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { user, refreshUser, logout } = useAuth();
+  const { user, updateUser, refreshUser, logout } = useAuth();
   const [name, setName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [phone, setPhone] = useState("");
@@ -61,6 +61,9 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
   const [prefsLoading, setPrefsLoading] = useState(false);
   const [prefsSaving, setPrefsSaving] = useState(false);
   const [prefsError, setPrefsError] = useState("");
+  const [autoConfirm, setAutoConfirm] = useState(user?.autoConfirmPayments ?? false);
+  const [autoConfirmSaving, setAutoConfirmSaving] = useState(false);
+  const [autoConfirmError, setAutoConfirmError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -70,6 +73,7 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
       setPhone(user.phone ?? "");
       setRevolut(user.revolut ?? "");
       setPaypal(user.paypal ?? "");
+      setAutoConfirm(user.autoConfirmPayments ?? false);
       setTheme(getStoredTheme());
       setError("");
       setVerificationUrl("");
@@ -168,6 +172,25 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
       setPrefsError("No se pudo guardar el ajuste. Inténtalo de nuevo.");
     } finally {
       setPrefsSaving(false);
+    }
+  }
+
+  async function toggleAutoConfirm() {
+    const prev = autoConfirm;
+    const next = !autoConfirm;
+    setAutoConfirm(next);
+    updateUser({ autoConfirmPayments: next });
+    setAutoConfirmError("");
+    setAutoConfirmSaving(true);
+    try {
+      const res = await api.patch<{ user: { autoConfirmPayments: boolean } }>("/users/me", { autoConfirmPayments: next });
+      updateUser({ autoConfirmPayments: Boolean(res.user.autoConfirmPayments) });
+    } catch {
+      setAutoConfirm(prev);
+      updateUser({ autoConfirmPayments: prev });
+      setAutoConfirmError("No se pudo guardar el ajuste.");
+    } finally {
+      setAutoConfirmSaving(false);
     }
   }
 
@@ -285,6 +308,23 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
               onChange={(e) => setPaypal(e.target.value)}
             />
           </div>
+        </div>
+
+        <div className="border-t border-slate-800 pt-5">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Pagos</p>
+          <p className="mb-1 mt-0.5 text-[11px] text-slate-500">
+            Controla cómo se confirman los pagos que recibes.
+          </p>
+          <div className="divide-y divide-slate-800">
+            <SwitchRow
+              label="Autoconfirmar pagos recibidos sin comprobante"
+              description="Si alguien registra un pago hacia ti sin adjuntar foto, se aprobará automáticamente. Si lo desactivas, tendrás que aceptarlo o rechazarlo manualmente."
+              checked={autoConfirm}
+              disabled={autoConfirmSaving}
+              onChange={() => void toggleAutoConfirm()}
+            />
+          </div>
+          {autoConfirmError ? <p className="mt-1 text-xs text-rose-400">{autoConfirmError}</p> : null}
         </div>
 
         <div className="border-t border-slate-800 pt-5">

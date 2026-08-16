@@ -29,6 +29,7 @@ export const userRoutes: FastifyPluginAsync = async (app) => {
       revolut?: string | null;
       paypal?: string | null;
       pinnedGroupIds?: string[];
+      autoConfirmPayments?: boolean;
     };
     const patch: {
       name?: string;
@@ -37,6 +38,7 @@ export const userRoutes: FastifyPluginAsync = async (app) => {
       revolut?: string | null;
       paypal?: string | null;
       pinnedGroupIds?: string[];
+      autoConfirmPayments?: boolean;
     } = {};
 
     if (body.name !== undefined) {
@@ -75,6 +77,10 @@ export const userRoutes: FastifyPluginAsync = async (app) => {
       patch.pinnedGroupIds = ids.slice(0, 50);
     }
 
+    if (body.autoConfirmPayments !== undefined) {
+      patch.autoConfirmPayments = Boolean(body.autoConfirmPayments);
+    }
+
     if (Object.keys(patch).length === 0) throw badRequest("Sin cambios");
     const updated = await updateUser(request.db, user.id, patch);
     return { user: toPublicUser(updated) };
@@ -104,6 +110,7 @@ function toPublicUser(user: {
   revolut: string | null;
   paypal: string | null;
   pinned_group_ids: string;
+  auto_confirm_payments: number;
 }) {
   return {
     id: user.id,
@@ -115,5 +122,6 @@ function toPublicUser(user: {
     revolut: user.revolut,
     paypal: user.paypal,
     pinnedGroupIds: parseStringArray(user.pinned_group_ids),
+    autoConfirmPayments: Boolean(user.auto_confirm_payments),
   };
 }

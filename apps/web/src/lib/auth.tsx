@@ -17,6 +17,7 @@ export interface Me {
   revolut: string | null;
   paypal: string | null;
   pinnedGroupIds: string[];
+  autoConfirmPayments: boolean;
 }
 
 interface AuthContextValue {

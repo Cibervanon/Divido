@@ -108,6 +108,7 @@ export default function GroupPage() {
   const [breakdownTarget, setBreakdownTarget] = useState<MemberInfo | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [memberDetail, setMemberDetail] = useState<{ member: MemberInfo; data: BreakdownItem[] } | null>(null);
+  const [viewProof, setViewProof] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -390,7 +391,15 @@ export default function GroupPage() {
             />
           ) : null}
           {tab === "history" ? (
-            <HistoryTab events={history} currency={group.currency} groupName={group.name} memberName={memberName} />
+            <HistoryTab
+              events={history}
+              currency={group.currency}
+              groupName={group.name}
+              memberName={memberName}
+              myUserId={user.id}
+              onChanged={load}
+              onViewProof={(url) => setViewProof(url)}
+            />
           ) : null}
           {tab === "debts" && hasDebts ? (
             <DebtsTab
@@ -560,6 +569,34 @@ export default function GroupPage() {
       />
 
       <Toast show={Boolean(toast)}>{toast}</Toast>
+
+      {viewProof ? (
+        <div
+          className="fixed inset-0 z-[70] flex flex-col bg-black/90"
+          onClick={() => setViewProof(null)}
+        >
+          <div className="flex items-center justify-between px-4 py-3">
+            <p className="text-sm font-semibold text-slate-200">Comprobante del pago</p>
+            <button
+              type="button"
+              onClick={() => setViewProof(null)}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-slate-300 transition hover:bg-slate-700"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="flex min-h-0 flex-1 items-center justify-center p-4">
+            <img
+              src={viewProof}
+              alt="Comprobante"
+              className="max-h-full max-w-full rounded-xl object-contain shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -2394,12 +2431,32 @@ function HistoryTab({
   currency,
   groupName,
   memberName,
+  myUserId,
+  onChanged,
+  onViewProof,
 }: {
   events: HistoryEvent[];
   currency: string;
   groupName: string;
   memberName: (id: string) => string;
+  myUserId: string;
+  onChanged: () => void;
+  onViewProof: (url: string) => void;
 }) {
+  const [deciding, setDeciding] = useState(false);
+
+  async function confirmPayment(id: string, accepted: boolean) {
+    setDeciding(true);
+    try {
+      await api.patch(`/payments/${id}/confirm`, { accepted });
+      onChanged();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Error");
+    } finally {
+      setDeciding(false);
+    }
+  }
+
   function exportHistory() {
     const lines = [
       `Divido · Historial de actividad de ${groupName}`,
@@ -2517,6 +2574,32 @@ function HistoryTab({
                     <>
                       <strong>{e.fromName}</strong> pagó a <strong>{e.toName}</strong>
                       {e.note ? ` · ${e.note}` : ""}
+                      {e.proofUrl ? (
+                        <button
+                          type="button"
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            onViewProof(e.proofUrl!);
+                          }}
+                          title="Ver comprobante"
+                          className="ml-1.5 inline-flex items-center gap-0.5 rounded-md bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300 transition hover:bg-slate-700"
+                        >
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+                          </svg>
+                          comprobante
+                        </button>
+                      ) : null}
+                      {e.paymentStatus === "pending_confirmation" ? (
+                        <span className="ml-1.5 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400">
+                          Pendiente de confirmar
+                        </span>
+                      ) : null}
+                      {e.paymentStatus === "rejected" ? (
+                        <span className="ml-1.5 rounded-md bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-400">
+                          Rechazado
+                        </span>
+                      ) : null}
                     </>
                   ) : (
                     <>
@@ -2529,9 +2612,31 @@ function HistoryTab({
                 <p className="text-[11px] text-slate-500">{fmtDate(e.date)}</p>
               </div>
               {isPayment || isExpense ? (
-                <span className={`shrink-0 text-sm font-bold ${isPayment ? "text-emerald-400" : "text-slate-100"}`}>
-                  <Money amount={isPayment ? (e.amount ?? 0) : (e.amountGroup ?? 0)} currency={isPayment ? currency : (e.currency ?? currency)} />
-                </span>
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <span className={`shrink-0 text-sm font-bold ${isPayment ? "text-emerald-400" : "text-slate-100"}`}>
+                    <Money amount={isPayment ? (e.amount ?? 0) : (e.amountGroup ?? 0)} currency={isPayment ? currency : (e.currency ?? currency)} />
+                  </span>
+                  {isPayment && e.paymentStatus === "pending_confirmation" && e.toUserId === myUserId ? (
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="secondary"
+                        className="!px-2.5 !py-1 text-[11px] text-emerald-400"
+                        disabled={deciding}
+                        onClick={() => void confirmPayment(e.id, true)}
+                      >
+                        Aceptar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="!px-2.5 !py-1 text-[11px] text-rose-400"
+                        disabled={deciding}
+                        onClick={() => void confirmPayment(e.id, false)}
+                      >
+                        Rechazar
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           );

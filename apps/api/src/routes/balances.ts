@@ -63,6 +63,8 @@ export const balanceRoutes: FastifyPluginAsync = async (app) => {
         toName: p.to_name,
         amount: p.amount,
         note: p.note,
+        proofUrl: p.proof_url,
+        status: p.status,
       });
     }
 

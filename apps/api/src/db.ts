@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS users (
   reset_token TEXT,
   reset_token_expires TEXT,
   pinned_group_ids TEXT NOT NULL DEFAULT '[]',
+  auto_confirm_payments INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL
 );
 
@@ -142,6 +143,8 @@ CREATE TABLE IF NOT EXISTS payments (
   to_user_id TEXT NOT NULL REFERENCES users(id),
   amount REAL NOT NULL,
   note TEXT,
+  proof_url TEXT,
+  status TEXT NOT NULL DEFAULT 'confirmed',
   created_by_id TEXT NOT NULL REFERENCES users(id),
   created_at TEXT NOT NULL
 );
@@ -278,6 +281,9 @@ const MIGRATIONS = [
   "ALTER TABLE recurring_expenses ADD COLUMN IF NOT EXISTS participants TEXT",
   "ALTER TABLE recurring_expenses ADD COLUMN IF NOT EXISTS created_by TEXT REFERENCES users(id)",
   "ALTER TABLE recurring_expenses ADD COLUMN IF NOT EXISTS next_run_at TEXT",
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS auto_confirm_payments INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE payments ADD COLUMN IF NOT EXISTS proof_url TEXT",
+  "ALTER TABLE payments ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'confirmed'",
 ];
 
 export async function initDb(db: Db): Promise<void> {

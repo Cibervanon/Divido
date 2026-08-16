@@ -3,6 +3,7 @@ export type MemberRole = "admin" | "member";
 export type MemberStatus = "active" | "inactive" | "ex_member";
 export type RequestStatus = "pending" | "approved" | "rejected";
 export type InformalDebtStatus = "pending" | "accepted" | "settled" | "rejected";
+export type PaymentStatus = "confirmed" | "pending_confirmation" | "rejected";
 
 export interface User {
   id: string;
@@ -66,6 +67,8 @@ export interface Payment {
   toUserId: string;
   amount: number;
   note: string | null;
+  proofUrl: string | null;
+  status: PaymentStatus;
   createdById: string;
   createdAt: string;
 }
