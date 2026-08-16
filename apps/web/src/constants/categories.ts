@@ -9,6 +9,12 @@ import {
   PiggyBank,
   Trophy,
   Repeat,
+  Coffee,
+  PawPrint,
+  Tv,
+  Dumbbell,
+  Flame,
+  Baby,
 } from "lucide-react";
 
 export type CategoryKey =
@@ -19,6 +25,12 @@ export type CategoryKey =
   | "health"
   | "shopping"
   | "general"
+  | "coffee"
+  | "pets"
+  | "streaming"
+  | "sports"
+  | "events"
+  | "family"
   | "pot"
   | "bet"
   | "recurring";
@@ -213,6 +225,97 @@ export const CATEGORIES: Record<Exclude<CategoryKey, "pot" | "bet" | "recurring"
     keywords: [],
     color: "#94a3b8",
   },
+  coffee: {
+    category: "coffee",
+    label: "Cafés y Desayunos",
+    iconName: "coffee",
+    keywords: [
+      "cafe",
+      "cafeteria",
+      "desayuno",
+      "starbucks",
+      "brunch",
+      "croissant",
+      "merienda",
+    ],
+    color: "#f59e0b",
+  },
+  pets: {
+    category: "pets",
+    label: "Mascotas",
+    iconName: "paw-print",
+    keywords: [
+      "perro",
+      "gato",
+      "veterinario",
+      "pienso",
+      "mascota",
+      "kiwoko",
+      "tiendanimal",
+    ],
+    color: "#14b8a6",
+  },
+  streaming: {
+    category: "streaming",
+    label: "Suscripciones y TV",
+    iconName: "tv",
+    keywords: [
+      "netflix",
+      "spotify",
+      "hbo",
+      "prime",
+      "disney",
+      "suscripcion",
+      "dazn",
+      "youtube",
+    ],
+    color: "#ef4444",
+  },
+  sports: {
+    category: "sports",
+    label: "Deporte y Pistas",
+    iconName: "dumbbell",
+    keywords: [
+      "padel",
+      "gym",
+      "gimnasio",
+      "pista",
+      "futbol",
+      "crossfit",
+      "deporte",
+      "baloncesto",
+    ],
+    color: "#10b981",
+  },
+  events: {
+    category: "events",
+    label: "Barbacoas y Fiestas",
+    iconName: "flame",
+    keywords: [
+      "barbacoa",
+      "bbq",
+      "carne",
+      "fuego",
+      "pique",
+      "apuesta",
+    ],
+    color: "#f97316",
+  },
+  family: {
+    category: "family",
+    label: "Niños y Familia",
+    iconName: "baby",
+    keywords: [
+      "nino",
+      "ninos",
+      "colegio",
+      "guarderia",
+      "panales",
+      "cumple",
+      "juguete",
+    ],
+    color: "#06b6d4",
+  },
 };
 
 export const MODULE_FALLBACKS = {
@@ -235,6 +338,12 @@ const ICON_MAP = {
   "piggy-bank": PiggyBank,
   trophy: Trophy,
   repeat: Repeat,
+  coffee: Coffee,
+  "paw-print": PawPrint,
+  tv: Tv,
+  dumbbell: Dumbbell,
+  flame: Flame,
+  baby: Baby,
 } as const;
 
 export function getIconComponent(name: string) {
@@ -280,5 +389,11 @@ export const CATEGORY_LIST: CategoryConfig[] = [
   CATEGORIES.housing,
   CATEGORIES.health,
   CATEGORIES.shopping,
+  CATEGORIES.coffee,
+  CATEGORIES.pets,
+  CATEGORIES.streaming,
+  CATEGORIES.sports,
+  CATEGORIES.events,
+  CATEGORIES.family,
   CATEGORIES.general,
 ];
