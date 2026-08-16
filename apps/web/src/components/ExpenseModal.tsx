@@ -19,7 +19,7 @@ function CategoryBadge({
   category: string;
   iconName: string;
   isCustomIcon: boolean;
-  onClick: () => void;
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
   className?: string;
 }) {
   const currentColor = getCategoryColor(category);
@@ -27,7 +27,7 @@ function CategoryBadge({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(e) => { e.stopPropagation(); onClick(e); }}
       className={`touch-manipulation flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition ${className}`}
       style={{ backgroundColor: `${currentColor}20` }}
       aria-label={isCustomIcon ? "Categoría seleccionada manualmente. Click para cambiar o restaurar auto." : "Categoría auto-detectada. Click para elegir manualmente."}
@@ -52,8 +52,8 @@ function CategoryPopoverContent({
   category: string;
   iconName: string;
   isCustomIcon: boolean;
-  onSelectCategory: (cat: { category: string; iconName: string }) => void;
-  onResetToAuto: () => void;
+  onSelectCategory: (e: React.MouseEvent<HTMLButtonElement>, cat: { category: string; iconName: string }) => void;
+  onResetToAuto: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
   return (
     <div className="p-2 grid grid-cols-4 gap-1.5 max-w-[280px]">
@@ -64,7 +64,7 @@ function CategoryPopoverContent({
           <button
             key={cat.category}
             type="button"
-            onClick={() => onSelectCategory(cat)}
+            onClick={(e) => { e.stopPropagation(); onSelectCategory(e, cat); }}
             className={`touch-manipulation flex flex-col items-center gap-1 rounded-lg px-2 py-2 text-[10px] font-medium transition ${
               isActive
                 ? `bg-[${cat.color}]/20 text-[${cat.color}] border border-[${cat.color}]/40`
@@ -80,7 +80,7 @@ function CategoryPopoverContent({
       {!isCustomIcon && (
         <button
           type="button"
-          onClick={onResetToAuto}
+          onClick={(e) => { e.stopPropagation(); onResetToAuto(e); }}
           className="touch-manipulation flex flex-col items-center gap-1 rounded-lg px-2 py-2 text-[10px] font-medium text-slate-500 transition hover:text-slate-300"
           title="Detección automática"
         >
@@ -125,7 +125,7 @@ export function ExpenseModal({
   hasPot?: boolean;
   potBalance?: number;
 }) {
-  const activeMembers = members.filter((m) => m.status === "active");
+  const activeMembers = useMemo(() => members.filter((m) => m.status === "active"), [members]);
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState(groupCurrency);
@@ -340,7 +340,8 @@ export function ExpenseModal({
     reader.readAsDataURL(file);
   }
 
-  function selectCategory(cat: { category: string; iconName: string }) {
+  function selectCategory(e: React.MouseEvent<HTMLButtonElement>, cat: { category: string; iconName: string }) {
+    e.stopPropagation();
     setCategory(cat.category);
     setIconName(cat.iconName);
     setIsCustomIcon(true);
@@ -348,7 +349,8 @@ export function ExpenseModal({
     setCategoryPopoverOpen(false);
   }
 
-  function resetToAuto() {
+  function resetToAuto(e: React.MouseEvent<HTMLButtonElement>) {
+    e.stopPropagation();
     setIsCustomIcon(false);
     detectedFor.current = null;
     const detected = detectCategory(description);
