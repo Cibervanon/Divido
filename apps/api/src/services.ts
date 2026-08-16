@@ -28,8 +28,6 @@ export interface GroupBalances {
   balances: MemberBalance[];
   transfers: SettlementTransfer[];
   exMembers: ExMemberBalance[];
-  totalOwedToMe: number;
-  totalOwedByMe: number;
 }
 
 export interface PersonBreakdownItem {
@@ -120,15 +118,10 @@ export async function getGroupBalances(db: Db, groupId: string): Promise<GroupBa
     };
   });
 
-  const totalOwedToMe = balances.filter((b) => b.net > 0).reduce((s, b) => s + b.net, 0);
-  const totalOwedByMe = balances.filter((b) => b.net < 0).reduce((s, b) => s - b.net, 0);
-
   return {
     balances: balances.sort((a, b) => b.net - a.net),
     transfers,
     exMembers,
-    totalOwedToMe: round2(totalOwedToMe),
-    totalOwedByMe: round2(totalOwedByMe),
   };
 }
 

@@ -29,6 +29,7 @@ import {
   updateInformalDebtStatus,
 } from "../store.js";
 import type { Group, GroupType, InformalDebtStatus } from "@divido/shared";
+import { round2 } from "@divido/shared";
 import { badRequest, conflict, forbidden, notFound } from "../errors.js";
 import { requireActiveMember, requireAdmin, requireAuth, requireGroup } from "../plugins.js";
 import { getGroupBalances } from "../services.js";
@@ -71,8 +72,8 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
             membership: undefined,
             myRole: g.membership.role,
             myBalance: mine?.net ?? 0,
-            totalOwedToMe: b.totalOwedToMe,
-            totalOwedByMe: b.totalOwedByMe,
+            totalOwedToMe: round2(Math.max(mine?.net ?? 0, 0)),
+            totalOwedByMe: round2(Math.max(-(mine?.net ?? 0), 0)),
             memberCount: b.balances.length + b.exMembers.length,
           };
         })

@@ -41,7 +41,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}/api${path}`, { ...options, headers });
+    res = await fetch(`${API_BASE}/api${path}`, { ...options, headers, cache: "no-store" });
   } catch {
     throw new ApiError("No se pudo conectar con el servidor", 0);
   }

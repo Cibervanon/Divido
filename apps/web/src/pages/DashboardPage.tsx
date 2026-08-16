@@ -19,11 +19,13 @@ export default function DashboardPage() {
   const [currency, setCurrency] = useState("EUR");
   const [type, setType] = useState<"open" | "closed">("open");
   const [creating, setCreating] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
 
   async function load() {
     try {
       const res = await api.get<{ groups: GroupSummary[] }>("/groups");
       setGroups(res.groups);
+      debugBalances(res.groups);
       setError("");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error cargando grupos");
@@ -50,10 +52,24 @@ export default function DashboardPage() {
     }
   }
 
-  const owedToMe = groups.reduce((s, g) => s + g.totalOwedToMe, 0);
-  const owedByMe = groups.reduce((s, g) => s + g.totalOwedByMe, 0);
+  // Regla estricta por grupo: el balance neto propio (myBalance) indica o bien
+  // "te deben" (positivo) o bien "debes" (negativo). Nunca se mezclan.
+  const debtGroups = groups
+    .filter((g) => g.myBalance < -0.004)
+    .map((g) => ({ group: g, amount: -g.myBalance }))
+    .sort((a, b) => b.amount - a.amount);
+  const creditGroups = groups
+    .filter((g) => g.myBalance > 0.004)
+    .map((g) => ({ group: g, amount: g.myBalance }))
+    .sort((a, b) => b.amount - a.amount);
+
+  const owedByMe = debtGroups.reduce((s, d) => s + d.amount, 0);
+  const owedToMe = creditGroups.reduce((s, c) => s + c.amount, 0);
   const netTotal = owedToMe - owedByMe;
-  const allSettled = owedToMe < 0.005 && owedByMe < 0.005;
+  const hasDebt = owedByMe > 0.004;
+  const hasCredit = owedToMe > 0.004;
+  const allSettled = !hasDebt && !hasCredit;
+  const crossAccounts = hasDebt && hasCredit;
   const summaryCurrency = groups[0]?.currency ?? "EUR";
 
   return (
@@ -93,29 +109,113 @@ export default function DashboardPage() {
         ) : null}
 
         {groups.length > 0 ? (
-          <div className="mb-5 rounded-2xl border border-slate-800/60 bg-gradient-to-br from-slate-900 to-slate-900/50 p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Balance total</p>
-            {allSettled ? (
-              <p className="mt-2 text-lg font-extrabold text-emerald-400">Estás al día en todos tus grupos</p>
-            ) : (
-              <>
-                <p
-                  className={`mt-1 text-3xl font-extrabold ${
-                    netTotal > 0.004 ? "text-emerald-400" : netTotal < -0.004 ? "text-rose-400" : "text-slate-100"
-                  }`}
-                >
-                  <Money amount={netTotal} currency={summaryCurrency} />
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setShowDetail((v) => !v)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setShowDetail((v) => !v);
+              }
+            }}
+            className="mb-5 cursor-pointer rounded-2xl border border-slate-800/60 bg-gradient-to-br from-slate-900 to-slate-900/50 p-5 transition hover:border-slate-700"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                  {crossAccounts ? "Cuentas cruzadas" : "Balance total"}
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                {allSettled ? (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                      </svg>
+                    </span>
+                    <p className="text-lg font-extrabold text-emerald-400">
+                      Estás al día · <Money amount={0} currency={summaryCurrency} />
+                    </p>
+                  </div>
+                ) : (
+                  <p
+                    className={`mt-2 text-3xl font-extrabold ${
+                      netTotal > 0.004 ? "text-emerald-400" : netTotal < -0.004 ? "text-rose-400" : "text-slate-100"
+                    }`}
+                  >
+                    <Money amount={netTotal} currency={summaryCurrency} />
+                  </p>
+                )}
+                {crossAccounts ? (
+                  <p className="mt-1.5 text-xs text-slate-400">
+                    Debes dinero en algún grupo, aunque tu balance neto sea 0.
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex shrink-0 flex-col items-end gap-1.5 text-xs">
+                {hasCredit ? (
                   <span className="rounded-lg bg-emerald-500/10 px-2.5 py-1 font-semibold text-emerald-400">
                     Te deben <Money amount={owedToMe} currency={summaryCurrency} />
                   </span>
+                ) : null}
+                {hasDebt ? (
                   <span className="rounded-lg bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-400">
                     Debes <Money amount={owedByMe} currency={summaryCurrency} />
                   </span>
-                </div>
-              </>
-            )}
+                ) : null}
+                <span className="flex items-center gap-1 font-medium text-slate-500">
+                  {showDetail ? "Ocultar detalle" : "Ver detalle"}
+                  <svg
+                    className={`h-3.5 w-3.5 transition-transform ${showDetail ? "rotate-180" : ""}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </span>
+              </div>
+            </div>
+
+            {showDetail ? (
+              <div className="mt-4 space-y-2 border-t border-slate-800 pt-3">
+                {creditGroups.length === 0 && debtGroups.length === 0 ? (
+                  <p className="text-sm text-slate-400">No tienes saldos pendientes en ningún grupo.</p>
+                ) : (
+                  <>
+                    {creditGroups.map(({ group, amount }) => (
+                      <Link
+                        key={`c-${group.id}`}
+                        to={`/groups/${group.id}?tab=balances`}
+                        className="flex items-center justify-between gap-3 rounded-xl bg-emerald-500/5 px-3 py-2 transition hover:bg-emerald-500/10"
+                      >
+                        <span className="truncate text-sm text-slate-300">
+                          Te deben en <span className="font-semibold text-slate-100">{group.name}</span>
+                        </span>
+                        <span className="shrink-0 text-sm font-bold text-emerald-400">
+                          +<Money amount={amount} currency={group.currency} />
+                        </span>
+                      </Link>
+                    ))}
+                    {debtGroups.map(({ group, amount }) => (
+                      <Link
+                        key={`d-${group.id}`}
+                        to={`/groups/${group.id}?tab=balances`}
+                        className="flex items-center justify-between gap-3 rounded-xl bg-rose-500/5 px-3 py-2 transition hover:bg-rose-500/10"
+                      >
+                        <span className="truncate text-sm text-slate-300">
+                          Debes en <span className="font-semibold text-slate-100">{group.name}</span>
+                        </span>
+                        <span className="shrink-0 text-sm font-bold text-rose-400">
+                          -<Money amount={amount} currency={group.currency} />
+                        </span>
+                      </Link>
+                    ))}
+                  </>
+                )}
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -213,7 +313,11 @@ function GroupCard({ group }: { group: GroupSummary }) {
   return (
     <Link
       to={`/groups/${group.id}`}
-      className="flex items-center gap-4 rounded-2xl border border-slate-800/60 bg-slate-900 p-4 transition hover:border-slate-700 hover:bg-slate-800/60 active:scale-[0.99]"
+      className={`flex items-center gap-4 rounded-2xl border p-4 transition active:scale-[0.99] ${
+        negative
+          ? "border-rose-500/40 bg-rose-950/40 hover:border-rose-500/60 hover:bg-rose-950/60"
+          : "border-slate-800/60 bg-slate-900 hover:border-slate-700 hover:bg-slate-800/60"
+      }`}
     >
       {group.logoUrl ? (
         <img
@@ -227,7 +331,14 @@ function GroupCard({ group }: { group: GroupSummary }) {
         </div>
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-slate-100">{group.name}</p>
+        <p className="flex items-center gap-2">
+          <span className="truncate text-sm font-semibold text-slate-100">{group.name}</span>
+          {negative ? (
+            <span className="shrink-0 rounded-md bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-400">
+              Pendiente
+            </span>
+          ) : null}
+        </p>
         <p className="mt-0.5 text-xs text-slate-500">
           {group.memberCount} miembro{group.memberCount !== 1 ? "s" : ""} · {group.currency}
         </p>
@@ -237,7 +348,7 @@ function GroupCard({ group }: { group: GroupSummary }) {
           +<Money amount={group.myBalance} currency={group.currency} />
         </span>
       ) : negative ? (
-        <span className="shrink-0 rounded-full bg-rose-500/10 px-3 py-1 text-xs font-bold text-rose-400">
+        <span className="shrink-0 rounded-full bg-rose-500/15 px-3 py-1 text-xs font-bold text-rose-400">
           <Money amount={group.myBalance} currency={group.currency} />
         </span>
       ) : (
@@ -246,5 +357,19 @@ function GroupCard({ group }: { group: GroupSummary }) {
         </span>
       )}
     </Link>
+  );
+}
+
+// Depuración temporal: imprime en consola el balance detectado por cada grupo.
+function debugBalances(groups: GroupSummary[]) {
+  console.log("[Divido] Saldos por grupo (myBalance):");
+  for (const g of groups) {
+    const kind = g.myBalance > 0.004 ? "te deben" : g.myBalance < -0.004 ? "debes" : "al día";
+    console.log(`  - ${g.name} [${g.currency}]: ${g.myBalance.toFixed(2)} → ${kind}`);
+  }
+  const debt = groups.filter((g) => g.myBalance < -0.004).reduce((s, g) => s - g.myBalance, 0);
+  const credit = groups.filter((g) => g.myBalance > 0.004).reduce((s, g) => s + g.myBalance, 0);
+  console.log(
+    `[Divido] Total → Te deben: ${credit.toFixed(2)} | Debes: ${debt.toFixed(2)} | Neto: ${(credit - debt).toFixed(2)}`
   );
 }

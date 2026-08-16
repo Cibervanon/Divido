@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Avatar, Button, EmptyState, GhostBadge, Input, Modal, Money, Select, Spinner, Tabs, Toast, VerifiedBadge, currencySymbol } from "../components/ui";
@@ -86,7 +86,11 @@ export default function GroupPage() {
   const [potBalance, setPotBalance] = useState(0);
   const [potContributions, setPotContributions] = useState<PotContributionDto[]>([]);
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpenseDto[]>([]);
-  const [tab, setTab] = useState<Tab>("expenses");
+  const [searchParams] = useSearchParams();
+  const initialTab = (["expenses", "balances", "members", "history", "debts", "pot", "recurring"] as Tab[]).find(
+    (t) => t === searchParams.get("tab")
+  );
+  const [tab, setTab] = useState<Tab>(initialTab ?? "expenses");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
