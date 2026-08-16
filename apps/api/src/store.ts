@@ -306,6 +306,12 @@ export async function claimGhostUser(db: Db, ghostId: string, realUserId: string
   await db.prepare("UPDATE informal_debts SET creator_id = ? WHERE creator_id = ?").run(realUserId, ghostId);
   await db.prepare("UPDATE informal_debts SET creditor_id = ? WHERE creditor_id = ?").run(realUserId, ghostId);
   await db.prepare("UPDATE informal_debts SET debtor_id = ? WHERE debtor_id = ?").run(realUserId, ghostId);
+  await db
+    .prepare("UPDATE informal_debts SET winner_ids = replace(winner_ids, ?, ?) WHERE winner_ids LIKE ?")
+    .run(`"${ghostId}"`, `"${realUserId}"`, `%"${ghostId}"%`);
+  await db
+    .prepare("UPDATE informal_debts SET loser_ids = replace(loser_ids, ?, ?) WHERE loser_ids LIKE ?")
+    .run(`"${ghostId}"`, `"${realUserId}"`, `%"${ghostId}"%`);
   await db.prepare("UPDATE group_events SET user_id = ? WHERE user_id = ?").run(realUserId, ghostId);
   await db.prepare("UPDATE groups SET creator_id = ? WHERE creator_id = ?").run(realUserId, ghostId);
 
