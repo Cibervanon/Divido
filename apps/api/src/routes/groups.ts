@@ -415,7 +415,7 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     if (debt.status === "pending" && (next === "accepted" || next === "rejected")) {
       if (!debt.loserIds.includes(user.id)) throw forbidden("Solo los perdedores pueden aceptar o rechazar el pique");
     } else if (debt.status === "accepted" && next === "settled") {
-      if (!debt.winnerIds.includes(user.id)) throw forbidden("Solo los ganadores pueden marcar el pique como pagado");
+      if (!debt.winnerIds.includes(user.id)) throw forbidden("Solo los ganadores pueden cerrar el pique");
     } else {
       throw badRequest("No se puede pasar a ese estado");
     }

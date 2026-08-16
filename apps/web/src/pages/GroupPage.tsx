@@ -1568,6 +1568,11 @@ const DEBT_STATUS_LABELS: Record<InformalDebtStatus, string> = {
   rejected: "Rechazado",
 };
 
+function debtStatusLabel(status: InformalDebtStatus, isMoney: boolean): string {
+  if (status === "settled") return isMoney ? "Cobrado" : "Cumplido";
+  return DEBT_STATUS_LABELS[status];
+}
+
 const DEBT_STATUS_BADGE: Record<InformalDebtStatus, string> = {
   pending: "bg-amber-500/10 text-amber-300",
   accepted: "bg-indigo-500/10 text-indigo-300",
@@ -1634,7 +1639,7 @@ function DebtsTab({
       {sorted.length === 0 ? (
         <EmptyState
           title="No hay piques o apuestas activas en este grupo"
-          subtitle="Registra aquí apuestas o deudas informales entre miembros, sin tocar el balance de gastos"
+          subtitle="Registra aquí apuestas o deudas informales entre miembros; solo los piques de dinero aceptados cuentan en el balance"
           icon={
             <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0" />
@@ -1672,7 +1677,7 @@ function DebtsTab({
                   <span
                     className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${DEBT_STATUS_BADGE[d.status]}`}
                   >
-                    {DEBT_STATUS_LABELS[d.status]}
+                    {debtStatusLabel(d.status, isMoney)}
                   </span>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
@@ -1711,7 +1716,7 @@ function DebtsTab({
                         className="!px-3 !py-1.5 text-xs text-emerald-400"
                         onClick={() => setStatus(d, "settled")}
                       >
-                        Marcar como pagado
+                        {isMoney ? "Marcar como cobrado" : "Marcar como cumplido"}
                       </Button>
                     ) : null}
                     {d.status === "pending" && !iAmLoser ? (
@@ -1721,7 +1726,9 @@ function DebtsTab({
                     ) : null}
                     {d.status === "accepted" && !iAmWinner ? (
                       <span className="text-[11px] text-slate-500">
-                        A la espera de que {d.winnerNames.join(", ")} confirmen el pago
+                        {isMoney
+                          ? `A la espera de que ${d.winnerNames.join(", ")} cobren`
+                          : `A la espera de que ${d.winnerNames.join(", ")} lo den por cumplido`}
                       </span>
                     ) : null}
                   </div>
@@ -1733,8 +1740,8 @@ function DebtsTab({
       )}
 
       <p className="text-center text-[11px] text-slate-600">
-        Los piques de dinero aceptados o pagados se suman al balance de gastos; los pendientes y los de premio no afectan
-        al balance.
+        Los piques de dinero generan su deuda en el balance al ser aceptados y se saldan al marcarlos como cobrados; los
+        de premio no afectan al balance.
       </p>
     </div>
   );
@@ -1849,8 +1856,8 @@ function NewDebtModal({
     >
       <div className="space-y-4">
         <p className="text-xs text-slate-400">
-          Un pique es una apuesta o deuda informal entre miembros. Los piques de dinero aceptados o pagados se suman al
-          balance del grupo; los pendientes y los de premio no afectan a los saldos.
+          Un pique es una apuesta o deuda informal entre miembros. Los piques de dinero generan su deuda en el balance al
+          ser aceptados y se saldan al cobrarlos; los de premio no afectan a los saldos.
         </p>
         <div className="grid grid-cols-2 gap-2">
           <button

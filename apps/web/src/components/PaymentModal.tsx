@@ -151,7 +151,8 @@ export function PaymentModal({
           {proofError ? <p className="mt-1 text-[11px] font-medium text-rose-400">{proofError}</p> : null}
           {!proofUrl ? (
             <p className="mt-1 text-[11px] text-slate-500">
-              Sin comprobante, el destinatario deberá aceptar o rechazar el pago en la app.
+              Sin comprobante se confirmará solo si el destinatario tiene activada la autoconfirmación; si no, deberá
+              aceptarlo o rechazarlo en la app.
             </p>
           ) : null}
         </div>

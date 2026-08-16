@@ -95,11 +95,16 @@ export async function getGroupBalances(db: Db, groupId: string): Promise<GroupBa
       deleted: Boolean(e.deleted),
     }));
 
-  // Los piques de dinero aceptados o pagados se integran en el balance como
-  // micro-gastos: cada ganador paga su parte a cada perdedor. Los piques
-  // "pendientes" y los de premio (no monetarios) no afectan a los saldos.
+  // Los piques de dinero se integran en el balance como micro-gastos SOLO
+  // mientras están "accepted": cada ganador cobra su parte a cada perdedor.
+  // Cuando el ganador los marca como "cobrados" (settled) es porque ya se ha
+  // pagado por fuera, así que la deuda se salda y desaparece del balance.
+  // Los piques pendientes y los de premio (no monetarios) nunca afectan a los
+  // saldos. Estos micro-gastos son sintéticos: no se guardan como gastos en la
+  // BD, por lo que no aparecen en la lista principal de gastos ni en el
+  // historial del grupo.
   for (const p of (await listInformalDebts(db, groupId)).filter(
-    (d) => d.kind === "money" && (d.status === "accepted" || d.status === "settled")
+    (d) => d.kind === "money" && d.status === "accepted"
   )) {
     const pairs = p.winnerIds.length * p.loserIds.length;
     if (pairs === 0) continue;
