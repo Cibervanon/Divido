@@ -54,8 +54,13 @@ export default function DashboardPage() {
   }
 
   const pinnedSet = new Set(pinnedIds);
-  const pinnedGroups = groups.filter((g) => pinnedSet.has(g.id)).sort(compareGroups);
-  const otherGroups = groups.filter((g) => !pinnedSet.has(g.id)).sort(compareGroups);
+  // Lista única: los anclados siempre al principio (is_pinned DESC) y después
+  // el criterio de orden elegido, sin apartado separado de "Anclados".
+  const sortedGroups = [...groups].sort((a, b) => {
+    const ap = pinnedSet.has(a.id) ? 0 : 1;
+    const bp = pinnedSet.has(b.id) ? 0 : 1;
+    return ap - bp || compareGroups(a, b);
+  });
 
   async function togglePin(id: string) {
     const prev = pinnedIds;
@@ -396,24 +401,14 @@ export default function DashboardPage() {
           />
         ) : (
           <div className="space-y-3">
-            {pinnedGroups.length > 0 ? (
-              <>
-                <p className="pt-2 text-xs font-bold uppercase tracking-wider text-indigo-400">Anclados</p>
-                {pinnedGroups.map((g) => (
-                  <GroupCard key={g.id} group={g} pinned onTogglePin={() => void togglePin(g.id)} />
-                ))}
-              </>
-            ) : null}
-            {otherGroups.length > 0 ? (
-              <>
-                {pinnedGroups.length > 0 ? (
-                  <p className="pt-2 text-xs font-bold uppercase tracking-wider text-slate-500">Tus grupos</p>
-                ) : null}
-                {otherGroups.map((g) => (
-                  <GroupCard key={g.id} group={g} pinned={false} onTogglePin={() => void togglePin(g.id)} />
-                ))}
-              </>
-            ) : null}
+            {sortedGroups.map((g) => (
+              <GroupCard
+                key={g.id}
+                group={g}
+                pinned={pinnedSet.has(g.id)}
+                onTogglePin={() => void togglePin(g.id)}
+              />
+            ))}
           </div>
         )}
       </main>
