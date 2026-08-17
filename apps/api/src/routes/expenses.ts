@@ -23,6 +23,8 @@ import { badRequest, conflict, forbidden, notFound } from "../errors.js";
 import { requireActiveMember, requireAuth } from "../plugins.js";
 import { createAndPushNotification } from "../push.js";
 import { EDIT_WINDOW_MS } from "../config.js";
+import { createExpenseSchema, updateExpenseSchema, type CreateExpenseInput, type UpdateExpenseInput } from "../schemas/index.js";
+import { parseBody } from "../validate.js";
 
 const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
 const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
@@ -53,29 +55,12 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
     const { groupId } = request.params as { groupId: string };
     const { member, group } = await requireActiveMember(request, groupId);
     const user = requireAuth(request);
-    const body = request.body as {
-      description?: string;
-      amount?: number;
-      currency?: string;
-      exchangeRate?: number;
-      participants?: string[];
-      payerId?: string;
-      shares?: Record<string, number>;
-      paidFromPot?: boolean;
-      receiptUrl?: unknown;
-      category?: unknown;
-      iconName?: unknown;
-      isCustomIcon?: unknown;
-    };
-    const description = body.description?.trim();
-    const amount = Number(body.amount);
-    if (!description) throw badRequest("La descripción es obligatoria");
-    if (!Number.isFinite(amount) || amount <= 0) throw badRequest("Importe inválido");
-    const paidFromPot = Boolean(body.paidFromPot);
-    const receiptUrl = parseReceiptUrl(body.receiptUrl);
-    const category = parseCategory(body.category);
-    const iconName = parseIconName(body.iconName);
-    const isCustomIcon = body.isCustomIcon === true;
+    const body = parseBody(createExpenseSchema, request.body) as CreateExpenseInput;
+    const paidFromPot = body.paidFromPot ?? false;
+    const receiptUrl = parseReceiptUrl((request.body as any).receiptUrl);
+    const category = parseCategory((request.body as any).category);
+    const iconName = parseIconName((request.body as any).iconName);
+    const isCustomIcon = (request.body as any).isCustomIcon === true;
     const members = await listMembers(request.db, groupId);
     const activeIds = new Set(
       members.filter((m) => m.status === "active").map((m) => m.user_id)
@@ -87,7 +72,7 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
     }
     const payerId = paidFromPot ? null : body.payerId ?? user.id;
     if (payerId !== null && !activeIds.has(payerId)) throw badRequest("El pagador debe ser un miembro activo");
-    const participants = body.participants ?? (paidFromPot ? [...activeIds] : [payerId ?? ""].filter(Boolean));
+    const participants = body.participants ?? (paidFromPot ? [...activeIds] : [payerId ?? ""].filter(Boolean)) as string[];
     if (participants.length === 0) throw badRequest("Debes seleccionar al menos un participante");
     for (const p of participants) {
       if (!activeIds.has(p)) throw badRequest("Hay participantes que no son miembros activos");
@@ -99,7 +84,7 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
     if (expenseCurrency !== group.currency && (!Number.isFinite(exchangeRate) || exchangeRate <= 0)) {
       throw badRequest("Indica el tipo de cambio congelado para la moneda extranjera");
     }
-    const amountGroup = round2(amount * exchangeRate);
+    const amountGroup = round2(body.amount * exchangeRate);
     if (paidFromPot) {
       const potBalance = await getPotBalance(request.db, groupId);
       if (potBalance + EPS < amountGroup) {
@@ -110,8 +95,8 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
     const expense = await createExpense(request.db, {
       groupId,
       payerId,
-      description,
-      amount,
+      description: body.description,
+      amount: body.amount,
       currency: expenseCurrency,
       exchangeRate,
       amountGroup,
@@ -129,7 +114,7 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
         groupId,
         expenseId: expense.id,
         amountGroup,
-        description,
+        description: body.description,
       });
     }
     const ghostIds = new Set(members.filter((m) => m.is_ghost).map((m) => m.user_id));
@@ -143,7 +128,7 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
           userId: p,
           type: "EXPENSE_ADDED",
           title: `Nuevo gasto en ${group.name}`,
-          body: `${payerName} añadió "${description}" por ${amountGroup.toFixed(2)} ${group.currency}.`,
+          body: `${payerName} añadió "${body.description}" por ${amountGroup.toFixed(2)} ${group.currency}.`,
           linkUrl: `/groups/${groupId}`,
         });
       }
@@ -162,25 +147,13 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
         "El gasto tiene más de 24 horas. Solicita una modificación que un administrador debe aprobar."
       );
     }
-    if (expense.payer_id !== user.id && member.role !== "admin") {
+if (expense.payer_id !== user.id && member.role !== "admin") {
       throw forbidden("Solo puedes editar gastos que hayas creado (o siendo administrador)");
     }
-    const body = request.body as {
-      description?: string;
-      amount?: number;
-      currency?: string;
-      exchangeRate?: number;
-      participants?: string[];
-      payerId?: string;
-      shares?: Record<string, number> | null;
-      paidFromPot?: boolean;
-      receiptUrl?: unknown;
-      category?: unknown;
-      iconName?: unknown;
-      isCustomIcon?: unknown;
-    };
+    const body = parseBody(updateExpenseSchema, request.body) as UpdateExpenseInput;
+    const rawBody = request.body as Record<string, unknown>;
     const wasPaidFromPot = Boolean(expense.paid_from_pot);
-    const paidFromPot = body.paidFromPot !== undefined ? Boolean(body.paidFromPot) : wasPaidFromPot;
+    const paidFromPot = body.paidFromPot !== undefined ? body.paidFromPot : wasPaidFromPot;
     if (paidFromPot && !group.enabledExtras.includes("common_pot")) {
       throw badRequest("El extra de bote común no está activo en este grupo");
     }
@@ -191,12 +164,12 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
     );
     const payerId = paidFromPot ? null : body.payerId ?? (expense.payer_id ?? user.id);
     if (payerId !== null && !activeIds.has(payerId)) throw badRequest("El pagador debe ser un miembro activo");
-    const participants = body.participants ?? (await expenseParticipantIds(request.db, expenseId));
+    const participants = body.participants ?? (await expenseParticipantIds(request.db, expenseId)) as string[];
     for (const p of participants) {
       if (!activeIds.has(p)) throw badRequest("Hay participantes que no son miembros activos");
     }
     const description = body.description?.trim() ?? expense.description;
-    const amount = body.amount != null ? Number(body.amount) : expense.amount;
+    const amount = body.amount != null ? body.amount : expense.amount;
     if (!Number.isFinite(amount) || amount <= 0) throw badRequest("Importe inválido");
     const expenseCurrency = (body.currency ?? expense.currency).toUpperCase();
     const exchangeRate =
@@ -217,7 +190,7 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
         throw badRequest("Saldo insuficiente en el bote común");
       }
     }
-    const receiptUrl = body.receiptUrl !== undefined ? parseReceiptUrl(body.receiptUrl) : expense.receipt_url;
+    const receiptUrl = rawBody.receiptUrl !== undefined ? parseReceiptUrl(rawBody.receiptUrl) : expense.receipt_url;
     const hasShares =
       body.shares === undefined || body.shares === null
         ? undefined

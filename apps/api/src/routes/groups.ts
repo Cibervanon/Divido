@@ -35,6 +35,8 @@ import { requireActiveMember, requireAdmin, requireAuth, requireGroup } from "..
 import { createAndPushNotification } from "../push.js";
 import { getGroupBalances } from "../services.js";
 import { config } from "../config.js";
+import { createGroupSchema, updateGroupSchema, type CreateGroupInput, type UpdateGroupInput } from "../schemas/index.js";
+import { parseBody } from "../validate.js";
 
 const VALID_CURRENCIES = new Set([
   "EUR", "USD", "GBP", "JPY", "MXN", "ARS", "COP", "CLP", "PEN", "BRL", "CHF", "CAD", "AUD", "CNY", "INR",
@@ -88,17 +90,12 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     if (!user.emailVerified) {
       throw forbidden("Verifica tu email para poder crear grupos");
     }
-    const { name, currency, type } = request.body as {
-      name?: string;
-      currency?: string;
-      type?: GroupType;
-    };
-    if (!name?.trim()) throw badRequest("El nombre del grupo es obligatorio");
-    const cur = (currency ?? "EUR").toUpperCase();
+    const body = parseBody(createGroupSchema, request.body) as CreateGroupInput;
+    const cur = (body.currency ?? "EUR").toUpperCase();
     if (!VALID_CURRENCIES.has(cur)) throw badRequest("Moneda no soportada");
-    const t: GroupType = type === "closed" ? "closed" : "open";
+    const t: GroupType = body.type === "closed" ? "closed" : "open";
     const group = await createGroup(request.db, {
-      name: name.trim(),
+      name: body.name.trim(),
       currency: cur,
       type: t,
       creatorId: user.id,
@@ -124,15 +121,8 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
   app.patch("/api/groups/:groupId", async (request) => {
     const { groupId } = request.params as { groupId: string };
     await requireAdmin(request, groupId);
-    const { name, currency, type, logoUrl, enabledExtras, simplifyDebts } = request.body as {
-      name?: string;
-      currency?: string;
-      type?: GroupType;
-      logoUrl?: string | null;
-      enabledExtras?: string[];
-      simplifyDebts?: boolean;
-    };
-    const cur = currency ? currency.toUpperCase() : undefined;
+    const body = parseBody(updateGroupSchema, request.body) as UpdateGroupInput;
+    const cur = body.currency ? body.currency.toUpperCase() : undefined;
     if (cur && !VALID_CURRENCIES.has(cur)) throw badRequest("Moneda no soportada");
     const patch: {
       name?: string;
@@ -142,18 +132,18 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
       enabledExtras?: string[];
       simplifyDebts?: boolean;
     } = {};
-    if (name?.trim()) patch.name = name.trim();
+    if (body.name?.trim()) patch.name = body.name.trim();
     if (cur) patch.currency = cur;
-    if (type === "open" || type === "closed") patch.type = type;
-    if (logoUrl !== undefined) patch.logoUrl = parseGroupLogo(logoUrl);
-    if (enabledExtras !== undefined) {
-      if (!Array.isArray(enabledExtras)) throw badRequest("enabledExtras debe ser una lista");
-      for (const extra of enabledExtras) {
+    if (body.type === "open" || body.type === "closed") patch.type = body.type;
+    if (body.logoUrl !== undefined) patch.logoUrl = parseGroupLogo(body.logoUrl);
+    if (body.enabledExtras !== undefined) {
+      if (!Array.isArray(body.enabledExtras)) throw badRequest("enabledExtras debe ser una lista");
+      for (const extra of body.enabledExtras) {
         if (typeof extra !== "string" || !VALID_EXTRAS.has(extra)) throw badRequest("Extra no soportado");
       }
-      patch.enabledExtras = [...new Set(enabledExtras)];
+      patch.enabledExtras = [...new Set(body.enabledExtras)];
     }
-    if (simplifyDebts !== undefined) patch.simplifyDebts = Boolean(simplifyDebts);
+    if (body.simplifyDebts !== undefined) patch.simplifyDebts = body.simplifyDebts;
     if (Object.keys(patch).length === 0) throw badRequest("Sin cambios");
     const group = await updateGroup(request.db, groupId, patch);
     return { group: await groupDetail(request.db, group, requireAuth(request).id) };
