@@ -17,6 +17,26 @@ export default {
           900: "rgb(var(--indigo-900) / <alpha-value>)",
           950: "rgb(var(--indigo-950) / <alpha-value>)",
         },
+        success: {
+          400: "rgb(var(--success-400) / <alpha-value>)",
+          500: "rgb(var(--success-500) / <alpha-value>)",
+          600: "rgb(var(--success-600) / <alpha-value>)",
+        },
+        danger: {
+          400: "rgb(var(--danger-400) / <alpha-value>)",
+          500: "rgb(var(--danger-500) / <alpha-value>)",
+          600: "rgb(var(--danger-600) / <alpha-value>)",
+        },
+        warning: {
+          400: "rgb(var(--warning-400) / <alpha-value>)",
+          500: "rgb(var(--warning-500) / <alpha-value>)",
+          600: "rgb(var(--warning-600) / <alpha-value>)",
+        },
+        info: {
+          400: "rgb(var(--info-400) / <alpha-value>)",
+          500: "rgb(var(--info-500) / <alpha-value>)",
+          600: "rgb(var(--info-600) / <alpha-value>)",
+        },
       },
     },
   },

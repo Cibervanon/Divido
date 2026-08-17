@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Tokens semánticos FIJOS (no cambian con el tema) */
+  --success-500: 16 185 129;   /* emerald-500 */
+  --success-600: 5 150 105;
+  --success-400: 52 211 153;
+  --danger-500: 244 63 94;     /* rose-500 */
+  --danger-600: 225 29 72;
+  --danger-400: 251 113 133;
+  --warning-500: 245 158 11;   /* amber-500 */
+  --warning-600: 217 119 6;
+  --warning-400: 251 191 36;
+  --info-500: 14 165 233;      /* sky-500 */
+  --info-600: 2 132 199;
+  --info-400: 56 189 248;
+}
+
 :root,
 [data-theme="indigo"] {
   --indigo-50: 238 242 255;
