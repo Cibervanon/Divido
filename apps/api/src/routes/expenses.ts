@@ -26,6 +26,7 @@ import { createAndPushNotification } from "../push.js";
 import { EDIT_WINDOW_MS } from "../config.js";
 import { createExpenseSchema, updateExpenseSchema, type CreateExpenseInput, type UpdateExpenseInput } from "../schemas/index.js";
 import { parseBody } from "../validate.js";
+import { invalidateBalanceCache } from "../balanceCache.js";
 
 const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
 const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
@@ -135,6 +136,7 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
         });
       }
     }
+    invalidateBalanceCache(groupId);
     return { expense: await toExpenseDto(request, expense), editable: true };
   });
 
@@ -225,6 +227,7 @@ if (expense.payer_id !== user.id && member.role !== "admin") {
     } else if (wasPaidFromPot) {
       await deletePotExpenseWithdrawal(request.db, expenseId);
     }
+    invalidateBalanceCache(expense.group_id);
     return { expense: await toExpenseDto(request, updated), editable: false };
   });
 
@@ -246,6 +249,7 @@ if (expense.payer_id !== user.id && member.role !== "admin") {
       await deletePotExpenseWithdrawal(request.db, expenseId);
     }
     await deleteExpense(request.db, expenseId);
+    invalidateBalanceCache(expense.group_id);
     return { ok: true };
   });
 

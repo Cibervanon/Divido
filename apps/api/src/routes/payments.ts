@@ -13,6 +13,7 @@ import { badRequest, conflict, forbidden, notFound } from "../errors.js";
 import { requireActiveMember, requireAuth } from "../plugins.js";
 import { createAndPushNotification } from "../push.js";
 import { EDIT_WINDOW_MS } from "../config.js";
+import { invalidateBalanceCache } from "../balanceCache.js";
 
 const HTTP_URL_RE = /^https?:\/\//i;
 const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
@@ -89,6 +90,7 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
         linkUrl: `/groups/${groupId}`,
       });
     }
+    invalidateBalanceCache(groupId);
     return { payment };
   });
 
@@ -117,6 +119,7 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
         linkUrl: `/groups/${group.id}`,
       });
     }
+    invalidateBalanceCache(group.id);
     return { payment: updated };
   });
 
@@ -134,6 +137,7 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
       throw forbidden("Solo puedes eliminar un pago dentro de las primeras 24 horas");
     }
     await deletePayment(request.db, paymentId);
+    invalidateBalanceCache(payment.group_id);
     return { ok: true };
   });
 };

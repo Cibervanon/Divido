@@ -18,6 +18,7 @@ import {
 import { badRequest, conflict, forbidden, notFound } from "../errors.js";
 import { requireActiveMember, requireAdmin, requireAuth } from "../plugins.js";
 import { EPS, round2 } from "@divido/shared";
+import { invalidateBalanceCache } from "../balanceCache.js";
 
 const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
 const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
@@ -67,6 +68,7 @@ export const requestRoutes: FastifyPluginAsync = async (app) => {
     if (req.status !== "pending") throw conflict("La solicitud ya fue decidida");
     await applyRequest(request.db, req);
     await decideRequest(request.db, requestId, "approved", admin.user_id);
+    invalidateBalanceCache(req.group_id);
     return { ok: true };
   });
 
@@ -76,6 +78,7 @@ export const requestRoutes: FastifyPluginAsync = async (app) => {
     const req = (await getRequest(request.db, requestId))!;
     if (req.status !== "pending") throw conflict("La solicitud ya fue decidida");
     await decideRequest(request.db, requestId, "rejected", admin.user_id);
+    invalidateBalanceCache(req.group_id);
     return { ok: true };
   });
 };

@@ -9,12 +9,13 @@ import {
 import { notFound } from "../errors.js";
 import { requireActiveMember } from "../plugins.js";
 import { getGroupBalances, getPersonBreakdown } from "../services.js";
+import { getCachedBalances, invalidateBalanceCache } from "../balanceCache.js";
 
 export const balanceRoutes: FastifyPluginAsync = async (app) => {
   app.get("/api/groups/:groupId/balances", async (request) => {
     const { groupId } = request.params as { groupId: string };
     await requireActiveMember(request, groupId);
-    return getGroupBalances(request.db, groupId);
+    return getCachedBalances(request.db, groupId);
   });
 
   app.get("/api/groups/:groupId/members/:userId/breakdown", async (request) => {
