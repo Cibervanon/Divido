@@ -83,9 +83,9 @@ CREATE TABLE IF NOT EXISTS groups (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   currency TEXT NOT NULL DEFAULT 'EUR',
-  type TEXT NOT NULL DEFAULT 'open',
+  type TEXT NOT NULL DEFAULT 'open' CHECK (type IN ('open','closed')),
   invite_token TEXT UNIQUE NOT NULL,
-  creator_id TEXT NOT NULL REFERENCES users(id),
+  creator_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
   logo_url TEXT,
   enabled_extras TEXT NOT NULL DEFAULT '[]',
   simplify_debts INTEGER NOT NULL DEFAULT 0,
@@ -107,13 +107,13 @@ CREATE TABLE IF NOT EXISTS group_members (
 CREATE TABLE IF NOT EXISTS expenses (
   id TEXT PRIMARY KEY,
   group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-  payer_id TEXT REFERENCES users(id),
+  payer_id TEXT REFERENCES users(id) ON DELETE RESTRICT,
   description TEXT NOT NULL,
-  amount REAL NOT NULL,
+  amount REAL NOT NULL CHECK (amount > 0),
   currency TEXT NOT NULL,
   exchange_rate REAL NOT NULL DEFAULT 1,
-  amount_group REAL NOT NULL,
-  created_by_id TEXT NOT NULL REFERENCES users(id),
+  amount_group REAL NOT NULL CHECK (amount_group > 0),
+  created_by_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   deleted INTEGER NOT NULL DEFAULT 0,
@@ -142,13 +142,13 @@ CREATE TABLE IF NOT EXISTS expense_comments (
 CREATE TABLE IF NOT EXISTS payments (
   id TEXT PRIMARY KEY,
   group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-  from_user_id TEXT NOT NULL REFERENCES users(id),
-  to_user_id TEXT NOT NULL REFERENCES users(id),
-  amount REAL NOT NULL,
+  from_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  to_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  amount REAL NOT NULL CHECK (amount > 0),
   note TEXT,
   proof_url TEXT,
-  status TEXT NOT NULL DEFAULT 'confirmed',
-  created_by_id TEXT NOT NULL REFERENCES users(id),
+  status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed','pending_confirmation','rejected')),
+  created_by_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
   created_at TEXT NOT NULL
 );
 
@@ -245,6 +245,18 @@ CREATE TABLE IF NOT EXISTS notification_preferences (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS audit_log (
+  id TEXT PRIMARY KEY,
+  group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  entity_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  actor_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  actor_name TEXT NOT NULL,
+  diff TEXT,
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_members_user ON group_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_members_group ON group_members(group_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_group ON expenses(group_id);
@@ -259,6 +271,16 @@ CREATE INDEX IF NOT EXISTS idx_pot_group ON common_pot_contributions(group_id);
 CREATE INDEX IF NOT EXISTS idx_recurring_group ON recurring_expenses(group_id);
 CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+
+-- Nuevos índices para filtros y consultas frecuentes
+CREATE INDEX IF NOT EXISTS idx_expenses_group_created ON expenses(group_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_expenses_group_category ON expenses(group_id, category);
+CREATE INDEX IF NOT EXISTS idx_expenses_group_payer ON expenses(group_id, payer_id);
+CREATE INDEX IF NOT EXISTS idx_payments_group_status ON payments(group_id, status);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, read) WHERE read = 0;
+CREATE INDEX IF NOT EXISTS idx_requests_group_status ON modification_requests(group_id, status);
+CREATE INDEX IF NOT EXISTS idx_audit_group_entity ON audit_log(group_id, entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_audit_group_created ON audit_log(group_id, created_at DESC);
 `;
 
 const MIGRATIONS = [
@@ -299,6 +321,12 @@ const MIGRATIONS = [
   "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'general'",
   "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS icon_name TEXT NOT NULL DEFAULT 'wallet'",
   "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS is_custom_icon INTEGER NOT NULL DEFAULT 0",
+  // CHECK constraints para integridad de datos
+  "ALTER TABLE expenses ADD CONSTRAINT IF NOT EXISTS chk_expense_amount_positive CHECK (amount > 0)",
+  "ALTER TABLE expenses ADD CONSTRAINT IF NOT EXISTS chk_expense_amount_group_positive CHECK (amount_group > 0)",
+  "ALTER TABLE payments ADD CONSTRAINT IF NOT EXISTS chk_payment_amount_positive CHECK (amount > 0)",
+  "ALTER TABLE payments ADD CONSTRAINT IF NOT EXISTS chk_payment_status CHECK (status IN ('confirmed','pending_confirmation','rejected'))",
+  "ALTER TABLE groups ADD CONSTRAINT IF NOT EXISTS chk_group_type CHECK (type IN ('open','closed'))",
 ];
 
 export async function initDb(db: Db): Promise<void> {
