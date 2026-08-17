@@ -1,47 +1,36 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import webpush from "web-push";
-import {
-  createNotification,
-  deletePushSubscription,
-  getNotificationPreferences,
-  listPushSubscriptions,
-  type NotificationType,
-} from "./store.js";
+import { createNotification, deletePushSubscription, getNotificationPreferences, listPushSubscriptions, type NotificationType } from "./store.js";
 import type { Db } from "./db.js";
 import { config } from "./config.js";
 
-const KEYS_FILE = join(process.cwd(), "data", "vapid-keys.json");
+const isProduction = process.env.NODE_ENV === "production";
 
-export interface VapidKeys {
-  publicKey: string;
-  privateKey: string;
-  subject: string;
-}
+let vapidKeysCache: { publicKey: string; privateKey: string; subject: string } | null = null;
 
-export function getVapidKeys(): VapidKeys {
+export function getVapidKeys() {
+  if (vapidKeysCache) return vapidKeysCache;
+  
   const subject = process.env.VAPID_SUBJECT ?? "mailto:admin@divido.app";
   const envPublic = process.env.VAPID_PUBLIC_KEY ?? "";
   const envPrivate = process.env.VAPID_PRIVATE_KEY ?? "";
-  if (envPublic && envPrivate) return { publicKey: envPublic, privateKey: envPrivate, subject };
-  try {
-    if (existsSync(KEYS_FILE)) {
-      const stored = JSON.parse(readFileSync(KEYS_FILE, "utf8")) as { publicKey?: string; privateKey?: string };
-      if (stored.publicKey && stored.privateKey) {
-        return { publicKey: stored.publicKey, privateKey: stored.privateKey, subject };
-      }
+  
+  if (!isProduction) {
+    // En desarrollo permitimos fallback a variables de entorno o generación
+    if (envPublic && envPrivate) {
+      vapidKeysCache = { publicKey: envPublic, privateKey: envPrivate, subject };
+      return vapidKeysCache;
     }
-  } catch {
-    // se regeneran abajo
+    const pair = webpush.generateVAPIDKeys();
+    vapidKeysCache = { publicKey: pair.publicKey, privateKey: pair.privateKey, subject };
+    return vapidKeysCache;
   }
-  const pair = webpush.generateVAPIDKeys();
-  try {
-    mkdirSync(join(process.cwd(), "data"), { recursive: true });
-    writeFileSync(KEYS_FILE, JSON.stringify(pair), "utf8");
-  } catch {
-    // sin disco persistente: las claves viven en memoria durante el proceso
+  
+  // En producción son obligatorias
+  if (!envPublic || !envPrivate) {
+    throw new Error("VAPID_PUBLIC_KEY y VAPID_PRIVATE_KEY son obligatorios en producción");
   }
-  return { publicKey: pair.publicKey, privateKey: pair.privateKey, subject };
+  vapidKeysCache = { publicKey: envPublic, privateKey: envPrivate, subject };
+  return vapidKeysCache;
 }
 
 export async function sendPushToUser(

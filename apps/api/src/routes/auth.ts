@@ -51,15 +51,19 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     };
   });
 
-  app.post("/api/auth/login", async (request) => {
-    const { email, password } = request.body as { email?: string; password?: string };
-    if (!email || !password) throw badRequest("Email y contraseña son obligatorios");
-    const user = await findUserByEmail(request.db, email.toLowerCase().trim());
-    if (!user || !user.password_hash || !verifyPassword(password, user.password_hash)) {
-      throw unauthorized("Credenciales incorrectas");
+  app.post(
+    "/api/auth/login",
+    { config: { rateLimit: { max: 5, timeWindow: "5 minutes" } } },
+    async (request) => {
+      const { email, password } = request.body as { email?: string; password?: string };
+      if (!email || !password) throw badRequest("Email y contraseña son obligatorios");
+      const user = await findUserByEmail(request.db, email.toLowerCase().trim());
+      if (!user || !user.password_hash || !verifyPassword(password, user.password_hash)) {
+        throw unauthorized("Credenciales incorrectas");
+      }
+      return { token: signToken(toAuthUser(user)), user: toAuthUser(user) };
     }
-    return { token: signToken(toAuthUser(user)), user: toAuthUser(user) };
-  });
+  );
 
   app.post("/api/auth/forgot-password", async (request) => {
     const { email } = request.body as { email?: string };

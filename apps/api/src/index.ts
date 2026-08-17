@@ -1,5 +1,7 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
+import helmet from "@fastify/helmet";
 import { createDb, initDb } from "./db.js";
 import { config } from "./config.js";
 import { authPlugin } from "./plugins.js";
@@ -25,6 +27,9 @@ export async function buildApp(db = createDb(config.databaseUrl)) {
   app.decorateRequest("db", { getter: () => db });
 
   await initDb(db);
+
+  await app.register(helmet);
+  await app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
 
   app.register(cors, {
     origin: config.corsOrigin,
@@ -59,10 +64,11 @@ export async function buildApp(db = createDb(config.databaseUrl)) {
 
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof HttpError) {
-      return reply.code(error.status).send({ error: error.message, code: error.code });
+      request.log.warn({ code: error.code, reqId: request.id }, error.message);
+      return reply.code(error.status).send({ error: error.message, code: error.code, reqId: request.id });
     }
-    request.log.error(error);
-    return reply.code(500).send({ error: "Error interno del servidor", code: "INTERNAL" });
+    request.log.error({ err: error, reqId: request.id });
+    return reply.code(500).send({ error: "Error interno del servidor", code: "INTERNAL", reqId: request.id });
   });
 
   app.addHook("onClose", async () => {

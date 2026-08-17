@@ -4,11 +4,25 @@ try {
   // Sin archivo .env: usamos las variables de entorno del sistema.
 }
 
+const isProduction = process.env.NODE_ENV === "production";
+
+if (isProduction) {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET es obligatorio en producción");
+  }
+  if (!process.env.CRON_SECRET) {
+    throw new Error("CRON_SECRET es obligatorio en producción");
+  }
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+    throw new Error("VAPID_PUBLIC_KEY y VAPID_PRIVATE_KEY son obligatorios en producción");
+  }
+}
+
 export const config = {
   port: Number(process.env.PORT ?? 4000),
   host: process.env.HOST ?? "0.0.0.0",
   databaseUrl: process.env.DATABASE_URL ?? "",
-  jwtSecret: process.env.JWT_SECRET ?? "divido-dev-secret-change-me",
+  jwtSecret: isProduction ? process.env.JWT_SECRET! : (process.env.JWT_SECRET ?? "divido-dev-secret-change-me"),
   jwtExpiresIn: "30d",
   googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
