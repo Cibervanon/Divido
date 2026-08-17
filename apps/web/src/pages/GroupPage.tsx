@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, ty
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { Avatar, Button, EmptyState, GhostBadge, Input, Modal, Money, Select, Spinner, Tabs, Toast, VerifiedBadge, currencySymbol } from "../components/ui";
+import { Avatar, Button, ConfirmPaymentButton, CopyLinkButton, EmptyState, GhostBadge, Input, Modal, Money, Select, Spinner, Tabs, Toast, VerifiedBadge, currencySymbol } from "../components/ui";
 import { ExpenseModal } from "../components/ExpenseModal";
 import { PaymentModal } from "../components/PaymentModal";
 import { BalancesTab } from "./group/BalancesTab";
@@ -1062,15 +1062,7 @@ function MembersTab({
 
       {isAdmin ? (
         <div className="space-y-2">
-          <button
-            onClick={onCopyInvite}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-500/50 bg-indigo-500/5 px-4 py-3 text-sm font-semibold text-indigo-300 transition hover:bg-indigo-500/10"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-            </svg>
-            Copiar enlace de invitación
-          </button>
+          <CopyLinkButton url={detail.inviteUrl ?? ""} />
           <button
             onClick={() => setGhostOpen(true)}
             className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-600 bg-slate-800/40 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:bg-slate-800"
@@ -2339,15 +2331,11 @@ function HistoryTab({
                   </span>
                   {isPayment && e.paymentStatus === "pending_confirmation" && e.toUserId === myUserId ? (
                     <div className="flex items-center gap-1.5">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="text-emerald-400"
+                      <ConfirmPaymentButton
+                        onConfirm={() => void confirmPayment(e.id, true)}
+                        loading={deciding}
                         disabled={deciding}
-                        onClick={() => void confirmPayment(e.id, true)}
-                      >
-                        Aceptar
-                      </Button>
+                      />
                       <Button
                         variant="ghost"
                         size="sm"

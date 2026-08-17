@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode, type InputHTMLAttributes, type ButtonHTMLAttributes, type SelectHTMLAttributes } from "react";
+import { Check, Link as LinkIcon } from "lucide-react";
 
 export function Spinner({ className = "" }: { className?: string }) {
   return (
@@ -40,6 +41,55 @@ export function Button({
       {loading ? <Spinner /> : null}
       {children}
     </button>
+  );
+}
+
+/** Botón "Copiar enlace" con estado de éxito transitorio */
+export function CopyLinkButton({ url }: { url: string }) {
+  const [state, setState] = useState<"idle" | "copied">("idle");
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={async () => {
+        await navigator.clipboard.writeText(url);
+        setState("copied");
+        setTimeout(() => setState("idle"), 1800);
+      }}
+    >
+      {state === "copied" ? (
+        <span className="flex items-center gap-1.5 text-success-500">
+          <Check className="h-4 w-4" /> Copiado
+        </span>
+      ) : (
+        <span className="flex items-center gap-1.5">
+          <LinkIcon className="h-4 w-4" /> Copiar enlace
+        </span>
+      )}
+    </Button>
+  );
+}
+
+/** Botón confirmar/cobrar pago con estado de carga explícito */
+export function ConfirmPaymentButton({
+  onConfirm,
+  loading = false,
+  disabled = false,
+}: {
+  onConfirm: () => void;
+  loading?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <Button
+      variant="secondary"
+      size="sm"
+      loading={loading}
+      disabled={disabled}
+      onClick={onConfirm}
+    >
+      {loading ? <Spinner /> : "Confirmar"}
+    </Button>
   );
 }
 
