@@ -28,6 +28,7 @@ import { EDIT_WINDOW_MS } from "../config.js";
 import { createExpenseSchema, updateExpenseSchema, type CreateExpenseInput, type UpdateExpenseInput } from "../schemas/index.js";
 import { parseBody } from "../validate.js";
 import { invalidateBalanceCache } from "../balanceCache.js";
+import { logAudit } from "../audit.js";
 
 const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
 const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
@@ -160,6 +161,15 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       }
     }
     invalidateBalanceCache(groupId);
+    await logAudit(request.db, {
+      groupId,
+      entityType: "expense",
+      entityId: expense.id,
+      action: "created",
+      actorId: user.id,
+      actorName: user.name,
+      after: { description: body.description, amount: body.amount, currency: expenseCurrency, participants: uniqueParticipants },
+    });
     return { expense: await toExpenseDto(request, expense), editable: true };
   });
 
@@ -251,6 +261,16 @@ if (expense.payer_id !== user.id && member.role !== "admin") {
       await deletePotExpenseWithdrawal(request.db, expenseId);
     }
     invalidateBalanceCache(expense.group_id);
+    await logAudit(request.db, {
+      groupId: expense.group_id,
+      entityType: "expense",
+      entityId: expenseId,
+      action: "updated",
+      actorId: user.id,
+      actorName: user.name,
+      before: { description: expense.description, amount: expense.amount, currency: expense.currency, payer_id: expense.payer_id },
+      after: { description, amount, currency: expenseCurrency, payerId },
+    });
     return { expense: await toExpenseDto(request, updated), editable: false };
   });
 
@@ -273,6 +293,15 @@ if (expense.payer_id !== user.id && member.role !== "admin") {
     }
     await deleteExpense(request.db, expenseId);
     invalidateBalanceCache(expense.group_id);
+    await logAudit(request.db, {
+      groupId: expense.group_id,
+      entityType: "expense",
+      entityId: expenseId,
+      action: "deleted",
+      actorId: user.id,
+      actorName: user.name,
+      before: { description: expense.description, amount: expense.amount, currency: expense.currency },
+    });
     return { ok: true };
   });
 

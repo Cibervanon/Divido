@@ -14,6 +14,7 @@ import { requireActiveMember, requireAuth } from "../plugins.js";
 import { createAndPushNotification } from "../push.js";
 import { EDIT_WINDOW_MS } from "../config.js";
 import { invalidateBalanceCache } from "../balanceCache.js";
+import { logAudit } from "../audit.js";
 
 const HTTP_URL_RE = /^https?:\/\//i;
 const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
@@ -91,6 +92,15 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
       });
     }
     invalidateBalanceCache(groupId);
+    await logAudit(request.db, {
+      groupId,
+      entityType: "payment",
+      entityId: payment.id,
+      action: "created",
+      actorId: user.id,
+      actorName: user.name,
+      after: { fromUserId: user.id, toUserId, amount: rounded, note: note?.trim(), status },
+    });
     return { payment };
   });
 
@@ -120,6 +130,16 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
       });
     }
     invalidateBalanceCache(group.id);
+    await logAudit(request.db, {
+      groupId: group.id,
+      entityType: "payment",
+      entityId: paymentId,
+      action: accepted ? "approved" : "rejected",
+      actorId: user.id,
+      actorName: user.name,
+      before: { status: payment.status },
+      after: { status: next },
+    });
     return { payment: updated };
   });
 
@@ -138,6 +158,15 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
     }
     await deletePayment(request.db, paymentId);
     invalidateBalanceCache(payment.group_id);
+    await logAudit(request.db, {
+      groupId: payment.group_id,
+      entityType: "payment",
+      entityId: paymentId,
+      action: "deleted",
+      actorId: user.id,
+      actorName: user.name,
+      before: { fromUserId: payment.from_user_id, toUserId: payment.to_user_id, amount: payment.amount },
+    });
     return { ok: true };
   });
 };

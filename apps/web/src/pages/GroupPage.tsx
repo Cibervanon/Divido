@@ -7,6 +7,7 @@ import { ExpenseModal } from "../components/ExpenseModal";
 import { PaymentModal } from "../components/PaymentModal";
 import { BalancesTab } from "./group/BalancesTab";
 import { useExpenseFilters } from "./group/hooks/useExpenseFilters";
+import { useGroupAudit } from "./group/hooks/useGroupDetail";
 import { simplifyDebts, type SimplifyResult } from "../lib/debtSimplifier";
 import { getCategoryColor, getIconComponent, MODULE_FALLBACKS } from "../constants/categories";
 import type {
@@ -74,6 +75,7 @@ interface GroupCacheData {
   potBalance: number;
   potContributions: PotContributionDto[];
   recurringExpenses: RecurringExpenseDto[];
+  audit: any[];
 }
 const groupCache = new Map<string, GroupCacheData>();
 
@@ -88,6 +90,7 @@ export default function GroupPage() {
   const [expenses, setExpenses] = useState<ExpenseDto[]>([]);
   const [requests, setRequests] = useState<ModificationRequestDto[]>([]);
   const [history, setHistory] = useState<HistoryEvent[]>([]);
+  const [audit, setAudit] = useState<any[]>([]);
   const [debts, setDebts] = useState<InformalDebtDto[]>([]);
   const [potBalance, setPotBalance] = useState(0);
   const [potContributions, setPotContributions] = useState<PotContributionDto[]>([]);
@@ -130,6 +133,7 @@ export default function GroupPage() {
     setPotBalance(data.potBalance);
     setPotContributions(data.potContributions);
     setRecurringExpenses(data.recurringExpenses);
+    setAudit(data.audit ?? []);
   }, []);
 
   const load = useCallback(
@@ -155,7 +159,7 @@ export default function GroupPage() {
         const queryString = queryParams.toString();
         const expensesUrl = `/groups/${groupId}/expenses${queryString ? `?${queryString}` : ""}`;
 
-        const [d, e, h, r, dd, pot, rec] = await Promise.all([
+        const [d, e, h, r, dd, pot, rec, a] = await Promise.all([
           api.get<GroupDetail>(`/groups/${groupId}`),
           api.get<{ expenses: ExpenseDto[] }>(expensesUrl),
           api.get<{ events: HistoryEvent[] }>(`/groups/${groupId}/history`),
@@ -165,6 +169,7 @@ export default function GroupPage() {
             .get<{ balance: number; contributions: PotContributionDto[] }>(`/groups/${groupId}/common-pot`)
             .catch(() => null),
           api.get<{ expenses: RecurringExpenseDto[] }>(`/groups/${groupId}/recurring-expenses`).catch(() => null),
+          api.get<{ audit: any[] }>(`/api/groups/${groupId}/audit`).catch(() => ({ audit: [] })),
         ]);
         const data: GroupCacheData = {
           detail: d,
@@ -175,6 +180,7 @@ export default function GroupPage() {
           potBalance: pot?.balance ?? 0,
           potContributions: pot?.contributions ?? [],
           recurringExpenses: rec?.expenses ?? [],
+          audit: a?.audit ?? [],
         };
         groupCache.set(groupId, data);
         applyData(data);
@@ -421,6 +427,7 @@ export default function GroupPage() {
           {tab === "history" ? (
             <HistoryTab
               events={history}
+              audit={audit}
               currency={group.currency}
               groupName={group.name}
               memberName={memberName}
@@ -2245,6 +2252,7 @@ function AddGhostModal({
 
 function HistoryTab({
   events,
+  audit,
   currency,
   groupName,
   memberName,
@@ -2253,6 +2261,7 @@ function HistoryTab({
   onViewProof,
 }: {
   events: HistoryEvent[];
+  audit: any[];
   currency: string;
   groupName: string;
   memberName: (id: string) => string;
@@ -2281,9 +2290,27 @@ function HistoryTab({
       `Moneda del grupo: ${currency}`,
       "",
     ];
-    for (const e of events) {
-      const when = new Date(e.date).toLocaleString("es-ES");
-      if (e.type === "member_joined") {
+    for (const e of combined) {
+      const entry = e as any;
+      const when = new Date(entry.date ?? entry.created_at).toLocaleString("es-ES");
+      if (e.type === "audit") {
+        const entityLabels: Record<string, string> = {
+          expense: "gasto",
+          payment: "pago",
+          informal_debt: "pique",
+          modification_request: "solicitud",
+        };
+        const entityLabel = entityLabels[e.entityType] ?? e.entityType;
+        const actionLabels: Record<string, string> = {
+          created: "creó",
+          updated: "editó",
+          deleted: "eliminó",
+          approved: "aprobó",
+          rejected: "rechazó",
+        };
+        const actionLabel = actionLabels[e.action] ?? e.action;
+        lines.push(`[${when}] ${e.actorName} ${actionLabel} ${entityLabel}`);
+      } else if (e.type === "member_joined") {
         lines.push(`[${when}] ${e.userName} se unió al grupo`);
       } else if (e.type === "member_left") {
         lines.push(`[${when}] ${e.userName} abandonó el grupo`);
@@ -2301,14 +2328,36 @@ function HistoryTab({
         lines.push(parts.join(" "));
       }
     }
-    lines.push("", `Total de eventos: ${events.length}`);
+    lines.push("", `Total de eventos: ${combined.length}`);
     downloadText(lines.join("\n"), `historial-${groupName.replace(/[^a-z0-9]+/gi, "-")}.txt`);
   }
+
+  // Combina eventos del historial y auditoría en una sola línea temporal
+  const combined = useMemo(() => {
+    const auditEvents = audit.map((a) => ({
+      type: "audit" as const,
+      id: a.id,
+      date: a.created_at,
+      created_at: a.created_at,
+      entityType: a.entity_type,
+      entityId: a.entity_id,
+      action: a.action,
+      actorName: a.actor_name,
+      diff: a.diff ? JSON.parse(a.diff) : null,
+    }));
+    return [...events, ...auditEvents].sort((a, b) => b.date.localeCompare(a.date));
+  }, [events, audit]);
+
+  const totalItems = combined.length;
+
+  // Type guards para TypeScript
+  const isHistoryEvent = (e: any): e is HistoryEvent => e.type !== "audit";
+  const isAuditEvent = (e: any): e is { type: "audit"; id: string; date: string; created_at: string; entityType: string; entityId: string; action: string; actorName: string; diff: any } => e.type === "audit";
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-end">
-        {events.length > 0 ? (
+        {totalItems > 0 ? (
           <Button variant="secondary" className="!px-3 !py-1.5 text-xs" onClick={exportHistory}>
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -2318,26 +2367,30 @@ function HistoryTab({
         ) : null}
       </div>
       <div className="space-y-1">
-        {events.length === 0 ? (
+        {totalItems === 0 ? (
           <EmptyState
             title="No hay actividad registrada en este grupo"
-            subtitle="Aquí aparecerán los gastos y pagos en orden cronológico"
+            subtitle="Aquí aparecerán los gastos, pagos y cambios en orden cronológico"
             icon={
               <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+                  d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
                 />
               </svg>
             }
           />
         ) : (
-        events.map((e, i) => {
-          const isMemberEvent = e.type === "member_joined" || e.type === "member_left" || e.type === "member_removed";
-          const isExpense = e.type === "expense";
-          const isPayment = e.type === "payment";
-          const iconColor = isMemberEvent
+        (combined as any[]).map((e, i) => {
+          const isAudit = e.type === "audit";
+          const isHistory = e.type !== "audit";
+          const isMemberEvent = !isAudit && (e.type === "member_joined" || e.type === "member_left" || e.type === "member_removed");
+          const isExpense = !isAudit && e.type === "expense";
+          const isPayment = !isAudit && e.type === "payment";
+          const iconColor = isAudit
+            ? "bg-info-500/15 text-info-400"
+            : isMemberEvent
             ? e.type === "member_joined"
               ? "bg-emerald-500/15 text-emerald-400"
               : "bg-rose-500/15 text-rose-400"
@@ -2378,7 +2431,36 @@ function HistoryTab({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm text-slate-200">
-                  {isMemberEvent ? (
+                  {isAudit ? (
+                    <>
+                      <strong>{e.actorName}</strong> {" "}
+                      {(() => {
+                        const diff = e.diff;
+                        const entityLabels: Record<string, string> = {
+                          expense: "gasto",
+                          payment: "pago",
+                          informal_debt: "pique",
+                          modification_request: "solicitud",
+                        };
+                        const entityLabel = entityLabels[e.entityType] ?? e.entityType;
+                        const actionLabels: Record<string, string> = {
+                          created: "creó",
+                          updated: "editó",
+                          deleted: "eliminó",
+                          approved: "aprobó",
+                          rejected: "rechazó",
+                        };
+                        const actionLabel = actionLabels[e.action] ?? e.action;
+                        if (diff?.before && diff?.after) {
+                          const changes = Object.keys(diff.after).filter(
+                            (k) => diff.before?.[k] !== diff.after?.[k]
+                          );
+                          return `${actionLabel} ${entityLabel} ${changes.length ? `(${changes.join(", ")})` : ""}`;
+                        }
+                        return `${actionLabel} ${entityLabel}`;
+                      })()}
+                    </>
+                  ) : isMemberEvent ? (
                     <>
                       <strong>{e.userName}</strong>{" "}
                       {e.type === "member_joined"
@@ -2426,9 +2508,9 @@ function HistoryTab({
                     </>
                   )}
                 </p>
-                <p className="text-[11px] text-slate-500">{fmtDate(e.date)}</p>
+                <p className="text-[11px] text-slate-500">{fmtDate(e.date ?? e.created_at)}</p>
               </div>
-              {isPayment || isExpense ? (
+              {(isPayment || isExpense) && !isAudit ? (
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
                   <span className={`shrink-0 text-sm font-bold ${isPayment ? "text-emerald-400" : "text-slate-100"}`}>
                     <Money amount={isPayment ? (e.amount ?? 0) : (e.amountGroup ?? 0)} currency={isPayment ? currency : (e.currency ?? currency)} />

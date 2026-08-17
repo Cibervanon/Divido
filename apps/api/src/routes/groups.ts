@@ -28,6 +28,7 @@ import {
   updateGroup,
   updateInformalDebtStatus,
 } from "../store.js";
+import { logAudit, type AuditEntry } from "../audit.js";
 import type { Group, GroupType, InformalDebtStatus, PiqueKind } from "@divido/shared";
 import { round2 } from "@divido/shared";
 import { badRequest, conflict, forbidden, notFound } from "../errors.js";
@@ -154,6 +155,27 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     const group = await requireGroup(request, groupId);
     await requireAdmin(request, groupId);
     return { inviteToken: group.inviteToken, inviteUrl: buildInviteUrl(group.inviteToken) };
+  });
+
+  app.get("/api/groups/:groupId/audit", async (request) => {
+    const { groupId } = request.params as { groupId: string };
+    await requireActiveMember(request, groupId);
+    const query = request.query as { limit?: string; offset?: string; entityType?: string };
+    const limit = Math.min(Number(query.limit ?? 100), 500);
+    const offset = Number(query.offset ?? 0);
+    const entityType = query.entityType;
+
+    let sql = `SELECT * FROM audit_log WHERE group_id = ?`;
+    const params: any[] = [groupId];
+    if (entityType) {
+      sql += ` AND entity_type = ?`;
+      params.push(entityType);
+    }
+    sql += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
+
+    const rows = (await request.db.prepare(sql).all(...params)) as unknown as AuditEntry[];
+    return { audit: rows };
   });
 
   app.post("/api/groups/:groupId/invite", async (request) => {

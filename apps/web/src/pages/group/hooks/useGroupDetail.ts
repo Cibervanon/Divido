@@ -3,6 +3,18 @@ import { api } from "../../../lib/api";
 import type { GroupDetail, ExpenseDto, PaymentDto } from "../../../lib/types";
 import type { SettlementTransfer } from "@divido/shared";
 
+export interface AuditEntry {
+  id: string;
+  group_id: string;
+  entity_type: string;
+  entity_id: string;
+  action: string;
+  actor_id: string;
+  actor_name: string;
+  diff: string | null;
+  created_at: string;
+}
+
 export function useGroupDetail(groupId: string) {
   return useQuery({
     queryKey: ["group", groupId],
@@ -113,5 +125,13 @@ export function useUpdateGroup(groupId: string) {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["group", groupId] });
     },
+  });
+}
+
+export function useGroupAudit(groupId: string, entityType?: string) {
+  return useQuery({
+    queryKey: ["audit", groupId, entityType],
+    queryFn: () => api.get<{ audit: AuditEntry[] }>(`/api/groups/${groupId}/audit${entityType ? `?entityType=${entityType}` : ""}`),
+    enabled: !!groupId,
   });
 }
