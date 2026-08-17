@@ -321,12 +321,12 @@ const MIGRATIONS = [
   "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'general'",
   "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS icon_name TEXT NOT NULL DEFAULT 'wallet'",
   "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS is_custom_icon INTEGER NOT NULL DEFAULT 0",
-  // CHECK constraints para integridad de datos
-  "ALTER TABLE expenses ADD CONSTRAINT IF NOT EXISTS chk_expense_amount_positive CHECK (amount > 0)",
-  "ALTER TABLE expenses ADD CONSTRAINT IF NOT EXISTS chk_expense_amount_group_positive CHECK (amount_group > 0)",
-  "ALTER TABLE payments ADD CONSTRAINT IF NOT EXISTS chk_payment_amount_positive CHECK (amount > 0)",
-  "ALTER TABLE payments ADD CONSTRAINT IF NOT EXISTS chk_payment_status CHECK (status IN ('confirmed','pending_confirmation','rejected'))",
-  "ALTER TABLE groups ADD CONSTRAINT IF NOT EXISTS chk_group_type CHECK (type IN ('open','closed'))",
+  // CHECK constraints para integridad de datos (PostgreSQL no soporta IF NOT EXISTS en constraints)
+  "DO $$ BEGIN ALTER TABLE expenses ADD CONSTRAINT chk_expense_amount_positive CHECK (amount > 0); EXCEPTION WHEN duplicate_object THEN END $$;",
+  "DO $$ BEGIN ALTER TABLE expenses ADD CONSTRAINT chk_expense_amount_group_positive CHECK (amount_group > 0); EXCEPTION WHEN duplicate_object THEN END $$;",
+  "DO $$ BEGIN ALTER TABLE payments ADD CONSTRAINT chk_payment_amount_positive CHECK (amount > 0); EXCEPTION WHEN duplicate_object THEN END $$;",
+  "DO $$ BEGIN ALTER TABLE payments ADD CONSTRAINT chk_payment_status CHECK (status IN ('confirmed','pending_confirmation','rejected')); EXCEPTION WHEN duplicate_object THEN END $$;",
+  "DO $$ BEGIN ALTER TABLE groups ADD CONSTRAINT chk_group_type CHECK (type IN ('open','closed')); EXCEPTION WHEN duplicate_object THEN END $$;",
 ];
 
 export async function initDb(db: Db): Promise<void> {
