@@ -3,6 +3,7 @@ import { api, ApiError } from "../lib/api";
 import { Button, Input, Modal, Select } from "./ui";
 import { CATEGORY_LIST, detectCategory, getCategoryColor, getIconComponent } from "../constants/categories";
 import type { ExpenseDto, MemberInfo } from "../lib/types";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 
 const FOREIGN_CURRENCIES = ["USD", "GBP", "MXN", "ARS", "COP", "CLP", "PEN", "BRL", "CHF", "CAD", "JPY"];
 const EPS = 0.004;
@@ -189,14 +190,16 @@ export function ExpenseModal({
     }
   }, [open, groupId, expense, defaultDescription, activeMembers]);
 
+  const debouncedDescription = useDebouncedValue(description, 300);
+
   useEffect(() => {
     if (isCustomIcon) return;
-    if (description === detectedFor.current) return;
-    detectedFor.current = description;
-    const detected = detectCategory(description);
+    if (debouncedDescription === detectedFor.current) return;
+    detectedFor.current = debouncedDescription;
+    const detected = detectCategory(debouncedDescription);
     setCategory(detected.category);
     setIconName(detected.iconName);
-  }, [description, isCustomIcon]);
+  }, [debouncedDescription, isCustomIcon]);
 
   useEffect(() => {
     if (!categoryPopoverOpen) return;
@@ -465,12 +468,13 @@ export function ExpenseModal({
         <div className="grid grid-cols-2 gap-3">
           <Input
             label="Importe"
-            type="number"
-            min="0"
-            step="0.01"
+            inputMode="decimal"
             placeholder="0.00"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(e) => {
+              const raw = e.target.value.replace(",", ".");
+              if (/^\d*\.?\d{0,2}$/.test(raw) || raw === "") setAmount(raw);
+            }}
           />
           <Select label="Moneda" value={currency} onChange={(e) => setCurrency(e.target.value)}>
             <option value={groupCurrency}>{groupCurrency}</option>
@@ -484,11 +488,13 @@ export function ExpenseModal({
         {isForeign ? (
           <Input
             label={`Tipo de cambio (1 ${currency} = ? ${groupCurrency})`}
-            type="number"
-            min="0"
-            step="0.0001"
+            inputMode="decimal"
+            placeholder="1.0000"
             value={exchangeRate}
-            onChange={(e) => setExchangeRate(e.target.value)}
+            onChange={(e) => {
+              const raw = e.target.value.replace(",", ".");
+              if (/^\d*\.?\d{0,4}$/.test(raw) || raw === "") setExchangeRate(raw);
+            }}
             hint="El cambio se congela en el momento del gasto."
           />
         ) : null}
@@ -656,14 +662,16 @@ export function ExpenseModal({
                     splitMode === "percent" ? (
                       <div className="flex shrink-0 items-center gap-1">
                         <input
-                          type="number"
+                          inputMode="decimal"
                           min="0"
                           max="100"
-                          step="any"
                           value={percents[m.userId] ?? ""}
-                          onChange={(e) =>
-                            setPercents((prev) => ({ ...prev, [m.userId]: e.target.value }))
-                          }
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(",", ".");
+                            if (/^\d*\.?\d*$/.test(raw) || raw === "") {
+                              setPercents((prev) => ({ ...prev, [m.userId]: raw }));
+                            }
+                          }}
                           className="w-16 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-right text-xs text-slate-100 outline-none focus:border-indigo-500"
                         />
                         <span className="text-xs text-slate-500">%</span>
@@ -671,13 +679,15 @@ export function ExpenseModal({
                     ) : (
                       <div className="flex shrink-0 items-center gap-1">
                         <input
-                          type="number"
+                          inputMode="decimal"
                           min="0"
-                          step="0.01"
                           value={amounts[m.userId] ?? ""}
-                          onChange={(e) =>
-                            setAmounts((prev) => ({ ...prev, [m.userId]: e.target.value }))
-                          }
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(",", ".");
+                            if (/^\d*\.?\d{0,2}$/.test(raw) || raw === "") {
+                              setAmounts((prev) => ({ ...prev, [m.userId]: raw }));
+                            }
+                          }}
                           className="w-20 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-right text-xs text-slate-100 outline-none focus:border-indigo-500"
                         />
                         <span className="text-xs text-slate-500">{groupCurrency}</span>
