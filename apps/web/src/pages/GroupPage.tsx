@@ -1503,12 +1503,14 @@ function MembersTab({
             >
               <Avatar name={m.name} url={m.avatarUrl} size="sm" />
               <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-1.5 text-sm font-medium text-slate-200">
-                  <span className="truncate">{m.name}</span>
-                  {isMe ? <span className="shrink-0 text-[10px] text-indigo-400">tú</span> : null}
-                  {m.emailVerified ? <VerifiedBadge size="xs" /> : null}
-                  {m.isGhost ? <GhostBadge /> : null}
-                </p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <p className="flex items-center gap-1.5 text-sm font-medium text-slate-200">
+                    <span className="truncate">{m.name}</span>
+                    {isMe ? <span className="shrink-0 text-[10px] text-indigo-400">tú</span> : null}
+                    {m.emailVerified ? <VerifiedBadge size="xs" /> : null}
+                    {m.isGhost ? <GhostBadge /> : null}
+                  </p>
+                </div>
                 <p className="text-[11px] text-slate-500">
                   {m.userId === group.creatorId ? "Creador" : m.role === "admin" ? "Administrador" : "Miembro"}
                 </p>
@@ -1986,6 +1988,16 @@ function PotTab({
         ) : null}
       </div>
 
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-[11px] text-amber-200">
+        <div className="flex items-start gap-2">
+          <svg className="h-4 w-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p>Los gastos pagados con el Bote Común se consideran automáticamente saldados y no generan deuda individual entre los miembros.
+          </p>
+        </div>
+      </div>
+
       <div className="space-y-2">
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Aportaciones</p>
         {contributions.length === 0 ? (
@@ -2031,6 +2043,11 @@ function PotTab({
               >
                 <Money amount={c.amount} currency={currency} />
               </span>
+              {c.expenseId ? (
+                <span className="shrink-0 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
+                  Saldado con Bote
+                </span>
+              ) : null}
               {!c.expenseId && (isAdmin || c.userId === myUserId) ? (
                 <button
                   onClick={() => void removeContribution(c)}
