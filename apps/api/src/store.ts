@@ -1293,6 +1293,72 @@ export async function listExpenses(
   return (await db.prepare(sql).all(groupId)) as unknown as ExpenseRow[];
 }
 
+export interface ExpenseFilters {
+  category?: string;
+  payerId?: string;
+  from?: string;   // ISO date
+  to?: string;      // ISO date
+  q?: string;       // texto libre sobre description
+}
+
+/**
+ * Lista gastos con filtros opcionales (categoría, pagador, rango fechas, búsqueda texto).
+ * Usa la misma query optimizada que listExpensesWithDetails pero con WHERE dinámico.
+ */
+export async function listExpensesFiltered(
+  db: Db,
+  groupId: string,
+  filters: ExpenseFilters,
+  includeDeleted = false
+): Promise<ExpenseDetailRow[]> {
+  const conditions = ["e.group_id = ?", "e.deleted = 0"];
+  const params: any[] = [groupId];
+
+  if (filters.category) {
+    conditions.push("e.category = ?");
+    params.push(filters.category);
+  }
+  if (filters.payerId) {
+    conditions.push("e.payer_id = ?");
+    params.push(filters.payerId);
+  }
+  if (filters.from) {
+    conditions.push("e.created_at >= ?");
+    params.push(filters.from);
+  }
+  if (filters.to) {
+    conditions.push("e.created_at <= ?");
+    params.push(filters.to);
+  }
+  if (filters.q) {
+    conditions.push("e.description ILIKE ?");
+    params.push(`%${filters.q}%`);
+  }
+  if (!includeDeleted) {
+    // ya está en conditions base, pero por si acaso
+  }
+
+  const sql = `
+    SELECT
+      e.*,
+      COALESCE(u.name, 'Bote común') AS payer_name,
+      COALESCE(
+        json_group_array(
+          json_object('userId', ep.user_id, 'share', ep.share_amount)
+        ) FILTER (WHERE ep.user_id IS NOT NULL), '[]'
+      ) AS participants_json,
+      COUNT(DISTINCT c.id) AS comment_count
+    FROM expenses e
+    LEFT JOIN users u ON u.id = e.payer_id
+    LEFT JOIN expense_participants ep ON ep.expense_id = e.id
+    LEFT JOIN expense_comments c ON c.expense_id = e.id
+    WHERE ${conditions.join(" AND ")}
+    GROUP BY e.id, u.name
+    ORDER BY e.created_at DESC
+  `;
+  return (await db.prepare(sql).all(...params)) as unknown as ExpenseDetailRow[];
+}
+
 export interface ExpenseDetailRow extends ExpenseRow {
   participants_json: string;
   comment_count: number;

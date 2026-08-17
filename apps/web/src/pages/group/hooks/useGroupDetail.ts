@@ -11,10 +11,18 @@ export function useGroupDetail(groupId: string) {
   });
 }
 
-export function useGroupExpenses(groupId: string) {
+export function useGroupExpenses(groupId: string, filters?: { category?: string; payerId?: string; from?: string; to?: string; q?: string }) {
+  const queryParams = new URLSearchParams();
+  if (filters?.category) queryParams.set("category", filters.category);
+  if (filters?.payerId) queryParams.set("payerId", filters.payerId);
+  if (filters?.from) queryParams.set("from", filters.from);
+  if (filters?.to) queryParams.set("to", filters.to);
+  if (filters?.q) queryParams.set("q", filters.q);
+  const queryString = queryParams.toString();
+
   return useQuery({
-    queryKey: ["expenses", groupId],
-    queryFn: () => api.get<ExpenseDto[]>(`/api/groups/${groupId}/expenses`),
+    queryKey: ["expenses", groupId, filters],
+    queryFn: () => api.get<ExpenseDto[]>(`/api/groups/${groupId}/expenses${queryString ? `?${queryString}` : ""}`),
     enabled: !!groupId,
   });
 }

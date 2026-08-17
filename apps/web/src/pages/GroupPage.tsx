@@ -6,6 +6,7 @@ import { Avatar, Button, ConfirmPaymentButton, CopyLinkButton, EmptyState, Ghost
 import { ExpenseModal } from "../components/ExpenseModal";
 import { PaymentModal } from "../components/PaymentModal";
 import { BalancesTab } from "./group/BalancesTab";
+import { useExpenseFilters } from "./group/hooks/useExpenseFilters";
 import { simplifyDebts, type SimplifyResult } from "../lib/debtSimplifier";
 import { getCategoryColor, getIconComponent, MODULE_FALLBACKS } from "../constants/categories";
 import type {
@@ -80,6 +81,8 @@ export default function GroupPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { filters, setFilter, clearFilters, hasActiveFilters, debouncedQ } = useExpenseFilters();
 
   const [detail, setDetail] = useState<GroupDetail | null>(null);
   const [expenses, setExpenses] = useState<ExpenseDto[]>([]);
@@ -89,11 +92,7 @@ export default function GroupPage() {
   const [potBalance, setPotBalance] = useState(0);
   const [potContributions, setPotContributions] = useState<PotContributionDto[]>([]);
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpenseDto[]>([]);
-  const [searchParams] = useSearchParams();
-  const initialTab = (["expenses", "balances", "members", "history", "debts", "pot", "recurring"] as Tab[]).find(
-    (t) => t === searchParams.get("tab")
-  );
-  const [tab, setTab] = useState<Tab>(initialTab ?? "expenses");
+  const [tab, setTab] = useState<Tab>("expenses");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -134,15 +133,31 @@ export default function GroupPage() {
   }, []);
 
   const load = useCallback(
-    async (opts?: { silent?: boolean }) => {
+    async (opts?: { silent?: boolean; filters?: { category?: string; payerId?: string; from?: string; to?: string; q?: string } }) => {
       if (!groupId) return;
       const cached = groupCache.get(groupId);
       // Solo mostramos la pantalla de carga si no hay nada que pintar todavía.
       if (!cached && !opts?.silent) setLoading(true);
       try {
+        const activeFilters = opts?.filters ?? {
+          category: filters.category,
+          payerId: filters.payerId === "my" ? user?.id : filters.payerId,
+          from: filters.from,
+          to: filters.to,
+          q: debouncedQ,
+        };
+        const queryParams = new URLSearchParams();
+        if (activeFilters.category) queryParams.set("category", activeFilters.category);
+        if (activeFilters.payerId) queryParams.set("payerId", activeFilters.payerId);
+        if (activeFilters.from) queryParams.set("from", activeFilters.from);
+        if (activeFilters.to) queryParams.set("to", activeFilters.to);
+        if (activeFilters.q) queryParams.set("q", activeFilters.q);
+        const queryString = queryParams.toString();
+        const expensesUrl = `/groups/${groupId}/expenses${queryString ? `?${queryString}` : ""}`;
+
         const [d, e, h, r, dd, pot, rec] = await Promise.all([
           api.get<GroupDetail>(`/groups/${groupId}`),
-          api.get<{ expenses: ExpenseDto[] }>(`/groups/${groupId}/expenses`),
+          api.get<{ expenses: ExpenseDto[] }>(expensesUrl),
           api.get<{ events: HistoryEvent[] }>(`/groups/${groupId}/history`),
           api.get<{ requests: ModificationRequestDto[] }>(`/groups/${groupId}/requests`).catch(() => null),
           api.get<{ debts: InformalDebtDto[] }>(`/groups/${groupId}/informal-debts`).catch(() => null),
@@ -375,6 +390,17 @@ export default function GroupPage() {
               onAdd={() => openAddExpense()}
               requests={requests}
               onDecide={decideRequest}
+              filters={filters}
+              hasActiveFilters={hasActiveFilters}
+              onFilterChange={setFilter}
+              onClearFilters={clearFilters}
+              onReload={() => load({ filters: {
+                category: filters.category,
+                payerId: filters.payerId === "my" ? user.id : filters.payerId,
+                from: filters.from,
+                to: filters.to,
+                q: debouncedQ,
+              } })}
             />
           ) : null}
           {tab === "balances" ? (
@@ -617,6 +643,11 @@ function ExpensesTab({
   onAdd,
   requests,
   onDecide,
+  filters,
+  hasActiveFilters,
+  onFilterChange,
+  onClearFilters,
+  onReload,
 }: {
   expenses: ExpenseDto[];
   memberName: (id: string) => string;
@@ -629,12 +660,85 @@ function ExpensesTab({
   onAdd: () => void;
   requests: ModificationRequestDto[];
   onDecide: (id: string, d: "approve" | "reject") => void;
+  filters: { category?: string; payerId?: string; from?: string; to?: string; q?: string };
+  hasActiveFilters: boolean;
+  onFilterChange: (key: keyof typeof filters, value: string | undefined) => void;
+  onClearFilters: () => void;
+  onReload: () => void;
 }) {
   const pending = requests.filter((r) => r.status === "pending");
   const [viewReceipt, setViewReceipt] = useState<string | null>(null);
 
+  const categories = ["general", "food", "transport", "leisure", "housing", "health", "shopping", "coffee", "pets", "streaming", "sports", "events", "family"];
+
   return (
     <div className="space-y-4">
+      {/* Filtros */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-slate-200">Filtros</p>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={onClearFilters}>
+              Limpiar
+            </Button>
+          )}
+        </div>
+
+        {/* Búsqueda texto */}
+        <Input
+          placeholder="Buscar por concepto..."
+          value={filters.q ?? ""}
+          onChange={(e) => onFilterChange("q", e.target.value || undefined)}
+          className="max-w-xs"
+        />
+
+        {/* Chips de categoría + botón filtros avanzados */}
+        <div className="flex flex-wrap gap-2">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => onFilterChange("category", filters.category === cat ? undefined : cat)}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${
+                filters.category === cat
+                  ? "bg-indigo-600 text-white"
+                  : "text-slate-400 hover:text-slate-200 bg-slate-800"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onFilterChange("payerId", filters.payerId ? undefined : "my")}
+          >
+            Mi pagador
+          </Button>
+        </div>
+
+        {/* Filtros avanzados (fechas) - solo si hay filtros activos o se expande */}
+        <details className="group">
+          <summary className="cursor-pointer text-xs text-slate-500 hover:text-slate-300 select-none">
+            Filtros avanzados (fechas)
+          </summary>
+          <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+            <Input
+              label="Desde"
+              type="date"
+              value={filters.from ?? ""}
+              onChange={(e) => onFilterChange("from", e.target.value || undefined)}
+            />
+            <Input
+              label="Hasta"
+              type="date"
+              value={filters.to ?? ""}
+              onChange={(e) => onFilterChange("to", e.target.value || undefined)}
+            />
+          </div>
+        </details>
+      </div>
+
       {pending.length > 0 && isAdmin ? (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
           <p className="mb-2 text-sm font-bold text-amber-300">

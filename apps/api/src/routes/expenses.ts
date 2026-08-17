@@ -15,6 +15,7 @@ import {
   getPotExpenseWithdrawal,
   listExpenseComments,
   listExpenses,
+  listExpensesFiltered,
   listExpensesWithDetails,
   listMembers,
   updateExpense,
@@ -38,7 +39,29 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
     const user = requireAuth(request);
     const member = await getMemberRow(request.db, groupId, user.id);
     const includeDeleted = member?.role === "admin";
-    const rows = await listExpensesWithDetails(request.db, groupId, includeDeleted);
+
+    // Filtros opcionales via query string
+    const query = request.query as {
+      category?: string;
+      payerId?: string;
+      from?: string;
+      to?: string;
+      q?: string;
+    };
+    const hasFilters = query.category || query.payerId || query.from || query.to || query.q;
+
+    let rows;
+    if (hasFilters) {
+      rows = await listExpensesFiltered(request.db, groupId, {
+        category: query.category,
+        payerId: query.payerId,
+        from: query.from,
+        to: query.to,
+        q: query.q,
+      }, includeDeleted);
+    } else {
+      rows = await listExpensesWithDetails(request.db, groupId, includeDeleted);
+    }
     const expenses = rows.map((e) => ({
       ...expenseRowToDto(e),
       editable: isEditable(e.created_at),
