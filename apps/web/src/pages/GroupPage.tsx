@@ -1502,21 +1502,30 @@ function MembersTab({
               className="flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-left transition hover:border-slate-700"
             >
               <Avatar name={m.name} url={m.avatarUrl} size="sm" />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <p className="flex items-center gap-1.5 text-sm font-medium text-slate-200">
-                    <span className="truncate">{m.name}</span>
-                    {isMe ? <span className="shrink-0 text-[10px] text-indigo-400">tú</span> : null}
-                    {m.emailVerified ? <VerifiedBadge size="xs" /> : null}
-                    {m.isGhost ? <GhostBadge /> : null}
+              <div className="min-w-0 flex-1 flex items-center gap-3">
+                <div className="min-w-0 flex-1 flex flex-col overflow-hidden">
+                  <p className="truncate text-sm font-medium text-slate-200">{m.name}</p>
+                  <p className="text-[11px] text-slate-500 truncate">
+                    {m.isGhost ? (
+                      <span className="inline-flex items-center gap-1 text-slate-400">
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                        </svg>
+                        SIN CUENTA
+                      </span>
+                    ) : (
+                      <>
+                        {m.userId === group.creatorId ? "Creador" : m.role === "admin" ? "Administrador" : "Miembro"}
+                        {isMe ? " · tú" : null}
+                        {m.emailVerified ? " · " : null}
+                        {m.emailVerified && <VerifiedBadge size="xs" />}
+                      </>
+                    )}
                   </p>
                 </div>
-                <p className="text-[11px] text-slate-500">
-                  {m.userId === group.creatorId ? "Creador" : m.role === "admin" ? "Administrador" : "Miembro"}
-                </p>
               </div>
               {isAdmin && !isMe && m.userId !== group.creatorId ? (
-                <div className="flex shrink-0 gap-1.5" onClick={(e) => e.stopPropagation()}>
+                <div className="flex shrink-0 gap-1.5 ml-auto" onClick={(e) => e.stopPropagation()}>
                   {m.isGhost ? (
                     <Button variant="ghost" className="!px-2 !py-1 text-[11px]" onClick={() => sendClaimLink(m)}>
                       Enviar enlace
@@ -1978,7 +1987,7 @@ function PotTab({
       <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-slate-900/50 p-5">
         <p className="text-xs font-medium uppercase tracking-wider text-emerald-400">Saldo del bote común</p>
         <p className="mt-1 text-3xl font-extrabold text-emerald-300">
-          <Money amount={balance} currency={currency} />
+          <Money amount={Math.max(0, balance)} currency={currency} />
         </p>
         <p className="mt-1 text-xs text-slate-500">Dinero aportado por los miembros para gastos compartidos del grupo</p>
         {contributions.length > 0 ? (
@@ -1987,6 +1996,17 @@ function PotTab({
           </Button>
         ) : null}
       </div>
+
+      {balance < 0 ? (
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-3 text-[11px] text-rose-200">
+          <div className="flex items-start gap-2">
+            <svg className="h-4 w-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p>El saldo del bote está en 0.00 {currency}. Los gastos registrados con el bote se mantienen reflejados en el historial de actividad.</p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-[11px] text-amber-200">
         <div className="flex items-start gap-2">
