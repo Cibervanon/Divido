@@ -1501,31 +1501,31 @@ function MembersTab({
               onClick={() => onOpenMember(m)}
               className="flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-left transition hover:border-slate-700"
             >
-              <Avatar name={m.name} url={m.avatarUrl} size="sm" />
-              <div className="min-w-0 flex-1 flex items-center gap-3">
-                <div className="min-w-0 flex-1 flex flex-col overflow-hidden">
-                  <p className="truncate text-sm font-medium text-slate-200">{m.name}</p>
-                  <p className="text-[11px] text-slate-500 truncate">
-                    {m.isGhost ? (
-                      <span className="inline-flex items-center gap-1 text-slate-400">
-                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                        </svg>
-                        SIN CUENTA
-                      </span>
-                    ) : (
-                      <>
-                        {m.userId === group.creatorId ? "Creador" : m.role === "admin" ? "Administrador" : "Miembro"}
-                        {isMe ? " · tú" : null}
-                        {m.emailVerified ? " · " : null}
-                        {m.emailVerified && <VerifiedBadge size="xs" />}
-                      </>
-                    )}
-                  </p>
-                </div>
+              <div className="shrink-0">
+                <Avatar name={m.name} url={m.avatarUrl} size="sm" />
+              </div>
+              <div className="flex flex-col justify-center min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-slate-200">{m.name}</p>
+                <span className="mt-0.5 text-xs text-slate-400">
+                  {m.isGhost ? (
+                    <span className="inline-flex items-center gap-1">
+                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                      </svg>
+                      SIN CUENTA
+                    </span>
+                  ) : (
+                    <>
+                      {m.userId === group.creatorId ? "Creador" : m.role === "admin" ? "Administrador" : "Miembro"}
+                      {isMe ? " · tú" : null}
+                      {m.emailVerified ? " · " : null}
+                      {m.emailVerified && <VerifiedBadge size="xs" />}
+                    </>
+                  )}
+                </span>
               </div>
               {isAdmin && !isMe && m.userId !== group.creatorId ? (
-                <div className="flex shrink-0 gap-1.5 ml-auto" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-2 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
                   {m.isGhost ? (
                     <Button variant="ghost" className="!px-2 !py-1 text-[11px]" onClick={() => sendClaimLink(m)}>
                       Enviar enlace
@@ -1998,12 +1998,12 @@ function PotTab({
       </div>
 
       {balance < 0 ? (
-        <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-3 text-[11px] text-rose-200">
+        <div className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-[11px] text-slate-400">
           <div className="flex items-start gap-2">
             <svg className="h-4 w-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
             </svg>
-            <p>El saldo del bote está en 0.00 {currency}. Los gastos registrados con el bote se mantienen reflejados en el historial de actividad.</p>
+            <p>El bote común no tiene saldo disponible. Las aportaciones y gastos pagados se mantienen en el historial inferior.</p>
           </div>
         </div>
       ) : null}
