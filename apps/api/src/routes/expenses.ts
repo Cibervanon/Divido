@@ -15,6 +15,7 @@ import {
   getPotExpenseWithdrawal,
   listExpenseComments,
   listExpenses,
+  listExpensesWithDetails,
   listMembers,
   updateExpense,
   upsertPotExpenseWithdrawal,
@@ -36,11 +37,12 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
     const user = requireAuth(request);
     const member = await getMemberRow(request.db, groupId, user.id);
     const includeDeleted = member?.role === "admin";
-    const expenses = (await listExpenses(request.db, groupId, includeDeleted)).map(async (e) => ({
-      ...(await toExpenseDto(request, e)),
+    const rows = await listExpensesWithDetails(request.db, groupId, includeDeleted);
+    const expenses = rows.map((e) => ({
+      ...expenseRowToDto(e),
       editable: isEditable(e.created_at),
     }));
-    return { expenses: await Promise.all(expenses) };
+    return { expenses };
   });
 
   app.get("/api/expenses/:expenseId", async (request) => {
@@ -297,6 +299,65 @@ if (expense.payer_id !== user.id && member.role !== "admin") {
 
 function isEditable(createdAt: string): boolean {
   return Date.now() - new Date(createdAt).getTime() < EDIT_WINDOW_MS;
+}
+
+interface ExpenseDetailRow {
+  id: string;
+  group_id: string;
+  payer_id: string | null;
+  description: string;
+  amount: number;
+  currency: string;
+  exchange_rate: number;
+  amount_group: number;
+  created_by_id: string;
+  created_at: string;
+  updated_at: string;
+  deleted: number;
+  paid_from_pot: number;
+  receipt_url: string | null;
+  category: string;
+  icon_name: string;
+  is_custom_icon: number;
+  payer_name?: string | null;
+  participants_json: string;
+  comment_count: number;
+}
+
+/** Convierte fila optimizada (con participants_json y comment_count) a DTO sin queries extra. */
+function expenseRowToDto(e: ExpenseDetailRow) {
+  const participantsData = JSON.parse(e.participants_json || "[]") as Array<{ userId: string; share: number | null }>;
+  const participants = participantsData.map((p) => p.userId);
+  const shares: Record<string, number> = {};
+  for (const p of participantsData) {
+    if (p.share != null) shares[p.userId] = p.share;
+  }
+  const custom = Object.keys(shares).length > 0;
+  const share = participants.length ? round2(e.amount_group / participants.length) : 0;
+  return {
+    id: e.id,
+    groupId: e.group_id,
+    payerId: e.payer_id,
+    payerName: e.payer_name ?? (e.paid_from_pot ? "Bote común" : "Usuario"),
+    description: e.description,
+    amount: e.amount,
+    currency: e.currency,
+    exchangeRate: e.exchange_rate,
+    amountGroup: e.amount_group,
+    createdAt: e.created_at,
+    updatedAt: e.updated_at,
+    deleted: Boolean(e.deleted),
+    paidFromPot: Boolean(e.paid_from_pot),
+    receiptUrl: e.receipt_url,
+    category: e.category,
+    iconName: e.icon_name,
+    isCustomIcon: Boolean(e.is_custom_icon),
+    participants,
+    shares: custom ? shares : null,
+    share,
+    participantsCount: participants.length,
+    comments: [], // comentarios se cargan bajo demanda al expandir
+  };
 }
 
 async function toExpenseDto(

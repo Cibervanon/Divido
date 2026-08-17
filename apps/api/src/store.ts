@@ -1293,6 +1293,41 @@ export async function listExpenses(
   return (await db.prepare(sql).all(groupId)) as unknown as ExpenseRow[];
 }
 
+export interface ExpenseDetailRow extends ExpenseRow {
+  participants_json: string;
+  comment_count: number;
+}
+
+/**
+ * Lista gastos con participantes, shares y conteo de comentarios en una sola query.
+ * Evita el problema N+1 al no necesitar llamadas separadas por gasto.
+ */
+export async function listExpensesWithDetails(
+  db: Db,
+  groupId: string,
+  includeDeleted = false
+): Promise<ExpenseDetailRow[]> {
+  const sql = `
+    SELECT
+      e.*,
+      COALESCE(u.name, 'Bote común') AS payer_name,
+      COALESCE(
+        json_group_array(
+          json_object('userId', ep.user_id, 'share', ep.share_amount)
+        ) FILTER (WHERE ep.user_id IS NOT NULL), '[]'
+      ) AS participants_json,
+      COUNT(DISTINCT c.id) AS comment_count
+    FROM expenses e
+    LEFT JOIN users u ON u.id = e.payer_id
+    LEFT JOIN expense_participants ep ON ep.expense_id = e.id
+    LEFT JOIN expense_comments c ON c.expense_id = e.id
+    WHERE e.group_id = ? ${includeDeleted ? "" : "AND e.deleted = 0"}
+    GROUP BY e.id, u.name
+    ORDER BY e.created_at DESC
+  `;
+  return (await db.prepare(sql).all(groupId)) as unknown as ExpenseDetailRow[];
+}
+
 export interface ExpenseParticipantRow {
   expense_id: string;
   user_id: string;
