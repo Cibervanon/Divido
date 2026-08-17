@@ -650,10 +650,10 @@ function ExpensesTab({
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-1.5">
-                  <Button variant="secondary" className="!px-2.5 !py-1 text-xs" onClick={() => onDecide(r.id, "approve")}>
+                  <Button variant="secondary" size="sm" onClick={() => onDecide(r.id, "approve")}>
                     Aprobar
                   </Button>
-                  <Button variant="ghost" className="!px-2.5 !py-1 text-xs" onClick={() => onDecide(r.id, "reject")}>
+                  <Button variant="ghost" size="sm" onClick={() => onDecide(r.id, "reject")}>
                     Rechazar
                   </Button>
                 </div>
@@ -1116,22 +1116,22 @@ function MembersTab({
                 </span>
               </div>
               {isAdmin && !isMe && m.userId !== group.creatorId ? (
-                <div className="flex items-center gap-2 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-1.5 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
                   {m.isGhost ? (
-                    <Button variant="ghost" className="!px-2 !py-1 text-[11px]" onClick={() => sendClaimLink(m)}>
+                    <Button variant="ghost" size="sm" onClick={() => sendClaimLink(m)}>
                       Enviar enlace
                     </Button>
                   ) : null}
                   {m.role === "admin" ? (
-                    <Button variant="ghost" className="!px-2 !py-1 text-[11px]" onClick={() => setRole(m.userId, "member")}>
+                    <Button variant="ghost" size="sm" onClick={() => setRole(m.userId, "member")}>
                       Quitar admin
                     </Button>
                   ) : (
-                    <Button variant="ghost" className="!px-2 !py-1 text-[11px]" onClick={() => setRole(m.userId, "admin")}>
+                    <Button variant="ghost" size="sm" onClick={() => setRole(m.userId, "admin")}>
                       Hacer admin
                     </Button>
                   )}
-                  <Button variant="ghost" className="!px-2 !py-1 text-[11px] text-rose-400" onClick={() => removeMember(m.userId, m.name)}>
+                  <Button variant="ghost" size="sm" className="text-rose-400" onClick={() => removeMember(m.userId, m.name)}>
                     Expulsar
                   </Button>
                 </div>
@@ -2341,7 +2341,8 @@ function HistoryTab({
                     <div className="flex items-center gap-1.5">
                       <Button
                         variant="secondary"
-                        className="!px-2.5 !py-1 text-[11px] text-emerald-400"
+                        size="sm"
+                        className="text-emerald-400"
                         disabled={deciding}
                         onClick={() => void confirmPayment(e.id, true)}
                       >
@@ -2349,7 +2350,8 @@ function HistoryTab({
                       </Button>
                       <Button
                         variant="ghost"
-                        className="!px-2.5 !py-1 text-[11px] text-rose-400"
+                        size="sm"
+                        className="text-rose-400"
                         disabled={deciding}
                         onClick={() => void confirmPayment(e.id, false)}
                       >

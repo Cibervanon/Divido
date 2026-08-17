@@ -29,11 +29,11 @@ function CategoryBadge({
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); onClick(e); }}
-      className={`touch-manipulation flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition ${className}`}
+      className={`touch-manipulation flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition ${className}`}
       style={{ backgroundColor: `${currentColor}20` }}
       aria-label={isCustomIcon ? "Categoría seleccionada manualmente. Click para cambiar o restaurar auto." : "Categoría auto-detectada. Click para elegir manualmente."}
     >
-      <CurrentIcon className="h-4 w-4 shrink-0" style={{ color: currentColor }} />
+      <CurrentIcon className="h-5 w-5 shrink-0" style={{ color: currentColor }} />
       {isCustomIcon && (
         <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500 text-[8px] font-bold text-white">
           ✓
