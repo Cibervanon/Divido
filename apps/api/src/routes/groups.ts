@@ -15,6 +15,7 @@ import {
   getInformalDebt,
   getMemberRow,
   getPotBalance,
+  getPotLedger,
   getRecurringExpense,
   listGroupsForUser,
   listInformalDebts,
@@ -443,11 +444,12 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     if (!group.enabledExtras.includes("common_pot")) {
       throw badRequest("El extra de bote común no está activo en este grupo");
     }
-    const [balance, contributions] = await Promise.all([
+    const [balance, contributions, ledger] = await Promise.all([
       getPotBalance(request.db, groupId),
       listPotContributions(request.db, groupId),
+      getPotLedger(request.db, groupId),
     ]);
-    return { balance, contributions };
+    return { balance, contributions, ledger };
   });
 
   app.post("/api/groups/:groupId/common-pot/contributions", async (request) => {

@@ -947,6 +947,81 @@ export async function getPotBalance(db: Db, groupId: string): Promise<number> {
   return Math.round(Number(row?.total ?? 0) * 100) / 100;
 }
 
+export interface PotLedgerEntry {
+  id: string;
+  type: "contribution" | "withdrawal";
+  amount: number;
+  note: string | null;
+  userId: string | null;
+  userName: string | null;
+  expenseId: string | null;
+  expenseDescription: string | null;
+  createdAt: string;
+  runningBalance: number;
+}
+
+/**
+ * Extracto unificado del bote común: aportaciones (+) y retiradas por gastos pagados con bote (-).
+ * Ordenado cronológicamente con saldo corriente (running balance).
+ */
+export async function getPotLedger(db: Db, groupId: string): Promise<PotLedgerEntry[]> {
+  // Aportaciones (positivas)
+  const contributions = await db
+    .prepare(
+      `SELECT c.id, c.amount, c.note, c.user_id, u.name AS user_name, c.created_at,
+              'contribution' AS type
+       FROM common_pot_contributions c
+       LEFT JOIN users u ON u.id = c.user_id
+       WHERE c.group_id = ? AND c.expense_id IS NULL
+       ORDER BY c.created_at ASC`
+    )
+    .all(groupId);
+
+  // Retiradas (gastos pagados con bote = negativas)
+  const withdrawals = await db
+    .prepare(
+      `SELECT c.id, c.amount, c.note, c.expense_id, c.user_id, u.name AS user_name, c.created_at,
+              'withdrawal' AS type, e.description AS expense_description
+       FROM common_pot_contributions c
+       LEFT JOIN users u ON u.id = c.user_id
+       LEFT JOIN expenses e ON e.id = c.expense_id
+       WHERE c.group_id = ? AND c.expense_id IS NOT NULL
+       ORDER BY c.created_at ASC`
+    )
+    .all(groupId);
+
+  const movements = [
+    ...contributions.map((c: any) => ({
+      id: c.id,
+      type: "contribution" as const,
+      amount: Number(c.amount),
+      note: c.note,
+      userId: c.user_id,
+      userName: c.user_name,
+      expenseId: null,
+      expenseDescription: null,
+      createdAt: c.created_at,
+    })),
+    ...withdrawals.map((w: any) => ({
+      id: w.id,
+      type: "withdrawal" as const,
+      amount: -Number(w.amount), // negativo = salida
+      note: w.note,
+      userId: w.user_id,
+      userName: w.user_name,
+      expenseId: w.expense_id,
+      expenseDescription: w.expense_description,
+      createdAt: w.created_at,
+    })),
+  ].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+  let running = 0;
+  return movements.map((m) => {
+    running = Math.round((running + m.amount) * 100) / 100;
+    return { ...m, runningBalance: running };
+  });
+}
+
 export interface PotWithdrawal {
   id: string;
   groupId: string;

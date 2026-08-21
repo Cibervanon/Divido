@@ -74,6 +74,7 @@ interface GroupCacheData {
   debts: InformalDebtDto[];
   potBalance: number;
   potContributions: PotContributionDto[];
+  potLedger: any[];
   recurringExpenses: RecurringExpenseDto[];
   audit: any[];
 }
@@ -94,6 +95,18 @@ export default function GroupPage() {
   const [debts, setDebts] = useState<InformalDebtDto[]>([]);
   const [potBalance, setPotBalance] = useState(0);
   const [potContributions, setPotContributions] = useState<PotContributionDto[]>([]);
+  const [potLedger, setPotLedger] = useState<Array<{
+    id: string;
+    type: "contribution" | "withdrawal";
+    amount: number;
+    note: string | null;
+    userId: string | null;
+    userName: string | null;
+    expenseId: string | null;
+    expenseDescription: string | null;
+    createdAt: string;
+    runningBalance: number;
+  }>>([]);
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpenseDto[]>([]);
   const [tab, setTab] = useState<Tab>("expenses");
   const [loading, setLoading] = useState(true);
@@ -132,6 +145,7 @@ export default function GroupPage() {
     setDebts(data.debts);
     setPotBalance(data.potBalance);
     setPotContributions(data.potContributions);
+    setPotLedger(data.potLedger ?? []);
     setRecurringExpenses(data.recurringExpenses);
     setAudit(data.audit ?? []);
   }, []);
@@ -159,17 +173,20 @@ export default function GroupPage() {
         const queryString = queryParams.toString();
         const expensesUrl = `/groups/${groupId}/expenses${queryString ? `?${queryString}` : ""}`;
 
-        const [d, e, h, r, dd, pot, rec, a] = await Promise.all([
+        const [d, e, h, r, dd, pot, rec, a, potLedgerRes] = await Promise.all([
           api.get<GroupDetail>(`/groups/${groupId}`),
           api.get<{ expenses: ExpenseDto[] }>(expensesUrl),
           api.get<{ events: HistoryEvent[] }>(`/groups/${groupId}/history`),
           api.get<{ requests: ModificationRequestDto[] }>(`/groups/${groupId}/requests`).catch(() => null),
           api.get<{ debts: InformalDebtDto[] }>(`/groups/${groupId}/informal-debts`).catch(() => null),
           api
-            .get<{ balance: number; contributions: PotContributionDto[] }>(`/groups/${groupId}/common-pot`)
+            .get<{ balance: number; contributions: PotContributionDto[]; ledger: any[] }>(`/groups/${groupId}/common-pot`)
             .catch(() => null),
           api.get<{ expenses: RecurringExpenseDto[] }>(`/groups/${groupId}/recurring-expenses`).catch(() => null),
           api.get<{ audit: any[] }>(`/api/groups/${groupId}/audit`).catch(() => ({ audit: [] })),
+          api
+            .get<{ ledger: any[] }>(`/groups/${groupId}/common-pot/ledger`)
+            .catch(() => ({ ledger: [] })),
         ]);
         const data: GroupCacheData = {
           detail: d,
@@ -179,6 +196,7 @@ export default function GroupPage() {
           debts: dd?.debts ?? [],
           potBalance: pot?.balance ?? 0,
           potContributions: pot?.contributions ?? [],
+          potLedger: potLedgerRes?.ledger ?? [],
           recurringExpenses: rec?.expenses ?? [],
           audit: a?.audit ?? [],
         };
@@ -450,6 +468,7 @@ export default function GroupPage() {
             <PotTab
               balance={potBalance}
               contributions={potContributions}
+              ledger={potLedger ?? []}
               myUserId={user.id}
               isAdmin={isAdmin}
               currency={group.currency}
@@ -1652,6 +1671,7 @@ function NewDebtModal({
 function PotTab({
   balance,
   contributions,
+  ledger,
   myUserId,
   isAdmin,
   currency,
@@ -1660,6 +1680,18 @@ function PotTab({
 }: {
   balance: number;
   contributions: PotContributionDto[];
+  ledger: Array<{
+    id: string;
+    type: "contribution" | "withdrawal";
+    amount: number;
+    note: string | null;
+    userId: string | null;
+    userName: string | null;
+    expenseId: string | null;
+    expenseDescription: string | null;
+    createdAt: string;
+    runningBalance: number;
+  }>;
   myUserId: string;
   isAdmin: boolean;
   currency: string;
