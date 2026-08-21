@@ -695,7 +695,21 @@ function ExpensesTab({
   const pending = requests.filter((r) => r.status === "pending");
   const [viewReceipt, setViewReceipt] = useState<string | null>(null);
 
-  const categories = ["general", "food", "transport", "leisure", "housing", "health", "shopping", "coffee", "pets", "streaming", "sports", "events", "family"];
+  const categories = [
+    { key: "food", label: "Comida" },
+    { key: "transport", label: "Transporte" },
+    { key: "leisure", label: "Ocio" },
+    { key: "housing", label: "Vivienda" },
+    { key: "health", label: "Salud" },
+    { key: "shopping", label: "Compras" },
+    { key: "coffee", label: "Café" },
+    { key: "pets", label: "Mascotas" },
+    { key: "streaming", label: "Streaming" },
+    { key: "sports", label: "Deportes" },
+    { key: "events", label: "Eventos" },
+    { key: "family", label: "Familia" },
+    { key: "general", label: "General" },
+  ];
 
   return (
     <div className="space-y-4">
@@ -718,25 +732,26 @@ function ExpensesTab({
           className="max-w-xs"
         />
 
-        {/* Chips de categoría + botón filtros avanzados */}
-        <div className="flex flex-wrap gap-2">
+        {/* Chips de categoría (scroll horizontal) + botón filtros avanzados */}
+        <div className="flex flex-nowrap gap-2 overflow-x-auto no-scrollbar pb-1 pr-2">
           {categories.map((cat) => (
             <button
-              key={cat}
+              key={cat.key}
               type="button"
-              onClick={() => onFilterChange("category", filters.category === cat ? undefined : cat)}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${
-                filters.category === cat
+              onClick={() => onFilterChange("category", filters.category === cat.key ? undefined : cat.key)}
+              className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition ${
+                filters.category === cat.key
                   ? "bg-indigo-600 text-white"
                   : "text-slate-400 hover:text-slate-200 bg-slate-800"
               }`}
             >
-              {cat}
+              {cat.label}
             </button>
           ))}
           <Button
             variant="ghost"
             size="sm"
+            className="shrink-0"
             onClick={() => onFilterChange("payerId", filters.payerId ? undefined : "my")}
           >
             Mi pagador
