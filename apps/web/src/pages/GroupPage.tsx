@@ -428,7 +428,7 @@ export default function GroupPage() {
             />
           ) : null}
           {tab === "balances" ? (
-            <BalancesTab detail={detail} myUserId={user.id} onOpenMember={openBreakdown} onToast={showToast} />
+            <BalancesTab detail={detail} expenses={expenses} myUserId={user.id} onOpenMember={openBreakdown} onToast={showToast} />
           ) : null}
           {tab === "members" ? (
             <MembersTab

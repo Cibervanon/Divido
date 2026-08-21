@@ -17,6 +17,7 @@ import { balanceRoutes } from "./routes/balances.js";
 import { userRoutes } from "./routes/users.js";
 import { notificationRoutes } from "./routes/notifications.js";
 import { cronRoutes } from "./routes/cron.js";
+import { exportRoutes } from "./routes/exports.js";
 import { processRecurringExpenses } from "./recurring.js";
 
 const CRON_INTERVAL_MS = 15 * 60 * 1000;
@@ -52,8 +53,9 @@ export async function buildApp(db = createDb(config.databaseUrl)) {
   app.register(requestRoutes);
   app.register(balanceRoutes);
   app.register(userRoutes);
-  app.register(notificationRoutes);
-  app.register(cronRoutes);
+app.register(notificationRoutes);
+app.register(cronRoutes);
+app.register(exportRoutes);
 
   const recurringTimer = setInterval(() => {
     processRecurringExpenses(db).catch((err) => {

@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { Avatar, Button, EmptyState, GhostBadge, Money, VerifiedBadge, currencySymbol } from "../../components/ui";
 import { simplifyDebts, type SimplifyResult } from "../../lib/debtSimplifier";
-import type { GroupDetail, MemberInfo } from "../../lib/types";
+import type { GroupDetail, MemberInfo, ExpenseDto } from "../../lib/types";
 import type { SettlementTransfer } from "@divido/shared";
+import { ExportSummary } from "./ExportSummary";
 
 function buildSummaryText(groupName: string, currency: string, transfers: SettlementTransfer[]): string {
   const sym = currencySymbol(currency);
@@ -25,6 +26,7 @@ async function copyText(text: string): Promise<boolean> {
 
 interface BalancesTabProps {
   detail: GroupDetail;
+  expenses: ExpenseDto[];
   myUserId: string;
   onOpenMember: (m: MemberInfo) => void;
   onToast: (msg: string) => void;
@@ -104,12 +106,13 @@ function SimplifyBreakdownModal({
   );
 }
 
-export function BalancesTab({ detail, myUserId, onOpenMember, onToast }: BalancesTabProps) {
-  const { group, balances, rawTransfers } = detail;
+export function BalancesTab({ detail, expenses, myUserId, onOpenMember, onToast }: BalancesTabProps) {
+  const { group, balances, rawTransfers, exMembers } = detail;
   const memberById = new Map(detail.members.map((m) => [m.userId, m]));
 
   const [simplifyEnabled, setSimplifyEnabled] = useState(group.simplifyDebts);
   const [showBreakdown, setShowBreakdown] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const isAdmin = detail.myRole === "admin";
 
   const simplified = useMemo(
@@ -172,17 +175,62 @@ export function BalancesTab({ detail, myUserId, onOpenMember, onToast }: Balance
     window.open(`https://${kind}.me/${encodeURIComponent(username)}`, "_blank", "noopener,noreferrer");
   }
 
+  async function exportCSV() {
+    try {
+      const res = await fetch(`/api/groups/${group.id}/export.csv`);
+      if (!res.ok) throw new Error("Error al exportar");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `divido-${group.id}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      onToast("CSV exportado correctamente");
+    } catch {
+      onToast("Error al exportar CSV");
+    }
+  }
+
+  function exportPrint() {
+    setShowExport(true);
+  }
+
+  function closeExportPrint() {
+    setShowExport(false);
+  }
+
   return (
     <div className="space-y-5">
-      <button
-        onClick={() => void shareSummary()}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-500/40 bg-emerald-500/5 px-4 py-3 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/10"
-      >
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
-        </svg>
-        Compartir resumen
-      </button>
+      <div className="flex gap-3">
+        <button
+          onClick={() => void shareSummary()}
+          className="flex-1 flex items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-500/40 bg-emerald-500/5 px-4 py-3 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/10"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+          </svg>
+          Compartir resumen
+        </button>
+        <button
+          onClick={exportPrint}
+          className="flex-1 flex items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-500/40 bg-indigo-500/5 px-4 py-3 text-sm font-semibold text-indigo-300 transition hover:bg-indigo-500/10"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2h2m0-10V5a2 2 0 012-2h6a2 2 0 012 2v2" />
+          </svg>
+          Vista imprimir
+        </button>
+        <button
+          onClick={exportCSV}
+          className="flex-1 flex items-center justify-center gap-2 rounded-2xl border border-dashed border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-amber-500/10"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          Exportar CSV
+        </button>
+      </div>
 
       {hasSavings ? (
         <div
@@ -373,6 +421,14 @@ export function BalancesTab({ detail, myUserId, onOpenMember, onToast }: Balance
           <p className="mt-2 text-[11px] text-slate-600">Balance congelado al abandonar el grupo. Se recupera si vuelven a unirse.</p>
         </div>
       ) : null}
+      {showExport && (
+        <ExportSummary
+group={group}
+        expenses={expenses}
+        balances={{ transfers: displayTransfers }}
+        currency={group.currency}
+        />
+      )}
     </div>
   );
 }
