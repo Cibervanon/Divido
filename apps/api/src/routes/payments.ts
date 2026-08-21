@@ -45,6 +45,9 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
     const { groupId } = request.params as { groupId: string };
     const user = requireAuth(request);
     const { group } = await requireActiveMember(request, groupId);
+    if (group.type === "closed") {
+      throw badRequest("El grupo está cerrado. No se pueden registrar nuevos pagos.");
+    }
     const { toUserId, amount, note, proofUrl } = request.body as {
       toUserId?: string;
       amount?: number;

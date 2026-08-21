@@ -2762,6 +2762,44 @@ function SettingsModal({
             Abandonar grupo
           </Button>
         </div>
+{isAdmin && group.type === "open" ? (
+          <>
+            <div className="border-t border-slate-800 pt-4">
+              <button
+                type="button"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-rose-500/50 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-400 transition hover:bg-rose-500/20"
+                onClick={() => {
+                  if (
+                    confirm(
+                      "¿Seguro que quieres cerrar este grupo?\n\n" +
+                        "• No se podrán añadir nuevos gastos ni pagos\n" +
+                        "• No se podrán crear nuevos piques\n" +
+                        "• El grupo se marcará como 'Cerrado'\n" +
+                        "• Los miembros podrán ver el historial pero no modificar nada\n\n" +
+                        "Esta acción es reversible (puedes reabrirlo desde Ajustes)."
+                    )
+                  ) {
+                    (async () => {
+                      try {
+                        await api.patch(`/groups/${group.id}`, { type: "closed" });
+                        onChanged();
+                        onClose();
+                      } catch (err) {
+                        alert(err instanceof Error ? err.message : "Error al cerrar el grupo");
+                      }
+                    })();
+                  }
+                }
+              }
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Cerrar grupo
+              </button>
+            </div>
+          </>
+        ) : null}
       </div>
     </Modal>
   );

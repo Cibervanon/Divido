@@ -82,6 +82,9 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
     const { groupId } = request.params as { groupId: string };
     const { member, group } = await requireActiveMember(request, groupId);
     const user = requireAuth(request);
+    if (group.type === "closed") {
+      throw badRequest("El grupo está cerrado. No se pueden añadir nuevos gastos.");
+    }
     const body = parseBody(createExpenseSchema, request.body) as CreateExpenseInput;
     const paidFromPot = body.paidFromPot ?? false;
     const receiptUrl = parseReceiptUrl((request.body as any).receiptUrl);
@@ -179,6 +182,9 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
     const expense = await getExpense(request.db, expenseId);
     if (!expense) throw notFound("Gasto no encontrado");
     const { member, group } = await requireActiveMember(request, expense.group_id);
+    if (group.type === "closed") {
+      throw badRequest("El grupo está cerrado. No se pueden modificar gastos.");
+    }
     if (!isEditable(expense.created_at)) {
       throw conflict(
         "El gasto tiene más de 24 horas. Solicita una modificación que un administrador debe aprobar."
@@ -279,7 +285,10 @@ if (expense.payer_id !== user.id && member.role !== "admin") {
     const user = requireAuth(request);
     const expense = await getExpense(request.db, expenseId);
     if (!expense) throw notFound("Gasto no encontrado");
-    const { member } = await requireActiveMember(request, expense.group_id);
+    const { member, group } = await requireActiveMember(request, expense.group_id);
+    if (group.type === "closed") {
+      throw badRequest("El grupo está cerrado. No se pueden eliminar gastos.");
+    }
     if (!isEditable(expense.created_at)) {
       throw conflict(
         "El gasto tiene más de 24 horas. Solicita la eliminación y un administrador deberá aprobarla."
