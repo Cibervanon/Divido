@@ -30,7 +30,11 @@ export function createDb(connectionString: string): Db {
   }
   const pool = new Pool({
     connectionString,
-    max: 10,
+    // Dimensionado explícito del pool (T6): no depender de los defaults de pg
+    // para poder escalar verticalmente sin agotar las conexiones de la BD.
+    max: Number(process.env.DB_POOL_MAX ?? 10),
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 5_000,
     ssl: /neon\.tech|sslmode=require/i.test(connectionString)
       ? { rejectUnauthorized: false }
       : undefined,
