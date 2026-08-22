@@ -386,6 +386,3 @@ export function NewDebtModal({
     </Modal>
   );
 }
-
-// ---------- Bote comÃºn ----------
-
