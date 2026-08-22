@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Divido — Plan de Implementación del Roadmap de Optimización</title>
+<!--
+  PLAN DE IMPLEMENTACIÓN · Roadmap de Optimización y Escalabilidad — Divido
+  Documento independiente · mismo lenguaje visual que la ficha técnica.
+-->
+<style>
+  @page { size: A4; margin: 14mm 12mm;
+    @bottom-left { content: "Divido — Plan de Implementación v1.0"; font-size: 7pt; color: #6e7681; }
+    @bottom-right { content: "Página " counter(page) " de " counter(pages); font-size: 7pt; color: #6e7681; } }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background:#0d1117; color:#e6edf3; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif; font-size:9.5pt; line-height:1.6; }
+  .document { max-width: 960px; margin:0 auto; padding:24px 20px 40px; }
+
+  h2.sec-title{font-size:17pt;color:#fff;letter-spacing:-.3px;margin-bottom:4px}
+  h3{font-size:12pt;color:#e6edf3;margin:22px 0 8px}
+  p{color:#c9d1d9;margin-bottom:8px;text-align:justify}
+  strong{color:#fff} em{color:#a5b4fc;font-style:italic}
+  code{font-family:Consolas,Menlo,monospace;font-size:8.5pt;color:#79c0ff;background:#161b22;border:1px solid #30363d;border-radius:4px;padding:1px 5px}
+  ul,ol{margin:0 0 8px 18px;color:#c9d1d9} li{margin-bottom:4px}
+  .muted{color:#8b949e}.small{font-size:8pt}
+
+  section.card-block{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:18px 20px;margin:16px 0}
+  .sec-head{display:flex;align-items:center;gap:12px;border-bottom:1px solid #21262d;padding-bottom:10px;margin-bottom:14px}
+  .sec-num{flex-shrink:0;width:34px;height:34px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-weight:800;font-size:13pt}
+
+  .chip{display:inline-flex;align-items:center;gap:5px;font-size:7.5pt;font-weight:700;letter-spacing:.4px;border-radius:999px;padding:3px 10px;border:1px solid}
+  .chip-indigo{color:#a5b4fc;border-color:#4c51bf66;background:#6366f11a}
+  .chip-green{color:#56d364;border-color:#23863666;background:#23863622}
+  .chip-yellow{color:#e3b341;border-color:#bb800966;background:#bb80091a}
+  .chip-orange{color:#f0883e;border-color:#bd561d66;background:#bd561d1a}
+  .chip-red{color:#ff7b72;border-color:#b6232466;background:#da36331a}
+  .chip-blue{color:#79c0ff;border-color:#388bfd66;background:#388bfd1a}
+  .chip-gray{color:#8b949e;border-color:#30363d;background:#21262d}
+
+  table.tbl{width:100%;border-collapse:collapse;margin:10px 0;font-size:8.5pt}
+  table.tbl th{text-align:left;color:#a5b4fc;font-weight:700;text-transform:uppercase;font-size:7.5pt;letter-spacing:.6px;padding:7px 8px;background:#1c2129;border-bottom:2px solid #30363d}
+  table.tbl td{padding:7px 8px;border-bottom:1px solid #21262d;color:#c9d1d9;vertical-align:top}
+  table.tbl tr:last-child td{border-bottom:none}
+  .prio{font-family:Consolas,Menlo,monospace;font-weight:700;white-space:nowrap}
+  .prio.p1{color:#ff7b72}.prio.p2{color:#e3b341}.prio.p3{color:#56d364}
+
+  /* Tarjeta de tarea */
+  .task{background:#161b22;border:1px solid #30363d;border-left:4px solid #6366f1;border-radius:12px;padding:14px 18px;margin:14px 0}
+  .task.p1{border-left-color:#f85149}.task.p2{border-left-color:#d29922}.task.p3{border-left-color:#3fb950}
+  .task-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
+  .task-id{font-family:Consolas,Menlo,monospace;font-weight:800;color:#fff;background:#21262d;border:1px solid #30363d;border-radius:6px;padding:2px 8px}
+  .steps{counter-reset:st;list-style:none;margin:8px 0}
+  .steps li{counter-increment:st;position:relative;padding-left:30px;margin-bottom:7px}
+  .steps li::before{content:counter(st);position:absolute;left:0;top:1px;width:20px;height:20px;border-radius:6px;background:#21262d;border:1px solid #30363d;color:#a5b4fc;font-weight:700;font-size:8pt;display:flex;align-items:center;justify-content:center}
+  .files{font-size:8pt;color:#8b949e;background:#0d1117;border:1px dashed #30363d;border-radius:8px;padding:6px 10px;margin:8px 0}
+  .dod{background:#23863611;border:1px solid #23863644;border-radius:8px;padding:8px 12px;margin-top:8px;font-size:8.5pt}
+  .dod b{color:#56d364;text-transform:uppercase;font-size:7.5pt;letter-spacing:.8px;display:block;margin-bottom:3px}
+  .risk{background:#da363311;border:1px solid #b6232444;border-radius:8px;padding:8px 12px;margin-top:8px;font-size:8.5pt}
+  .risk b{color:#ff7b72;text-transform:uppercase;font-size:7.5pt;letter-spacing:.8px;display:block;margin-bottom:3px}
+  .est{margin-left:auto;font-family:Consolas,Menlo,monospace;font-size:8pt;color:#e3b341;font-weight:700}
+
+  /* Gantt simple */
+  .gantt{margin:10px 0}
+  .g-row{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+  .g-label{flex:0 0 190px;font-size:8pt;font-weight:600;text-align:right}
+  .g-track{flex:1;position:relative;height:18px;background:#0d1117;border:1px solid #21262d;border-radius:6px}
+  .g-bar{position:absolute;top:2px;bottom:2px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:7pt;font-weight:700;color:#fff}
+  .g-sprint{position:absolute;top:-4px;bottom:-4px;width:0;border-left:1px dashed #30363d}
+  .g-head{display:flex;justify-content:space-between;font-size:7.5pt;color:#8b949e;margin:0 0 6px 200px}
+
+  .callout{border:1px solid #bb800966;background:#bb80090d;border-radius:10px;padding:10px 14px;margin:12px 0;font-size:8.5pt;color:#e3b341}
+  .callout.blue{border-color:#388bfd66;background:#388bfd0d;color:#79c0ff}
+  .callout.green{border-color:#23863666;background:#23863611;color:#56d364}
+
+  .metric-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:10px 0}
+  .metric{background:#0d1117;border:1px solid #21262d;border-radius:10px;padding:10px 12px;text-align:center}
+  .metric .v{font-family:Consolas,Menlo,monospace;font-size:13pt;font-weight:800;color:#79c0ff}
+  .metric .l{font-size:7.5pt;color:#8b949e;margin-top:2px}
+
+  footer.doc-footer{margin-top:28px;border-top:1px solid #21262d;padding-top:12px;font-size:7.5pt;color:#6e7681}
+</style>
+</head>
+<body>
+<div class="document">
+
+  <!-- PORTADA -->
+  <header class="card-block">
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+      <span class="sec-num" style="width:44px;height:44px;font-size:17pt">÷</span>
+      <div style="flex:1;min-width:260px">
+        <h2 class="sec-title">Plan de Implementación — Roadmap de Optimización y Escalabilidad</h2>
+        <span class="muted small">Divido · cómo ejecutar las acciones P1/P2/P3 de la ficha técnica, en orden, con criterios de aceptación verificables</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        <span class="chip chip-indigo">v1.0 · 22 ago 2026</span>
+        <span class="chip chip-gray">3 sprints · ~3 semanas</span>
+      </div>
+    </div>
+    <p class="small muted" style="margin-top:12px">
+      Basado en <code>docs/ficha-tecnica-divido.html</code>. Cada tarea indica <strong>archivos concretos</strong>, pasos,
+      criterio de aceptación (DoD) y rollback. El workflow de repo ya definido se aplica a cada tarea:
+      typecheck/build → commit descriptivo en español → push a <code>main</code> → deploy automático (Vercel/Render).
+    </p>
+  </header>
+
+  <!-- 1. PRINCIPIOS -->
+  <section class="card-block">
+    <div class="sec-head"><span class="sec-num">1</span><div><h2 class="sec-title">Reglas del juego</h2><span class="muted small">Principios que ordenan el plan</span></div></div>
+    <ol>
+      <li><strong>Primero barato, luego estructural.</strong> Las victorias de configuración (caché cliente) van antes que los cambios de contrato API (paginación): liberan valor inmediato y no bloquean nada.</li>
+      <li><strong>Un commit = una tarea.</strong> Nada de mezclar refactor con features. Cada tarea termina en producción de forma independiente y reversible (<code>git revert</code> limpio).</li>
+      <li><strong>Feature-flag mental:</strong> la paginación se introduce con <em>page size por defecto</em> alto pero acotado; si algo falla en producción, revert devuelve al comportamiento actual sin migraciones.</li>
+      <li><strong>Ninguna tarea sin métrica de verificación.</strong> Antes/después medible (tabla §5), aunque sea manual con DevTools.</li>
+      <li><strong>La BD solo gana índices aditivos</strong> (<code>CREATE INDEX IF NOT EXISTS</code>): cero migraciones destructivas durante el plan.</li>
+    </ol>
+
+    <h3>Cronograma propuesto</h3>
+    <div class="gantt">
+      <div class="g-head"><span>Sprint 1 (semana 1) — Quick wins P1</span><span>Sprint 2 (semana 2) — Estructural P2</span><span>Sprint 3+ (backlog) — Salud P3</span></div>
+      <div class="g-row"><div class="g-label">T1 · Caché cliente (staleTime)</div><div class="g-track"><div class="g-bar" style="left:0;width:7%;background:#f85149">½d</div><div class="g-sprint" style="left:33%"></div><div class="g-sprint" style="left:66%"></div></div></div>
+      <div class="g-row"><div class="g-label">T2 · Barrido autorización (tests)</div><div class="g-track"><div class="g-bar" style="left:8%;width:13%;background:#f85149">1d</div><div class="g-sprint" style="left:33%"></div><div class="g-sprint" style="left:66%"></div></div></div>
+      <div class="g-row"><div class="g-label">T3 · Paginación gastos/eventos</div><div class="g-track"><div class="g-bar" style="left:22%;width:26%;background:#f85149">2–3d</div><div class="g-sprint" style="left:33%"></div><div class="g-sprint" style="left:66%"></div></div></div>
+      <div class="g-row"><div class="g-label">T4 · Índice group_events</div><div class="g-track"><div class="g-bar" style="left:48%;width:7%;background:#d29922">½d</div><div class="g-sprint" style="left:33%"></div><div class="g-sprint" style="left:66%"></div></div></div>
+      <div class="g-row"><div class="g-label">T5 · Export server-side condicional</div><div class="g-track"><div class="g-bar" style="left:56%;width:18%;background:#d29922">1–2d</div><div class="g-sprint" style="left:33%"></div><div class="g-sprint" style="left:66%"></div></div></div>
+      <div class="g-row"><div class="g-label">T6 · Pool pg / PgBouncer</div><div class="g-track"><div class="g-bar" style="left:75%;width:9%;background:#d29922">½d</div><div class="g-sprint" style="left:33%"></div><div class="g-sprint" style="left:66%"></div></div></div>
+      <div class="g-row"><div class="g-label">T7 · Dividir GroupPage.tsx</div><div class="g-track"><div class="g-bar" style="left:84%;width:16%;background:#3fb950">2–3d</div><div class="g-sprint" style="left:33%"></div><div class="g-sprint" style="left:66%"></div></div></div>
+      <div class="g-row"><div class="g-label">T8 · Observabilidad (p95, alertas)</div><div class="g-track"><div class="g-bar" style="left:93%;width:7%;background:#3fb950">1d</div><div class="g-sprint" style="left:33%"></div><div class="g-sprint" style="left:66%"></div></div></div>
+    </div>
+    <p class="small muted">T1 y T2 son independientes y pueden hacerse en paralelo. T3 depende de decidir el tamaño de página (§T3); T4 debe fusionarse con T3 o ir inmediatamente después. T5 y T6 son independientes entre sí.</p>
+  </section>
+
+  <!-- 2. SPRINT 1 -->
+  <section class="card-block">
+    <div class="sec-head"><span class="sec-num">2</span><div><h2 class="sec-title">Sprint 1 — P1 🔴 Quick wins</h2><span class="muted small">Máximo impacto por mínimo riesgo · semana 1</span></div></div>
+
+    <!-- T1 -->
+    <div class="task p1">
+      <div class="task-head"><span class="task-id">T1</span><strong>Ajustar caché cliente: staleTime + keepPreviousData</strong><span class="chip chip-red">P1</span><span class="est">½ día</span></div>
+      <p class="small">Hoy cada query usa <code>staleTime=0</code>: al volver a la pestaña, TanStack Query re-pide gastos, miembros y balances (<code>refetchOnWindowFocus</code>). Objetivo: −60/70 % de peticiones redundantes sin tocar backend.</p>
+      <div class="files">📁 <code>apps/web/src/pages/group/hooks/useGroupDetail.ts</code> (queries de líneas ~19–70)</div>
+      <ol class="steps">
+        <li>Añadir a las queries de lectura (<code>"group"</code>, <code>"expenses"</code>, <code>"balances"</code>, <code>"members"</code>) la opción <code>staleTime: 60_000</code>. Las mutaciones <strong>no se tocan</strong>: sus <code>invalidateQueries</code> siguen forzando frescura tras escribir.</li>
+        <li>En la query de gastos con filtros, añadir <code>placeholderData: keepPreviousData</code> (import de <code>@tanstack/react-query</code>) para que cambiar filtro no parpadee en blanco.</li>
+        <li>Verificar con React Query Devtools / pestaña Network: alternar pestañas del navegador y volver → 0 peticiones durante 60 s.</li>
+        <li>Probar flujo completo: crear gasto → invalidación → refetch inmediato visible en Network.</li>
+      </ol>
+      <div class="dod"><b>DoD</b> Volver a una pestaña abierta &lt;60 s genera 0 requests · crear/editar/borrar gasto sigue refrescando listas al instante · typecheck OK.</div>
+      <div class="risk"><b>Riesgo / rollback</b> Mínimo: si un usuario ve datos &gt;60 s antiguos tras editar desde otro dispositivo, bajar staleTime a 15–30 s. Revert = 1 commit.</div>
+    </div>
+
+    <!-- T2 -->
+    <div class="task p1">
+      <div class="task-head"><span class="task-id">T2</span><strong>Barrido automatizado de autorización</strong><span class="chip chip-red">P1</span><span class="est">1 día</span></div>
+      <p class="small">La seguridad vive en middleware (<code>requireAuth</code>/<code>requireAdmin</code>/check <code>is_ghost</code>). Objetivo: red de seguridad que falle en CI si una ruta futura olvida el guard. Se reutiliza el patrón Vitest ya existente en <code>shared</code>.</p>
+      <div class="files">📁 nuevo <code>apps/api/src/tests/authz.test.ts</code> · <code>apps/api/package.json</code> (script <code>"test": "vitest run"</code> + devDep vitest) · helper de arranque de app Fastify exportable desde <code>src/index.ts</code> (extraer <code>buildApp()</code> si no existe)</div>
+      <ol class="steps">
+        <li>Refactor mínimo: exportar <code>buildApp()</code> (fabrica de Fastify con plugins/rutas registradas) para poder instanciar la app en tests con <code>app.inject()</code> — sin red, sin BD real (mock de <code>db.ts</code> o SQLite en memoria según acoplamiento).</li>
+        <li>Crear matriz de perfiles: <strong>anónimo</strong> (sin JWT), <strong>miembro no-admin</strong>, <strong>ghost promovido ilegalmente</strong>, <strong>admin</strong>.</li>
+        <li>Escribir tabla de casos: para cada ruta sensible (grupos: roles/borrado; gastos: crear/editar/borrar ajeno; bote; miembros; ghost-members) afirmar 401/403 esperados — incluida la regla «un miembro sin cuenta no puede ser administrador» (<code>routes/groups.ts</code>).</li>
+        <li>Añadir script <code>npm test</code> al workspace API y documentar en README del repo cómo ejecutarlo.</li>
+      </ol>
+      <div class="dod"><b>DoD</b> <code>npm test -w @divido/api</code> verde cubriendo ≥15 rutas × ≥3 perfiles · un test negativo deliberado (quitar requireAdmin) hace fallar la suite (comprobación manual única).</div>
+      <div class="risk"><b>Riesgo / rollback</b> Si mockear BD resulta costoso, alternativa aceptada: tests contra Postgres efímero (contenedor local) marcados como integración; nunca contra Supabase de prod.</div>
+    </div>
+
+    <!-- T3 -->
+    <div class="task p1">
+      <div class="task-head"><span class="task-id">T3</span><strong>Paginación server-side de gastos e historial</strong><span class="chip chip-red">P1</span><span class="est">2–3 días</span></div>
+      <p class="small">El cuello nº1. Patrón a replicar: el audit log ya pagina con <code>LIMIT ? OFFSET ?</code> (<code>routes/groups.ts:164–176</code>). Dos endpoints afectados: <code>GET /api/groups/:groupId/expenses</code> (<code>routes/expenses.ts:37</code>) y el feed de <code>group_events</code>.</p>
+      <div class="files">📁 <code>apps/api/src/routes/expenses.ts</code> · ruta de eventos (groups/events) · <code>packages/shared/src</code> (tipos de respuesta paginada) · <code>apps/web/src/pages/group/hooks/useGroupDetail.ts</code> · componente de lista de gastos/historial en <code>GroupPage.tsx</code></div>
+      <ol class="steps">
+        <li><strong>Contrato compartido primero:</strong> en <code>@divido/shared</code> definir <code>Paginated&lt;T&gt; = { items: T[]; total: number; hasMore: boolean }</code>. Compilar shared (<code>npm run build -w @divido/shared</code>).</li>
+        <li><strong>API:</strong> aceptar <code>?limit=&amp;offset=</code> con clamp seguro (<code>limit ∈ [1,200]</code>, defecto 50) y devolver además <code>total</code> vía <code>COUNT(*)</code> sobre la misma cláusula WHERE. Mantener <code>ORDER BY created_at DESC</code> (aprovecha índice existente <code>idx_expenses_group_created</code>).</li>
+        <li><strong>Compatibilidad:</strong> si no llegan query params, responder página por defecto (50) — el frontend viejo simplemente vería menos items; como web y API se despliegan juntas en el mismo push, el riesgo es residual. Aun así, documentar el cambio en el commit.</li>
+        <li><strong>Web:</strong> migrar a <code>useInfiniteQuery</code> con <code>getNextPageParam</code> y botón «Cargar más» al final de Gastos e Historial (mismo componente reutilizable). El acumulado en pantalla sigue creciendo bajo demanda, no de golpe.</li>
+        <li><strong>CSV/PDF:</strong> verificar que la exportación siga viendo TODO el grupo (usar <code>limit=200</code> iterando páginas en cliente, o parámetro <code>all=1</code> dedicado solo para export — decisión: preferir bucle en cliente, mantiene la API simple).</li>
+        <li>Fusionar en este PR el índice <code>CREATE INDEX IF NOT EXISTS idx_events_group_created ON group_events(group_id, created_at DESC)</code> en <code>db.ts</code> (es la T4).</li>
+      </ol>
+      <div class="dod"><b>DoD</b> Con un grupo sembrado con 1.000 gastos de prueba: respuesta ≤ ~100 KB por página · «Cargar más» pagina correctamente · CSV exporta los 1.000 · COUNT total correcto · typecheck web+api OK.</div>
+      <div class="risk"><b>Riesgo / rollback</b> Cambia el shape de respuesta → desplegar web+API en el mismo commit (ya es el workflow). Rollback con revert restaura lista completa. Sembrar datos de prueba con script temporal <em>fuera</em> de prod (BD local o grupo desechable).</div>
+    </div>
+  </section>
+
+  <!-- 3. SPRINT 2 -->
+  <section class="card-block">
+    <div class="sec-head"><span class="sec-num">3</span><div><h2 class="sec-title">Sprint 2 — P2 🟡 Estructurales</h2><span class="muted small">Preparan la escala real · semana 2</span></div></div>
+
+    <!-- T5 -->
+    <div class="task p2">
+      <div class="task-head"><span class="task-id">T5</span><strong>Export CSV server-side condicional</strong><span class="chip chip-yellow">P2</span><span class="est">1–2 días</span></div>
+      <p class="small">El Blob en cliente bloquea el hilo principal &gt;50k filas. Estrategia: <strong>mantener la export en cliente por defecto</strong> (coste plano) y añadir vía server solo cuando se supere el umbral.</p>
+      <div class="files">📁 nuevo endpoint en <code>apps/api/src/routes/exports.ts</code> (ya existe módulo) · <code>BalancesTab.tsx</code> (detección de umbral)</div>
+      <ol class="steps">
+        <li>Endpoint <code>GET /api/groups/:id/export.csv?scope=expenses|balances</code> autenticado con <code>requireActiveMember</code>; construir el mismo formato (BOM, separador, escape) que hoy genera el cliente — extraer generador común a <code>@divido/shared</code> para no duplicar lógica.</li>
+        <li>Responder con streaming: <code>reply.header("Content-Disposition", 'attachment; filename="..."')</code> y escribir por chunks (cursor pg de 1.000 filas) — nunca buffer completo en memoria del servidor.</li>
+        <li>Cliente: si <code>total &gt; 50_000</code> (dato que ya devuelve la paginación de T3), navegar al endpoint; si no, mantener Blob local.</li>
+        <li>Rate-limit específico al endpoint (evitar abusos: export es caro).</li>
+      </ol>
+      <div class="dod"><b>DoD</b> Export pequeña idéntica a la actual (diff de bytes salvo timestamp) · con 60k filas simuladas, el navegador descarga sin congelarse y la API mantiene memoria RSS estable (&lt;150 MB).</div>
+      <div class="risk"><b>Riesgo / rollback</b> Doble implementación del formato → evitarla con el generador compartido. El flag es el propio <code>total</code>: revert seguro.</div>
+    </div>
+
+    <!-- T6 -->
+    <div class="task p2">
+      <div class="task-head"><span class="task-id">T6</span><strong>Dimensionar pool de conexiones + PgBouncer</strong><span class="chip chip-yellow">P2</span><span class="est">½ día</span></div>
+      <p class="small">Prerrequisito para escalar Render verticalmente sin agotar conexiones de Supabase.</p>
+      <div class="files">📁 <code>apps/api/src/db.ts</code> (creación del pool) · variables de entorno en Render · dashboard Supabase (pooler)</div>
+      <ol class="steps">
+        <li>Auditar creación del pool: fijar <code>max: 10</code>, <code>idleTimeoutMillis: 30_000</code>, <code>connectionTimeoutMillis: 5_000</code> explícitos (no depender de defaults).</li>
+        <li>Conmutar <code>DATABASE_URL</code> al puerto pooler de Supabase (6543, transaction mode) manteniendo el directo (5432) solo para el DDL de arranque en <code>db.ts</code>.</li>
+        <li>Probar humo: despliegue → CRUD básico → comprobar en dashboard que conexiones se mantienen ≈ pool max y no crecen.</li>
+      </ol>
+      <div class="dod"><b>DoD</b> App funcional vía pooler · número de conexiones acotado bajo carga simulada (k6 rápido: 50 VU × 2 min sin errores 5xx ni «too many connections»).</div>
+      <div class="risk"><b>Riesgo / rollback</b> Transaction mode rompe prepared statements/sesiones: si aparece error <code>prepared statement does not exist</code>, usar session mode (pooler puerto 5432 del pooler) o <code>pg</code> sin statements preparados. Rollback = restaurar DATABASE_URL.</div>
+    </div>
+  </section>
+
+  <!-- 4. SPRINT 3 -->
+  <section class="card-block">
+    <div class="sec-head"><span class="sec-num">4</span><div><h2 class="sec-title">Sprint 3+ — P3 🟢 Salud del sistema (backlog)</h2><span class="muted small">Sin urgencia de producción · semanas 3+</span></div></div>
+
+    <table class="tbl">
+      <tr><th>Tarea</th><th>Cómo se hace</th><th>Verificación</th></tr>
+      <tr>
+        <td class="prio p3">T7 · Dividir GroupPage (~2.800 líneas)</td>
+        <td>Extraer por tab a <code>pages/group/ExpensesTab.tsx</code>, <code>BalancesTab</code> (ya existe), <code>ActivityTab.tsx</code>, <code>PotTab.tsx</code>; mover helpers compartidos a <code>pages/group/utils.ts</code>. Refactor mecánico sin cambios de comportamiento: mismo JSX, mismos hooks. Commits separados por tab.</td>
+        <td>Diff sin cambios funcionales: smoke test manual de cada tab + typecheck. Bundle de la ruta igual o menor.</td>
+      </tr>
+      <tr>
+        <td class="prio p3">T8 · Observabilidad básica</td>
+        <td>Fastify: hook <code>onResponse</code> que loguee ruta/status/duración (JSON estructurado) + endpoint interno <code>/api/health</code> con latencia de BD (<code>SELECT 1</code>) consumido por health-checks de Render. Alerta manual: revisión semanal de tamaño de BD en dashboard Supabase hasta automatizar.</td>
+        <td>p95 visible en logs tras 1 semana de tráfico real; sustituir las estimaciones ±30 % de la ficha técnica por números medidos.</td>
+      </tr>
+      <tr>
+        <td class="prio p3">T9 · Load-test formal (k6)</td>
+        <td>Script k6 con perfil realista (95 % lecturas, 5 % escrituras, rampa hasta 500 VU) contra entorno staging (Render review app o servicio clonado + BD desechable).</td>
+        <td>Informe con p50/p95/p99 y throughput máximo sostenido; actualizar tabla maestra de la ficha técnica.</td>
+      </tr>
+      <tr>
+        <td class="prio p3">T10 · Particionado BD (disparador condicional)</td>
+        <td><strong>Solo si</strong> la tabla expenses supera ~5M filas: particionado por rango <code>created_at</code> mensual. No ejecutar antes: es la única tarea del plan con migración estructural.</td>
+        <td>Planes <code>EXPLAIN ANALYZE</code> muestran partition pruning; sin regresión en escritura.</td>
+      </tr>
+    </table>
+  </section>
+
+  <!-- 5. MÉTRICAS -->
+  <section class="card-block">
+    <div class="sec-head"><span class="sec-num">5</span><div><h2 class="sec-title">Cómo se verifica el éxito</h2><span class="muted small">Métrica objetivo por tarea — medir ANTES de empezar (baseline) y DESPUÉS</span></div></div>
+    <div class="metric-grid">
+      <div class="metric"><div class="v">&lt; 100 KB</div><div class="l">Payload por página de gastos (T3)</div></div>
+      <div class="metric"><div class="v">−60 %</div><div class="l">Requests al volver a pestaña (T1)</div></div>
+      <div class="metric"><div class="v">100 %</div><div class="l">Rutas sensibles con test 401/403 (T2)</div></div>
+      <div class="metric"><div class="v">0 bloqueos</div><div class="l">Export grande sin jank &gt;200 ms (T5)</div></div>
+      <div class="metric"><div class="v">≤ 10</div><div class="l">Conexiones BD simultáneas (T6)</div></div>
+      <div class="metric"><div class="v">&lt; 2.000</div><div class="l">Nodos DOM en lista inicial (T3)</div></div>
+    </div>
+    <div class="callout green">✅ <strong>Cierre del plan:</strong> cuando T1–T8 estén desplegadas, regenerar <code>ficha-tecnica-divido.html</code> v2.0 sustituyendo estimaciones por mediciones (T8/T9) y marcar los riesgos ALTA restantes como mitigados.</div>
+    <div class="callout blue">💡 <strong>Orden de arranque recomendado mañana mismo:</strong> T1 (media hora, mejora perceptible hoy) → T2 → T3. Todo lo demás puede esperar a validar Sprint 1 en producción unos días.</div>
+  </section>
+
+  <footer class="doc-footer">
+    Divido · Plan de Implementación del Roadmap de Optimización · v1.0 — 22/08/2026 ·
+    Complemento operativo de <code>docs/ficha-tecnica-divido.html</code>. Estimaciones de esfuerzo para 1 desarrollador familiarizado con el monorepo.
+  </footer>
+</div>
+</body>
+</html>
