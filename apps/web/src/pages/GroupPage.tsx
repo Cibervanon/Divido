@@ -14,6 +14,7 @@ import { PotTab, NewContributionModal } from "./group/PotTab";
 import { SettingsModal } from "./group/SettingsModal";
 import { DebtsTab, NewDebtModal } from "./group/DebtsTab";
 import { useExpenseFilters } from "./group/hooks/useExpenseFilters";
+import { useGroupChannel } from "../hooks/useRealtime";
 import type {
   BreakdownItem,
   ExpenseDto,
@@ -218,6 +219,14 @@ export default function GroupPage() {
     },
     [groupId, applyData]
   );
+
+  // Realtime: ante cualquier evento del grupo, recarga silenciosa (debounce
+  // de 800 ms para agrupar ráfagas de eventos en un solo refresco).
+  const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useGroupChannel(groupId, () => {
+    if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
+    reloadTimerRef.current = setTimeout(() => void load({ silent: true }), 800);
+  });
 
   const loadMoreExpenses = useCallback(
     async () => {

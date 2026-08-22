@@ -4,6 +4,7 @@ import { ArrowUpDown, Check, MoreVertical, Pin } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useNotifications } from "../lib/useNotifications";
+import { useUserChannel } from "../hooks/useRealtime";
 import { markPushAsked, shouldAskPush, subscribeToPush } from "../lib/push";
 import { Avatar, Button, DropdownMenu, EmptyState, Input, Modal, Money, Select, Spinner } from "../components/ui";
 import { NotificationBell } from "../components/NotificationBell";
@@ -39,7 +40,8 @@ export default function DashboardPage() {
   const [showPushBanner, setShowPushBanner] = useState(shouldAskPush());
   const [enablingPush, setEnablingPush] = useState(false);
   const [pushError, setPushError] = useState("");
-  const { notifications, unreadCount, initialized, markRead, markAllRead } = useNotifications();
+  const { notifications, unreadCount, initialized, markRead, markAllRead, refresh } = useNotifications();
+  useUserChannel(user?.id ?? null, refresh);
 
   useEffect(() => {
     if (user) setPinnedIds(user.pinnedGroupIds ?? []);

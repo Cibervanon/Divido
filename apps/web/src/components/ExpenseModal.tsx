@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../lib/api";
+import { supabaseEnabled } from "../lib/supabase";
 import { Button, Input, Modal, Select } from "./ui";
 import { CATEGORY_LIST, detectCategory, getCategoryColor, getIconComponent } from "../constants/categories";
 import type { ExpenseDto, MemberInfo } from "../lib/types";
@@ -138,6 +139,8 @@ export function ExpenseModal({
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [paidFromPot, setPaidFromPot] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [receiptError, setReceiptError] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -153,6 +156,8 @@ export function ExpenseModal({
     if (open) {
       setError("");
       setReceiptError("");
+      setReceiptPreview(null);
+      setUploadingReceipt(false);
       setCategoryPopoverOpen(false);
       if (expense) {
         setDescription(expense.description);
@@ -337,6 +342,35 @@ export function ExpenseModal({
       setReceiptError("El tique supera los 5 MB");
       return;
     }
+    if (supabaseEnabled) {
+      if (!["image/jpeg", "image/png"].includes(file.type)) {
+        setReceiptError("Para subirlo a la nube usa JPG o PNG");
+        return;
+      }
+      setUploadingReceipt(true);
+      try {
+        // 1. La API valida permisos y devuelve URL firmada de subida
+        const { path, signedUrl } = await api.post<{ path: string; signedUrl: string }>(
+          `/groups/${groupId}/receipt-upload-url`,
+          { ext: file.type === "image/png" ? "png" : "jpg" }
+        );
+        // 2. PUT directo navegador → Storage (sin pasar por el backend)
+        const put = await fetch(signedUrl, {
+          method: "PUT",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+        if (!put.ok) throw new Error(String(put.status));
+        setReceiptUrl(`supabase:${path}`);
+        setReceiptPreview(signedUrl); // vista previa inmediata
+      } catch {
+        setReceiptError("No se pudo subir el tique. Inténtalo de nuevo.");
+      } finally {
+        setUploadingReceipt(false);
+      }
+      return;
+    }
+    // Sin Supabase configurado: comportamiento clásico (data-URL embebida)
     const reader = new FileReader();
     reader.onload = () => setReceiptUrl(String(reader.result ?? null));
     reader.onerror = () => setReceiptError("No se pudo leer el archivo");
@@ -558,43 +592,63 @@ export function ExpenseModal({
             <div className="flex items-center gap-3 rounded-xl border border-slate-800 p-2">
               <button
                 type="button"
-                onClick={() => window.open(receiptUrl, "_blank", "noopener")}
+                onClick={() => window.open(receiptPreview ?? receiptUrl, "_blank", "noopener")}
                 className="shrink-0"
                 title="Ver tique"
               >
                 <img
-                  src={receiptUrl}
+                  src={receiptPreview ?? receiptUrl}
                   alt="Tique"
                   className="h-14 w-14 rounded-lg border border-slate-700 object-cover"
                 />
               </button>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs text-slate-300">Tique adjuntado</p>
+                <p className="truncate text-xs text-slate-300">
+                  {receiptUrl.startsWith("supabase:") ? "Tique en la nube" : "Tique adjuntado"}
+                </p>
                 <p className="text-[11px] text-slate-500">Se guarda con el gasto.</p>
               </div>
               <button
                 type="button"
-                onClick={() => setReceiptUrl(null)}
+                onClick={() => {
+                  setReceiptUrl(null);
+                  setReceiptPreview(null);
+                }}
                 className="rounded-lg border border-slate-700 px-2 py-1 text-[11px] font-semibold text-rose-400 transition hover:bg-rose-500/10"
               >
                 Quitar
               </button>
             </div>
           ) : (
-            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700 px-3 py-3 text-xs font-medium text-slate-400 transition hover:border-indigo-500 hover:text-indigo-300">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
-                />
-              </svg>
-              Subir foto del tique
+            <label
+              className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed px-3 py-3 text-xs font-medium transition ${
+                uploadingReceipt
+                  ? "border-slate-800 text-slate-500"
+                  : "border-slate-700 text-slate-400 hover:border-indigo-500 hover:text-indigo-300"
+              }`}
+            >
+              {uploadingReceipt ? (
+                <>
+                  Subiendo tique…
+                </>
+              ) : (
+                <>
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                    />
+                  </svg>
+                  Subir foto del tique
+                </>
+              )}
               <input
                 type="file"
                 accept="image/*"
                 capture="environment"
                 className="hidden"
+                disabled={uploadingReceipt}
                 onChange={(e) => readReceiptFile(e.target.files?.[0])}
               />
             </label>

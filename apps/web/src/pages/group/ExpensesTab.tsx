@@ -47,6 +47,17 @@ export function ExpensesTab({
   const pending = requests.filter((r) => r.status === "pending");
   const [viewReceipt, setViewReceipt] = useState<string | null>(null);
 
+  // Abre el tique con una URL recién firmada (las de nube caducan en 1 h)
+  async function openReceipt(expenseId: string, fallback: string | null) {
+    try {
+      const r = await api.get<{ url: string }>(`/expenses/${expenseId}/receipt-url`);
+      setViewReceipt(r.url);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) return;
+      if (fallback) setViewReceipt(fallback);
+    }
+  }
+
   // Estado de filtros: multiselección categorías, booleano "Mi pagador", acordeón
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [onlyMyPayments, setOnlyMyPayments] = useState<boolean>(false);
@@ -254,7 +265,7 @@ export function ExpensesTab({
                   {e.receiptUrl ? (
                     <button
                       type="button"
-                      onClick={() => setViewReceipt(e.receiptUrl)}
+                      onClick={() => void openReceipt(e.id, e.receiptUrl)}
                       className="ml-2 inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300 transition hover:bg-slate-700 hover:text-indigo-200"
                     >
                       <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
