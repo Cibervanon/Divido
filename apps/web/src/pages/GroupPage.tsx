@@ -2338,6 +2338,71 @@ function AddGhostModal({
 
 // ---------- Historial ----------
 
+const AUDIT_ENTITY_LABELS: Record<string, string> = {
+  expense: "gasto",
+  payment: "pago",
+  informal_debt: "pique",
+  modification_request: "solicitud",
+};
+
+const AUDIT_ACTION_LABELS: Record<string, string> = {
+  created: "creó",
+  updated: "editó",
+  deleted: "eliminó",
+  approved: "aprobó",
+  rejected: "rechazó",
+};
+
+const AUDIT_FIELD_LABELS: Record<string, string> = {
+  description: "concepto",
+  amount: "importe",
+  amountGroup: "importe",
+  currency: "moneda",
+  exchangeRate: "tipo de cambio",
+  participants: "participantes",
+  payerId: "pagador",
+  status: "estado",
+  note: "nota",
+  title: "título",
+  category: "categoría",
+  kind: "tipo",
+  prize: "premio",
+  winnerIds: "ganadores",
+  loserIds: "perdedores",
+  action: "acción",
+  payload: "datos",
+};
+
+function fmtAuditValue(key: string, value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (Array.isArray(value)) return value.length === 1 ? "1 persona" : `${value.length} personas`;
+  if (typeof value === "boolean") return value ? "sí" : "no";
+  if (typeof value === "number" && /amount|prize/i.test(key)) return value.toFixed(2);
+  const s = String(value);
+  return s.length > 28 ? `${s.slice(0, 28)}…` : s;
+}
+
+/** Convierte { before, after } del audit log en un resumen legible en español. */
+function describeAuditDiff(diff: { before?: any; after?: any } | null): string {
+  if (!diff) return "";
+  if (!diff.before && diff.after) {
+    // Alta: mostramos el concepto si lo tenemos.
+    const desc = diff.after.description ?? diff.after.title;
+    return desc ? ` "${fmtAuditValue("description", desc)}"` : "";
+  }
+  if (diff.before && diff.after) {
+    const keys = Object.keys(diff.after)
+      .filter((k) => JSON.stringify(diff.before?.[k]) !== JSON.stringify(diff.after?.[k]))
+      .slice(0, 3);
+    if (keys.length === 0) return "";
+    const parts = keys.map(
+      (k) => `${AUDIT_FIELD_LABELS[k] ?? k}: ${fmtAuditValue(k, diff.before?.[k])} → ${fmtAuditValue(k, diff.after?.[k])}`
+    );
+    return ` (${parts.join(", ")})`;
+  }
+  return "";
+}
+
 function HistoryTab({
   events,
   audit,
@@ -2384,22 +2449,9 @@ function HistoryTab({
       const entry = e as any;
       const when = new Date(entry.date ?? entry.created_at).toLocaleString("es-ES");
       if (e.type === "audit") {
-        const entityLabels: Record<string, string> = {
-          expense: "gasto",
-          payment: "pago",
-          informal_debt: "pique",
-          modification_request: "solicitud",
-        };
-        const entityLabel = entityLabels[e.entityType] ?? e.entityType;
-        const actionLabels: Record<string, string> = {
-          created: "creó",
-          updated: "editó",
-          deleted: "eliminó",
-          approved: "aprobó",
-          rejected: "rechazó",
-        };
-        const actionLabel = actionLabels[e.action] ?? e.action;
-        lines.push(`[${when}] ${e.actorName} ${actionLabel} ${entityLabel}`);
+        const entityLabel = AUDIT_ENTITY_LABELS[e.entityType] ?? e.entityType;
+        const actionLabel = AUDIT_ACTION_LABELS[e.action] ?? e.action;
+        lines.push(`[${when}] ${e.actorName} ${actionLabel} ${entityLabel}${describeAuditDiff(e.diff)}`);
       } else if (e.type === "member_joined") {
         lines.push(`[${when}] ${e.userName} se unió al grupo`);
       } else if (e.type === "member_left") {
@@ -2527,32 +2579,9 @@ function HistoryTab({
                 <p className="truncate text-sm text-slate-200">
                   {isAudit ? (
                     <>
-                      <strong>{e.actorName}</strong> {" "}
-                      {(() => {
-                        const diff = e.diff;
-                        const entityLabels: Record<string, string> = {
-                          expense: "gasto",
-                          payment: "pago",
-                          informal_debt: "pique",
-                          modification_request: "solicitud",
-                        };
-                        const entityLabel = entityLabels[e.entityType] ?? e.entityType;
-                        const actionLabels: Record<string, string> = {
-                          created: "creó",
-                          updated: "editó",
-                          deleted: "eliminó",
-                          approved: "aprobó",
-                          rejected: "rechazó",
-                        };
-                        const actionLabel = actionLabels[e.action] ?? e.action;
-                        if (diff?.before && diff?.after) {
-                          const changes = Object.keys(diff.after).filter(
-                            (k) => diff.before?.[k] !== diff.after?.[k]
-                          );
-                          return `${actionLabel} ${entityLabel} ${changes.length ? `(${changes.join(", ")})` : ""}`;
-                        }
-                        return `${actionLabel} ${entityLabel}`;
-                      })()}
+                      <strong>{e.actorName}</strong> {AUDIT_ACTION_LABELS[e.action] ?? e.action}{" "}
+                      {AUDIT_ENTITY_LABELS[e.entityType] ?? e.entityType}
+                      {describeAuditDiff(e.diff)}
                     </>
                   ) : isMemberEvent ? (
                     <>
