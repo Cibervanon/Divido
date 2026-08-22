@@ -47,6 +47,22 @@ export async function buildApp(
 
   app.register(authPlugin);
 
+  // Observabilidad básica: línea JSON estructurada por petición API con
+  // duración, para poder derivar p50/p95 desde los logs agregados.
+  app.addHook("onResponse", async (request, reply) => {
+    const url = request.raw.url ?? "";
+    if (!url.startsWith("/api")) return;
+    request.log.info(
+      {
+        method: request.method,
+        url,
+        statusCode: reply.statusCode,
+        durationMs: Math.round(reply.elapsedTime * 100) / 100,
+      },
+      "api_request"
+    );
+  });
+
   app.get("/api/health", async () => {
     await db.ping();
     return { ok: true, time: new Date().toISOString() };
