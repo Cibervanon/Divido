@@ -194,25 +194,61 @@ export function BalancesTab({ detail, expenses, myUserId, onOpenMember, onToast 
         onToast("No hay gastos para exportar");
         return;
       }
+      const sym = currencySymbol(group.currency);
       const nameOf = (id?: string | null) =>
         (id ? detail.members.find((m) => m.userId === id)?.name : null) ?? "Desconocido";
 
-      const header = ["Fecha", "Concepto", "Categoría", "Pagador", "Importe", "Moneda", "Participantes"];
-      const lines: string[] = [header.join(",")];
+      // Número con coma decimal (formato España): 18,00
+      const fmt = (n: number) => n.toFixed(2).replace(".", ",");
+      // Saldo con signo: +15,00 / -10,00
+      const fmtSigned = (n: number) => `${n > 0.004 ? "+" : ""}${fmt(n)}`;
+      const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+      const total = expenses.reduce((acc, e) => acc + (typeof e?.amountGroup === "number" ? e.amountGroup : 0), 0);
+      const fechaEmision = new Date().toLocaleDateString("es-ES");
+
+      const lines: string[] = [];
+
+      // 1) Cabecera informativa del grupo
+      lines.push(`INFORME DE GASTOS COMPARTIDOS - ${group.name || "Grupo"}`);
+      lines.push(`Fecha de emisión: ${fechaEmision} ; Creado con Divido`);
+      lines.push(`Total acumulado: ${fmt(total)} ${sym} ; Gastos registrados: ${expenses.length}`);
+      lines.push("");
+
+      // 2) Resumen de saldos por integrante
+      lines.push("RESUMEN DE MIEMBROS");
+      lines.push(["INTEGRANTE", "SALDO FINAL"].join(";"));
+      for (const b of balances) {
+        lines.push(`${csvEscape(b?.name ?? "—")} ; ${fmtSigned(typeof b?.net === "number" ? b.net : 0)} ${sym}`);
+      }
+      lines.push("");
+
+      // 3) Tabla detallada de transacciones
+      lines.push(
+        ["FECHA", "CONCEPTO", "CATEGORÍA", "PAGADO POR", `IMPORTE (${sym})`, "PARTICIPANTES", `CUOTA POR PERSONA (${sym})`].join(";")
+      );
       for (const e of expenses) {
-        const row = [
-          e?.createdAt ? new Date(e.createdAt).toLocaleDateString("es-ES") : "",
-          (e?.description || "Sin concepto").replace(/"/g, '""'),
-          categoryLabel(e?.category),
-          csvEscape(e?.payerName || nameOf(e?.payerId)),
-          typeof e?.amount === "number" && Number.isFinite(e.amount) ? e.amount.toFixed(2) : "0.00",
-          e?.currency || group.currency,
-          Array.isArray(e?.participants)
-            ? csvEscape(e.participants.map((p) => nameOf(typeof p === "string" ? p : null)).join("; "))
-            : "",
-        ];
-        lines.push(row.join(","));
+        const participantes = Array.isArray(e?.participants)
+          ? e.participants.map((p) => nameOf(typeof p === "string" ? p : null)).join(", ")
+          : "";
+        const numPersonas =
+          typeof e?.participantsCount === "number" && e.participantsCount > 0
+            ? e.participantsCount
+            : Array.isArray(e?.participants) && e.participants.length > 0
+              ? e.participants.length
+              : 1;
+        const importeGrupo = typeof e?.amountGroup === "number" ? e.amountGroup : 0;
+        lines.push(
+          [
+            e?.createdAt ? new Date(e.createdAt).toLocaleDateString("es-ES") : "",
+            csvEscape(cap(e?.description || "Sin concepto")),
+            categoryLabel(e?.category),
+            csvEscape(e?.payerName || nameOf(e?.payerId)),
+            fmt(importeGrupo),
+            csvEscape(participantes),
+            fmt(importeGrupo / numPersonas),
+          ].join(";")
+        );
       }
 
       const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
