@@ -607,6 +607,9 @@
     <h3>👆 Historial interactivo</h3>
     <p>Toca cualquier gasto del historial y se abre su <strong>ficha completa</strong>: importe, pagador, participantes, reparto, comprobante adjunto y acciones disponibles según tus permisos (editar o eliminar). Cada línea es una puerta directa a su detalle auditable: nada de buscar a ciegas.</p>
 
+    <h3>Cargar más: listas paginadas</h3>
+    <p>En grupos con mucha actividad, las pestañas de <strong>Gastos</strong> y <strong>Actividad</strong> cargan por páginas (50 gastos y 100 eventos) para que la app siga siendo rápida. Al final de cada lista verás el botón <strong>«Cargar más»</strong>: púlsalo tantas veces como quieras para ir trayendo el resto del histórico. Los <strong>filtros y la búsqueda se aplican a todo el histórico</strong>, no solo a la página visible, y los elementos ya cargados permanecen en pantalla al recargar. Si exportas un CSV o PDF, recibirás siempre <strong>todas las filas</strong>, no solo las visibles.</p>
+
     <h3>Reglas de validación al registrar un gasto</h3>
     <table class="data">
       <thead>
@@ -653,6 +656,7 @@
         <span class="e-mid"><span class="ename">Alquiler de coche</span><br/><span class="emeta">8 ago · pago desde el bote · 3 participantes</span></span>
         <span class="e-right"><span class="badge tiny amber">−€42.00</span></span>
       </div>
+      <div style="margin:2mm 0 0;text-align:center"><span style="display:inline-block;width:86%;border:1px dashed #30363d;color:#a5b4fc;background:#0d1117;border-radius:4mm;padding:2.5mm 0;font-size:8.5pt;font-weight:600">Cargar más gastos</span></div>
     </div>
 
     <div class="callout warn"><span class="callout-label">Ojo</span><p>Si eliminas un gasto <strong>pagado desde el bote común</strong>, el dinero vuelve al bote. El importe se revierte automáticamente para mantener el saldo coherente.</p></div>
@@ -959,7 +963,7 @@
     <div class="cols">
       <div class="cell"><div class="inner">
         <div class="col-head" style="border-color:#3fb950; color:#3fb950"><span class="col-icon"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg></span></span><span class="col-name">CSV · informe contable</span></div>
-        <p>Fichero estructurado pensado para <strong>abrir en Excel o Google Sheets</strong>: una fila por movimiento (gastos, pagos y aportaciones al bote) con fecha, concepto, pagador, participantes, categorías e importes. El formato para <strong>auditar y calcular</strong>.</p>
+        <p>Fichero estructurado pensado para <strong>abrir en Excel o Google Sheets</strong>: una fila por movimiento (gastos, pagos y aportaciones al bote) con fecha, concepto, pagador, participantes, categorías e importes. El formato para <strong>auditar y calcular</strong>. El CSV descarga siempre el <strong>histórico completo</strong> del grupo, aunque la lista en pantalla esté paginada.</p>
       </div></div>
       <div class="cell"><div class="inner">
         <div class="col-head" style="border-color:#6366f1; color:#a5b4fc"><span class="col-icon"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg></span></span><span class="col-name">PDF · informe formal</span></div>
