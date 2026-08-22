@@ -378,8 +378,12 @@ const MIGRATIONS = [
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted INTEGER NOT NULL DEFAULT 0",
 ];
 
-export async function initDb(db: Db): Promise<void> {
+export async function initDb(db: Db, opts: { migrations?: boolean } = {}): Promise<void> {
   await db.prepare(SCHEMA).run();
+  // Las migraciones son sentencias idempotentes específicas de PostgreSQL
+  // para bases de datos preexistentes; un esquema recién creado ya incluye
+  // todas esas columnas y constraints (útil para tests en memoria).
+  if (opts.migrations === false) return;
   for (const sql of MIGRATIONS) {
     await db.prepare(sql).run();
   }

@@ -1,4 +1,6 @@
 import Fastify from "fastify";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import helmet from "@fastify/helmet";
@@ -22,15 +24,21 @@ import { processRecurringExpenses } from "./recurring.js";
 
 const CRON_INTERVAL_MS = 15 * 60 * 1000;
 
-export async function buildApp(db = createDb(config.databaseUrl)) {
+export async function buildApp(
+  db = createDb(config.databaseUrl),
+  opts: { migrations?: boolean } = {}
+) {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? "info" } });
 
   app.decorateRequest("db", { getter: () => db });
 
-  await initDb(db);
+  await initDb(db, opts);
 
   await app.register(helmet);
-  await app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
+  await app.register(rateLimit, {
+    max: Number(process.env.RATE_LIMIT_MAX ?? 100),
+    timeWindow: "1 minute",
+  });
 
   app.register(cors, {
     origin: config.corsOrigin,
@@ -90,4 +98,10 @@ async function main() {
   }
 }
 
-main();
+// Solo arranca el servidor cuando este archivo es el punto de entrada
+// (permite importar buildApp desde tests sin abrir puertos ni requerir BD).
+const isEntrypoint =
+  process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+if (isEntrypoint) {
+  main();
+}
