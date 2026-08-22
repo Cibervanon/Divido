@@ -23,7 +23,7 @@ import {
   updateExpense,
   upsertPotExpenseWithdrawal,
 } from "../store.js";
-import { badRequest, conflict, forbidden, notFound } from "../errors.js";
+import { badRequest, conflict, forbidden, notFound, unavailable } from "../errors.js";
 import { requireActiveMember, requireAuth } from "../plugins.js";
 import { createAndPushNotification } from "../push.js";
 import { EDIT_WINDOW_MS } from "../config.js";
@@ -31,8 +31,15 @@ import { createExpenseSchema, updateExpenseSchema, type CreateExpenseInput, type
 import { parseBody } from "../validate.js";
 import { invalidateBalanceCache } from "../balanceCache.js";
 import { logAudit } from "../audit.js";
+import {
+  issueReceiptUploadUrl,
+  publishGroupEvent,
+  resolveReceiptUrl,
+  supabaseEnabled,
+} from "../lib/supabase.js";
 
 const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
+const RECEIPT_SCHEME_RE = /^supabase:[A-Za-z0-9][A-Za-z0-9/_-]*\.(jpg|jpeg|png)$/;
 const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
 
 export const expenseRoutes: FastifyPluginAsync = async (app) => {
@@ -78,10 +85,13 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       rows = await listExpensesWithDetails(request.db, groupId, includeDeleted, { limit, offset });
       total = await countExpensesInGroup(request.db, groupId, includeDeleted);
     }
-    const expenses = rows.map((e) => ({
-      ...expenseRowToDto(e),
-      editable: isEditable(e.created_at),
-    }));
+    const expenses = await Promise.all(
+      rows.map(async (e) => ({
+        ...expenseRowToDto(e),
+        editable: isEditable(e.created_at),
+        receiptUrl: await resolveReceiptUrl(e.receipt_url),
+      }))
+    );
     return {
       expenses,
       total,
@@ -192,6 +202,7 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       actorName: user.name,
       after: { description: body.description, amount: body.amount, currency: expenseCurrency, participants: uniqueParticipants },
     });
+    publishGroupEvent(groupId, "expense.created");
     return { expense: await toExpenseDto(request, expense), editable: true };
   });
 
@@ -296,6 +307,7 @@ if (expense.payer_id !== user.id && member.role !== "admin") {
       before: { description: expense.description, amount: expense.amount, currency: expense.currency, payer_id: expense.payer_id },
       after: { description, amount, currency: expenseCurrency, payerId },
     });
+    publishGroupEvent(expense.group_id, "expense.updated");
     return { expense: await toExpenseDto(request, updated), editable: false };
   });
 
@@ -330,6 +342,7 @@ if (expense.payer_id !== user.id && member.role !== "admin") {
       actorName: user.name,
       before: { description: expense.description, amount: expense.amount, currency: expense.currency },
     });
+    publishGroupEvent(expense.group_id, "expense.deleted");
     return { ok: true };
   });
 
@@ -346,7 +359,33 @@ if (expense.payer_id !== user.id && member.role !== "admin") {
     if (receiptUrl === undefined) throw badRequest("Falta el tique");
     const parsed = parseReceiptUrl(receiptUrl);
     const updated = await updateExpense(request.db, expenseId, { receiptUrl: parsed });
+    invalidateBalanceCache(expense.group_id);
+    publishGroupEvent(expense.group_id, "expense.updated");
     return { expense: await toExpenseDto(request, updated) };
+  });
+
+  // Devuelve una URL de subida firmada para alojar el tique en Supabase Storage.
+  // El navegador hace PUT directo; después guarda receiptUrl = "supabase:<ruta>".
+  app.post("/api/groups/:groupId/receipt-upload-url", async (request) => {
+    const { groupId } = request.params as { groupId: string };
+    const user = requireAuth(request);
+    await requireActiveMember(request, groupId);
+    if (!supabaseEnabled) throw unavailable("El almacenamiento de tiques no está disponible");
+    const { ext } = (request.body ?? {}) as { ext?: unknown };
+    if (ext !== undefined && ext !== "jpg" && ext !== "jpeg" && ext !== "png") {
+      throw badRequest("Formato no soportado");
+    }
+    return issueReceiptUploadUrl(groupId, user.id, ext === "png" ? "png" : "jpg");
+  });
+
+  // URL firmada y fresca del tique de un gasto (evita caducidad de las listas cacheadas).
+  app.get("/api/expenses/:expenseId/receipt-url", async (request) => {
+    const { expenseId } = request.params as { expenseId: string };
+    const expense = await getExpense(request.db, expenseId);
+    if (!expense) throw notFound("Gasto no encontrado");
+    await requireActiveMember(request, expense.group_id);
+    if (!expense.receipt_url) throw notFound("El gasto no tiene tique");
+    return { url: await resolveReceiptUrl(expense.receipt_url) };
   });
 
   app.post("/api/groups/:groupId/expenses/:expenseId/comments", async (request) => {
@@ -362,6 +401,7 @@ if (expense.payer_id !== user.id && member.role !== "admin") {
       authorId: user.id,
       body: body.trim().slice(0, 500),
     });
+    publishGroupEvent(groupId, "comments.changed");
     return { comment: toCommentDto(comment) };
   });
 
@@ -377,6 +417,7 @@ if (expense.payer_id !== user.id && member.role !== "admin") {
       throw forbidden("Solo puedes eliminar tus propios comentarios (o siendo administrador)");
     }
     await deleteExpenseComment(request.db, commentId);
+    publishGroupEvent(expense.group_id, "comments.changed");
     return { ok: true };
   });
 };
@@ -488,7 +529,7 @@ async function toExpenseDto(
     updatedAt: e.updated_at,
     deleted: Boolean(e.deleted),
     paidFromPot: Boolean(e.paid_from_pot),
-    receiptUrl: e.receipt_url,
+    receiptUrl: await resolveReceiptUrl(e.receipt_url),
     category: e.category,
     iconName: e.icon_name,
     isCustomIcon: Boolean(e.is_custom_icon),
@@ -523,6 +564,12 @@ function toCommentDto(c: {
 function parseReceiptUrl(raw: unknown): string | null {
   if (raw === null || raw === undefined || raw === "") return null;
   if (typeof raw !== "string") throw badRequest("Tique inválido");
+  // Tiques nuevos alojados en Supabase Storage (ruta relativa firmable)
+  if (raw.startsWith("supabase:")) {
+    if (!RECEIPT_SCHEME_RE.test(raw)) throw badRequest("Ruta de tique inválida");
+    return raw;
+  }
+  // Compatibilidad con tiques antiguos embebidos como data-URL
   if (!DATA_IMAGE_RE.test(raw)) throw badRequest("El tique debe ser una imagen");
   const comma = raw.indexOf(",");
   const bytes = Math.ceil(((raw.length - comma - 1) * 3) / 4);

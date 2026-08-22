@@ -20,6 +20,7 @@ import { requireActiveMember, requireAdmin, requireAuth } from "../plugins.js";
 import { EPS, round2 } from "@divido/shared";
 import { invalidateBalanceCache } from "../balanceCache.js";
 import { logAudit } from "../audit.js";
+import { publishGroupEvent } from "../lib/supabase.js";
 
 const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
 const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
@@ -70,6 +71,7 @@ export const requestRoutes: FastifyPluginAsync = async (app) => {
     await applyRequest(request.db, req);
     await decideRequest(request.db, requestId, "approved", admin.user_id);
     invalidateBalanceCache(req.group_id);
+    publishGroupEvent(req.group_id, "expense.changed");
     await logAudit(request.db, {
       groupId: req.group_id,
       entityType: "modification_request",
@@ -90,6 +92,7 @@ export const requestRoutes: FastifyPluginAsync = async (app) => {
     if (req.status !== "pending") throw conflict("La solicitud ya fue decidida");
     await decideRequest(request.db, requestId, "rejected", admin.user_id);
     invalidateBalanceCache(req.group_id);
+    publishGroupEvent(req.group_id, "requests.changed");
     await logAudit(request.db, {
       groupId: req.group_id,
       entityType: "modification_request",
