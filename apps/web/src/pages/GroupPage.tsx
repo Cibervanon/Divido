@@ -6,6 +6,7 @@ import { Avatar, Button, ConfirmPaymentButton, CopyLinkButton, EmptyState, Ghost
 import { ExpenseModal } from "../components/ExpenseModal";
 import { PaymentModal } from "../components/PaymentModal";
 import { BalancesTab } from "./group/BalancesTab";
+import { SettingsModal } from "./group/SettingsModal";
 import { useExpenseFilters } from "./group/hooks/useExpenseFilters";
 import { useGroupAudit } from "./group/hooks/useGroupDetail";
 import { simplifyDebts, type SimplifyResult } from "../lib/debtSimplifier";
@@ -452,6 +453,7 @@ export default function GroupPage() {
               myUserId={user.id}
               onChanged={load}
               onViewProof={(url) => setViewProof(url)}
+              onOpenExpense={(expenseId) => setEditTarget(expenses.find((e) => e.id === expenseId) ?? null)}
             />
           ) : null}
           {tab === "debts" && hasDebts ? (
@@ -474,6 +476,7 @@ export default function GroupPage() {
               currency={group.currency}
               onChanged={load}
               onNew={() => setShowNewContribution(true)}
+              onOpenExpense={(expenseId) => setEditTarget(expenses.find(e => e.id === expenseId)!) }
             />
           ) : null}
           {tab === "recurring" && hasRecurring ? (
@@ -695,6 +698,11 @@ function ExpensesTab({
   const pending = requests.filter((r) => r.status === "pending");
   const [viewReceipt, setViewReceipt] = useState<string | null>(null);
 
+  // Estado de filtros: multiselección categorías, booleano "Mi pagador", acordeón
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [onlyMyPayments, setOnlyMyPayments] = useState<boolean>(false);
+  const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+
   const categories = [
     { key: "food", label: "Comida" },
     { key: "transport", label: "Transporte" },
@@ -711,73 +719,113 @@ function ExpensesTab({
     { key: "general", label: "General" },
   ];
 
+  // Filtrado local en tiempo real
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter((expense) => {
+      const matchesSearch = expense.description.toLowerCase().includes((filters.q ?? "").toLowerCase());
+      const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(expense.category);
+      const matchesPayer = !onlyMyPayments || expense.payerId === myUserId;
+      return matchesSearch && matchesCategory && matchesPayer;
+    });
+  }, [expenses, selectedCategories, onlyMyPayments, filters.q]);
+
+  const activeFilterCount = selectedCategories.length + (onlyMyPayments ? 1 : 0) + (filters.from ? 1 : 0) + (filters.to ? 1 : 0) + (filters.q ? 1 : 0);
+
   return (
     <div className="space-y-4">
       {/* Filtros */}
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-slate-200">Filtros</p>
-          {hasActiveFilters && (
+          {activeFilterCount > 0 && (
             <Button variant="ghost" size="sm" onClick={onClearFilters}>
               Limpiar
             </Button>
           )}
         </div>
 
-        {/* Búsqueda texto */}
-        <Input
-          placeholder="Buscar por concepto..."
-          value={filters.q ?? ""}
-          onChange={(e) => onFilterChange("q", e.target.value || undefined)}
-          className="max-w-xs"
-        />
+        {/* Botón colapsable de filtros */}
+        <button
+          type="button"
+          onClick={() => setIsFilterOpen((o) => !o)}
+          className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-400 transition hover:text-slate-200 bg-slate-800/50"
+        >
+          <svg className={`h-4 w-4 transition ${isFilterOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          </svg>
+          <span>Filtros</span>
+          {activeFilterCount > 0 && (
+            <span className="h-5 w-5 flex items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
 
-        {/* Chips de categoría (scroll horizontal) + botón filtros avanzados */}
-        <div className="flex flex-nowrap gap-2 overflow-x-auto no-scrollbar pb-1 pr-2">
-          {categories.map((cat) => (
-            <button
-              key={cat.key}
-              type="button"
-              onClick={() => onFilterChange("category", filters.category === cat.key ? undefined : cat.key)}
-              className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition ${
-                filters.category === cat.key
-                  ? "bg-indigo-600 text-white"
-                  : "text-slate-400 hover:text-slate-200 bg-slate-800"
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="shrink-0"
-            onClick={() => onFilterChange("payerId", filters.payerId ? undefined : "my")}
-          >
-            Mi pagador
-          </Button>
-        </div>
+        {/* Panel de filtros colapsable */}
+        <div className={`${isFilterOpen ? "block" : "hidden"} animate-in fade-in slide-in-from-top-2 duration-200`}>
+          <div className="space-y-3 pt-2 border-t border-slate-800">
+            {/* Búsqueda texto */}
+            <Input
+              placeholder="Buscar por concepto..."
+              value={filters.q ?? ""}
+              onChange={(e) => onFilterChange("q", e.target.value || undefined)}
+              className="max-w-xs"
+            />
 
-        {/* Filtros avanzados (fechas) - solo si hay filtros activos o se expande */}
-        <details className="group">
-          <summary className="cursor-pointer text-xs text-slate-500 hover:text-slate-300 select-none">
-            Filtros avanzados (fechas)
-          </summary>
-          <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-            <Input
-              label="Desde"
-              type="date"
-              value={filters.from ?? ""}
-              onChange={(e) => onFilterChange("from", e.target.value || undefined)}
-            />
-            <Input
-              label="Hasta"
-              type="date"
-              value={filters.to ?? ""}
-              onChange={(e) => onFilterChange("to", e.target.value || undefined)}
-            />
+            {/* Chips de categoría (multiselección) */}
+            <div className="flex flex-nowrap gap-2 overflow-x-auto no-scrollbar pb-1 pr-2">
+              {categories.map((cat) => (
+                <button
+                  key={cat.key}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategories((prev) =>
+                      prev.includes(cat.key)
+                        ? prev.filter((c) => c !== cat.key)
+                        : [...prev, cat.key]
+                    );
+                  }}
+                  className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition ${
+                    selectedCategories.includes(cat.key)
+                      ? "bg-indigo-600 text-white"
+                      : "text-slate-400 hover:text-slate-200 bg-slate-800"
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`shrink-0 ${onlyMyPayments ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-200 bg-slate-800"}`}
+                onClick={() => setOnlyMyPayments((v) => !v)}
+              >
+                Mi pagador
+              </Button>
+            </div>
+
+            {/* Filtros avanzados (fechas) */}
+            <details className="group">
+              <summary className="cursor-pointer text-xs text-slate-500 hover:text-slate-300 select-none">
+                Filtros avanzados (fechas)
+              </summary>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                <Input
+                  label="Desde"
+                  type="date"
+                  value={filters.from ?? ""}
+                  onChange={(e) => onFilterChange("from", e.target.value || undefined)}
+                />
+                <Input
+                  label="Hasta"
+                  type="date"
+                  value={filters.to ?? ""}
+                  onChange={(e) => onFilterChange("to", e.target.value || undefined)}
+                />
+              </div>
+            </details>
           </div>
-        </details>
+        </div>
       </div>
 
       {pending.length > 0 && isAdmin ? (
@@ -808,7 +856,7 @@ function ExpensesTab({
         </div>
       ) : null}
 
-      {expenses.length === 0 ? (
+      {filteredExpenses.length === 0 ? (
         <EmptyState
           title="Aún no hay gastos en este grupo"
           subtitle="Añade tu primer gasto para empezar a repartir cuentas con tus compañeros"
@@ -832,7 +880,7 @@ function ExpensesTab({
         />
       ) : (
         <div className="space-y-2">
-          {expenses.map((e) => (
+          {filteredExpenses.map((e) => (
             <div
               key={e.id}
               className={`rounded-2xl border border-slate-800 bg-slate-900 p-4 transition hover:border-slate-700 ${
@@ -1348,6 +1396,7 @@ function DebtsTab({
   currency: string;
   onChanged: () => void;
   onNew: () => void;
+  onOpenExpense?: (expenseId: string) => void;
 }) {
   async function setStatus(debt: InformalDebtDto, status: InformalDebtStatus) {
     try {
@@ -1692,6 +1741,7 @@ function PotTab({
   currency,
   onChanged,
   onNew,
+  onOpenExpense,
 }: {
   balance: number;
   contributions: PotContributionDto[];
@@ -1712,6 +1762,7 @@ function PotTab({
   currency: string;
   onChanged: () => void;
   onNew: () => void;
+  onOpenExpense?: (expenseId: string) => void;
 }) {
   async function removeContribution(contribution: PotContributionDto) {
     if (!confirm(`¿Eliminar la aportación de ${contribution.userName}?`)) return;
@@ -1749,18 +1800,8 @@ function PotTab({
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-[11px] text-amber-200">
-        <div className="flex items-start gap-2">
-          <svg className="h-4 w-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p>Los gastos pagados con el Bote Común se consideran automáticamente saldados y no generan deuda individual entre los miembros.
-          </p>
-        </div>
-      </div>
-
       <div className="space-y-2">
-        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Aportaciones</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Extracto del bote</p>
         {contributions.length === 0 ? (
           <EmptyState
             title="El bote está vacío"
@@ -2306,6 +2347,7 @@ function HistoryTab({
   myUserId,
   onChanged,
   onViewProof,
+  onOpenExpense,
 }: {
   events: HistoryEvent[];
   audit: any[];
@@ -2315,6 +2357,7 @@ function HistoryTab({
   myUserId: string;
   onChanged: () => void;
   onViewProof: (url: string) => void;
+  onOpenExpense: (expenseId: string) => void;
 }) {
   const [deciding, setDeciding] = useState(false);
 
@@ -2448,8 +2491,12 @@ function HistoryTab({
             <div
               key={`${e.type}-${e.id}-${i}`}
               className={`flex items-center gap-3 rounded-xl px-3 py-3 ${
-                isMemberEvent ? "bg-slate-900/30 opacity-80" : "hover:bg-slate-900"
+                isMemberEvent ? "bg-slate-900/30 opacity-80" : "hover:bg-slate-900 cursor-pointer"
               }`}
+              onClick={() => {
+                if (isExpense && !isAudit && e.id) onOpenExpense(e.id);
+                if (isPayment && !isAudit && e.id && e.proofUrl) onViewProof(e.proofUrl!);
+              }}
             >
               <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconColor}`}>
                 {isMemberEvent ? (
@@ -2592,235 +2639,6 @@ function HistoryTab({
 }
 
 // ---------- Ajustes ----------
-
-function SettingsModal({
-  open,
-  onClose,
-  detail,
-  isAdmin,
-  onLeave,
-  onChanged,
-}: {
-  open: boolean;
-  onClose: () => void;
-  detail: GroupDetail;
-  isAdmin: boolean;
-  onLeave: () => void;
-  onChanged: () => void;
-}) {
-  const { group } = detail;
-  const [name, setName] = useState(group.name);
-  const [currency, setCurrency] = useState(group.currency);
-  const [type, setType] = useState<"open" | "closed">(group.type);
-  const [logoUrl, setLogoUrl] = useState(group.logoUrl ?? "");
-  const [enabledExtras, setEnabledExtras] = useState<string[]>(group.enabledExtras ?? []);
-  const [simplifyDebts, setSimplifyDebts] = useState(group.simplifyDebts);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (open) {
-      setName(group.name);
-      setCurrency(group.currency);
-      setType(group.type);
-      setLogoUrl(group.logoUrl ?? "");
-      setEnabledExtras(group.enabledExtras ?? []);
-      setSimplifyDebts(group.simplifyDebts);
-      setError("");
-    }
-  }, [open, group]);
-
-  function onPickFile(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setLogoUrl(String(reader.result ?? ""));
-    reader.readAsDataURL(file);
-  }
-
-  async function save() {
-    setSaving(true);
-    try {
-      await api.patch(`/groups/${group.id}`, { name, currency, type, logoUrl: logoUrl.trim() || null, enabledExtras, simplifyDebts });
-      onChanged();
-      onClose();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Error");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Ajustes del grupo"
-      footer={
-        isAdmin ? (
-          <>
-            <Button variant="ghost" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button onClick={save} loading={saving}>
-              Guardar
-            </Button>
-          </>
-        ) : null
-      }
-    >
-      <div className="space-y-4">
-        {isAdmin ? (
-          <>
-            <div className="flex items-center gap-4">
-              <Avatar name={name || group.name} url={logoUrl || null} size="lg" />
-              <div className="flex flex-col gap-2">
-                <Button
-                  variant="secondary"
-                  className="!px-3 !py-1.5 text-xs"
-                  onClick={() => fileRef.current?.click()}
-                >
-                  Subir logo
-                </Button>
-                {logoUrl ? (
-                  <Button variant="ghost" className="!px-3 !py-1.5 text-xs" onClick={() => setLogoUrl("")}>
-                    Quitar logo
-                  </Button>
-                ) : null}
-                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickFile} />
-              </div>
-            </div>
-            <Input label="Nombre" value={name} onChange={(e) => setName(e.target.value)} />
-            <div className="grid grid-cols-2 gap-3">
-              <Select label="Moneda" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                {["EUR", "USD", "GBP", "MXN", "ARS", "COP", "CLP", "PEN", "BRL", "CHF", "CAD"].map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </Select>
-              <Select label="Tipo" value={type} onChange={(e) => setType(e.target.value as "open" | "closed")}>
-                <option value="open">Abierto</option>
-                <option value="closed">Cerrado</option>
-              </Select>
-            </div>
-            <div className="border-t border-slate-800 pt-4">
-              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Extras del grupo</p>
-              <div className="space-y-2">
-                {GROUP_EXTRAS.map((extra) => {
-                  const enabled = enabledExtras.includes(extra.key);
-                  return (
-                    <button
-                      key={extra.key}
-                      type="button"
-                      onClick={() =>
-                        setEnabledExtras((prev) =>
-                          enabled ? prev.filter((x) => x !== extra.key) : [...prev, extra.key]
-                        )
-                      }
-                      className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-left transition hover:border-slate-600"
-                    >
-                      <span className="min-w-0">
-                        <span className="block text-sm font-semibold text-slate-200">{extra.label}</span>
-                        <span className="mt-0.5 block text-[11px] text-slate-500">{extra.description}</span>
-                      </span>
-                      <span
-                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
-                          enabled ? "bg-indigo-600" : "bg-slate-700"
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${
-                            enabled ? "translate-x-6" : "translate-x-1"
-                          }`}
-                        />
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="border-t border-slate-800 pt-4">
-              <button
-                type="button"
-                onClick={() => setSimplifyDebts((prev) => !prev)}
-                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-left transition hover:border-slate-600"
-              >
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-slate-200">Simplificar deudas automáticamente</span>
-                  <span className="mt-0.5 block text-[11px] text-slate-500">
-                    Consolida las deudas en cadena (si A debe a B y B a C, se propone A → C) para reducir los pagos
-                    sugeridos en la pestaña Saldos.
-                  </span>
-                </span>
-                <span
-                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
-                    simplifyDebts ? "bg-indigo-600" : "bg-slate-700"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${
-                      simplifyDebts ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </span>
-              </button>
-            </div>
-            {error ? <p className="text-xs text-rose-400">{error}</p> : null}
-          </>
-        ) : (
-          <p className="text-sm text-slate-400">Solo los administradores pueden modificar la configuración del grupo.</p>
-        )}
-        <div className="border-t border-slate-800 pt-4">
-          <Button variant="danger" onClick={onLeave} className="w-full">
-            Abandonar grupo
-          </Button>
-        </div>
-{isAdmin && group.type === "open" ? (
-          <>
-            <div className="border-t border-slate-800 pt-4">
-              <button
-                type="button"
-                className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-rose-500/50 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-400 transition hover:bg-rose-500/20"
-                onClick={() => {
-                  if (
-                    confirm(
-                      "¿Seguro que quieres cerrar este grupo?\n\n" +
-                        "• No se podrán añadir nuevos gastos ni pagos\n" +
-                        "• No se podrán crear nuevos piques\n" +
-                        "• El grupo se marcará como 'Cerrado'\n" +
-                        "• Los miembros podrán ver el historial pero no modificar nada\n\n" +
-                        "Esta acción es reversible (puedes reabrirlo desde Ajustes)."
-                    )
-                  ) {
-                    (async () => {
-                      try {
-                        await api.patch(`/groups/${group.id}`, { type: "closed" });
-                        onChanged();
-                        onClose();
-                      } catch (err) {
-                        alert(err instanceof Error ? err.message : "Error al cerrar el grupo");
-                      }
-                    })();
-                  }
-                }
-              }
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Cerrar grupo
-              </button>
-            </div>
-          </>
-        ) : null}
-      </div>
-    </Modal>
-  );
-}
-
-// ---------- Detalle de persona ----------
 
 function MemberDetailModal({
   data,

@@ -397,3 +397,21 @@ export const CATEGORY_LIST: CategoryConfig[] = [
   CATEGORIES.family,
   CATEGORIES.general,
 ];
+
+export const GROUP_EXTRAS: { key: string; label: string; description: string }[] = [
+  {
+    key: "common_pot",
+    label: "Bote común",
+    description: "Dinero compartido del grupo: aportaciones, retiradas y pagos desde el bote.",
+  },
+  {
+    key: "informal_debts",
+    label: "Deudas informales",
+    description: "Deuda directa entre dos personas sin gasto asociado (yo te devuelvo luego).",
+  },
+  {
+    key: "recurring_expenses",
+    label: "Gastos recurrentes",
+    description: "Gastos que se repiten cada mes (alquiler, suscripciones...) y se crean solos.",
+  },
+];
