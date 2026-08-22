@@ -12,6 +12,11 @@ export interface Db {
   prepare(sql: string): PreparedStatement;
   ping(): Promise<void>;
   close(): Promise<void>;
+  /**
+   * Ejecuta `fn` dentro de una transacción. Si `fn` lanza, se hace ROLLBACK.
+   * Las llamadas anidadas a transaction reutilizan la transacción externa.
+   */
+  transaction<T>(fn: (tx: Db) => Promise<T>): Promise<T>;
 }
 
 function toPostgresSql(sql: string): string {
@@ -53,6 +58,46 @@ export function createDb(connectionString: string): Db {
     },
     async close() {
       await pool.end();
+    },
+    async transaction<T>(fn: (tx: Db) => Promise<T>): Promise<T> {
+      const client = await pool.connect();
+      const txDb: Db = {
+        prepare(sql) {
+          const text = toPostgresSql(sql);
+          return {
+            async get(...params) {
+              const res = await client.query(text, params);
+              return res.rows[0] as Record<string, unknown> | undefined;
+            },
+            async all(...params) {
+              const res = await client.query(text, params);
+              return res.rows as Record<string, unknown>[];
+            },
+            async run(...params) {
+              const res = await client.query(text, params);
+              return { changes: res.rowCount ?? 0 };
+            },
+          };
+        },
+        ping: () => client.query("SELECT 1").then(() => undefined),
+        close: () => Promise.resolve(),
+        transaction: (inner) => inner(txDb),
+      };
+      try {
+        await client.query("BEGIN");
+        const result = await fn(txDb);
+        await client.query("COMMIT");
+        return result;
+      } catch (err) {
+        try {
+          await client.query("ROLLBACK");
+        } catch {
+          // La conexión ya no es válida; se libera igualmente.
+        }
+        throw err;
+      } finally {
+        client.release();
+      }
     },
   };
 }

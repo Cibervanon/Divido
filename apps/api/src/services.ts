@@ -8,8 +8,7 @@ import {
   type SettlementTransfer,
 } from "@divido/shared";
 import {
-  expenseParticipantIds,
-  expenseParticipantShares,
+  expenseParticipantsByGroup,
   listExpenses,
   listInformalDebts,
   listMembers,
@@ -55,13 +54,16 @@ export interface PersonBreakdownItem {
 const isActive = (m: MemberRow) => m.status === "active";
 
 async function expensePairs(db: Db, groupId: string) {
-  const expenses = await listExpenses(db, groupId);
+  const [expenses, participantsByExpense] = await Promise.all([
+    listExpenses(db, groupId),
+    expenseParticipantsByGroup(db, groupId),
+  ]);
   const result: Array<ExpenseRow & { participants: string[]; shares: Record<string, number> }> = [];
   for (const e of expenses) {
     result.push({
       ...e,
-      participants: await expenseParticipantIds(db, e.id),
-      shares: await expenseParticipantShares(db, e.id),
+      participants: participantsByExpense.get(e.id)?.ids ?? [],
+      shares: participantsByExpense.get(e.id)?.shares ?? {},
     });
   }
   return result;

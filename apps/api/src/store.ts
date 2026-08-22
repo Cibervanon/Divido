@@ -1345,36 +1345,37 @@ export interface CreateExpenseInput {
 export async function createExpense(db: Db, input: CreateExpenseInput): Promise<ExpenseRow> {
   const id = randomUUID();
   const now = new Date().toISOString();
-  await db
-    .prepare(
-      `INSERT INTO expenses (id, group_id, payer_id, description, amount, currency, exchange_rate, amount_group, created_by_id, created_at, updated_at, deleted, paid_from_pot, receipt_url, category, icon_name, is_custom_icon)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      id,
-      input.groupId,
-      input.payerId,
-      input.description,
-      input.amount,
-      input.currency,
-      input.exchangeRate,
-      input.amountGroup,
-      input.createdById,
-      now,
-      now,
-      input.paidFromPot ? 1 : 0,
-      input.receiptUrl ?? null,
-      input.category ?? "general",
-      input.iconName ?? "wallet",
-      input.isCustomIcon ? 1 : 0
-    );
-  const ins = db.prepare(
-    "INSERT INTO expense_participants (expense_id, user_id, share_amount) VALUES (?, ?, ?)"
-  );
-  for (const p of input.participants) {
-    await ins.run(id, p, input.shares?.[p] ?? null);
-  }
-  return (await getExpense(db, id))!;
+  // Transacción: el gasto y sus participantes se escriben juntos o no se escriben.
+  return db.transaction(async (tx) => {
+    await tx
+      .prepare(
+        `INSERT INTO expenses (id, group_id, payer_id, description, amount, currency, exchange_rate, amount_group, created_by_id, created_at, updated_at, deleted, paid_from_pot, receipt_url, category, icon_name, is_custom_icon)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        id,
+        input.groupId,
+        input.payerId,
+        input.description,
+        input.amount,
+        input.currency,
+        input.exchangeRate,
+        input.amountGroup,
+        input.createdById,
+        now,
+        now,
+        input.paidFromPot ? 1 : 0,
+        input.receiptUrl ?? null,
+        input.category ?? "general",
+        input.iconName ?? "wallet",
+        input.isCustomIcon ? 1 : 0
+      );
+    const ins = tx.prepare("INSERT INTO expense_participants (expense_id, user_id, share_amount) VALUES (?, ?, ?)");
+    for (const p of input.participants) {
+      await ins.run(id, p, input.shares?.[p] ?? null);
+    }
+    return (await getExpense(tx, id))!;
+  });
 }
 
 export async function getExpense(db: Db, expenseId: string): Promise<ExpenseRow | undefined> {
@@ -1525,6 +1526,38 @@ export async function expenseParticipantShares(db: Db, expenseId: string): Promi
     if (r.share_amount != null) out[r.user_id] = r.share_amount;
   }
   return out;
+}
+
+export interface ExpenseParticipantsInfo {
+  ids: string[];
+  shares: Record<string, number>;
+}
+
+/**
+ * Participantes de todos los gastos del grupo en UNA sola consulta.
+ * Evita el N+1 de llamar a expenseParticipantIds/shares por cada gasto.
+ */
+export async function expenseParticipantsByGroup(
+  db: Db,
+  groupId: string
+): Promise<Map<string, ExpenseParticipantsInfo>> {
+  const rows = await db
+    .prepare(
+      `SELECT ep.expense_id, ep.user_id, ep.share_amount
+       FROM expense_participants ep
+       JOIN expenses e ON e.id = ep.expense_id
+       WHERE e.group_id = ?`
+    )
+    .all(groupId);
+  const map = new Map<string, ExpenseParticipantsInfo>();
+  for (const r of rows) {
+    const expenseId = String(r.expense_id);
+    const entry = map.get(expenseId) ?? { ids: [], shares: {} };
+    entry.ids.push(String(r.user_id));
+    if (r.share_amount != null) entry.shares[String(r.user_id)] = Number(r.share_amount);
+    map.set(expenseId, entry);
+  }
+  return map;
 }
 
 export async function updateExpense(

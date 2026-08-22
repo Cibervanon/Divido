@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import {
-  expenseParticipantIds,
+  expenseParticipantsByGroup,
   listExpenses,
   listGroupEvents,
   listMembers,
@@ -30,12 +30,14 @@ export const balanceRoutes: FastifyPluginAsync = async (app) => {
     const { groupId } = request.params as { groupId: string };
     await requireActiveMember(request, groupId);
     const expenses = await listExpenses(request.db, groupId, true);
-    const payments = await listPayments(request.db, groupId);
+    const [payments, participantsByExpense] = await Promise.all([
+      listPayments(request.db, groupId),
+      expenseParticipantsByGroup(request.db, groupId),
+    ]);
 
     const events: Array<Record<string, unknown>> = [];
 
     for (const e of expenses) {
-      const participantIds = await expenseParticipantIds(request.db, e.id);
       events.push({
         type: "expense",
         id: e.id,
@@ -47,7 +49,7 @@ export const balanceRoutes: FastifyPluginAsync = async (app) => {
         amountGroup: e.amount_group,
         payerId: e.payer_id,
         payerName: e.payer_name,
-        participantIds,
+        participantIds: participantsByExpense.get(e.id)?.ids ?? [],
         deleted: Boolean(e.deleted),
         edited: e.updated_at !== e.created_at,
       });
