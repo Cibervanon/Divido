@@ -4,7 +4,7 @@ import { simplifyDebts, type SimplifyResult } from "../../lib/debtSimplifier";
 import type { GroupDetail, MemberInfo, ExpenseDto } from "../../lib/types";
 import type { SettlementTransfer } from "@divido/shared";
 import { ExportSummary } from "./ExportSummary";
-import { API_BASE, getToken } from "../../lib/api";
+import { CATEGORIES } from "../../constants/categories";
 
 function buildSummaryText(groupName: string, currency: string, transfers: SettlementTransfer[]): string {
   const sym = currencySymbol(currency);
@@ -107,6 +107,16 @@ function SimplifyBreakdownModal({
   );
 }
 
+function categoryLabel(key?: string): string {
+  if (!key) return "General";
+  const cfg = (CATEGORIES as Record<string, { label: string } | undefined>)[key];
+  return cfg?.label ?? key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+function csvEscape(value: string): string {
+  return /[",\n;]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
 export function BalancesTab({ detail, expenses, myUserId, onOpenMember, onToast }: BalancesTabProps) {
   const { group, balances, rawTransfers, exMembers } = detail;
   const memberById = new Map(detail.members.map((m) => [m.userId, m]));
@@ -178,24 +188,45 @@ export function BalancesTab({ detail, expenses, myUserId, onOpenMember, onToast 
     window.open(`https://${kind}.me/${encodeURIComponent(username)}`, "_blank", "noopener,noreferrer");
   }
 
-  async function exportCSV() {
-    setExportingCsv(true);
+  function exportCSV() {
     try {
-      const token = getToken();
-      const res = await fetch(`${API_BASE}/api/groups/${group.id}/export.csv`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        cache: "no-store",
-      });
-      if (!res.ok) throw new Error("Error al exportar");
-      const blob = await res.blob();
+      if (!Array.isArray(expenses) || expenses.length === 0) {
+        onToast("No hay gastos para exportar");
+        return;
+      }
+      const nameOf = (id?: string | null) =>
+        (id ? detail.members.find((m) => m.userId === id)?.name : null) ?? "Desconocido";
+
+      const header = ["Fecha", "Concepto", "Categoría", "Pagador", "Importe", "Moneda", "Participantes"];
+      const lines: string[] = [header.join(",")];
+
+      for (const e of expenses) {
+        const row = [
+          e?.createdAt ? new Date(e.createdAt).toLocaleDateString("es-ES") : "",
+          (e?.description || "Sin concepto").replace(/"/g, '""'),
+          categoryLabel(e?.category),
+          csvEscape(e?.payerName || nameOf(e?.payerId)),
+          typeof e?.amount === "number" && Number.isFinite(e.amount) ? e.amount.toFixed(2) : "0.00",
+          e?.currency || group.currency,
+          Array.isArray(e?.participants)
+            ? csvEscape(e.participants.map((p) => nameOf(typeof p === "string" ? p : null)).join("; "))
+            : "",
+        ];
+        lines.push(row.join(","));
+      }
+
+      const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `divido-${group.name.replace(/[^\w-]+/g, "_")}.csv`;
+      a.download = `divido-${(group.name || "grupo").replace(/[^\w-]+/g, "_")}.csv`;
+      document.body.appendChild(a);
       a.click();
+      a.remove();
       URL.revokeObjectURL(url);
       onToast("CSV descargado correctamente");
-    } catch {
+    } catch (err) {
+      console.error("[exportCSV] fallo generando el CSV:", err);
       onToast("Error al exportar CSV");
     } finally {
       setExportingCsv(false);
