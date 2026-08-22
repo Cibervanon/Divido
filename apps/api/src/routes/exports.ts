@@ -10,6 +10,23 @@ export const exportRoutes: FastifyPluginAsync = async (app) => {
     const members = await listMembers(request.db, groupId);
     const nameOf = (id: string | null) => members.find((m) => m.user_id === id)?.name ?? "—";
 
+    // Participantes por gasto (nombres)
+    const partRows = (await request.db
+      .prepare(
+        `SELECT ep.expense_id AS eid, u.name AS name
+         FROM expense_participants ep
+         JOIN users u ON u.id = ep.user_id
+         JOIN expenses e ON e.id = ep.expense_id
+         WHERE e.group_id = ?`
+      )
+      .all(groupId)) as Array<{ eid: string; name: string }>;
+    const participantsByExpense = new Map<string, string[]>();
+    for (const r of partRows) {
+      const list = participantsByExpense.get(r.eid) ?? [];
+      list.push(r.name);
+      participantsByExpense.set(r.eid, list);
+    }
+
     const rows = [
       ["Fecha", "Descripción", "Categoría", "Pagador", "Importe", "Moneda", "Participantes"],
       ...expenses.map((e) => [
@@ -19,10 +36,10 @@ export const exportRoutes: FastifyPluginAsync = async (app) => {
         csvEscape(nameOf(e.payer_id)),
         e.amount_group.toFixed(2),
         e.currency,
-        String(e.amount_group), // placeholder — completar con participantIds si se necesita el detalle
+        csvEscape((participantsByExpense.get(e.id) ?? []).join("; ")),
       ]),
     ];
-    const csv = rows.map((r) => r.join(",")).join("\n");
+    const csv = "\uFEFF" + rows.map((r) => r.join(",")).join("\r\n");
     reply.header("Content-Type", "text/csv; charset=utf-8");
     reply.header("Content-Disposition", `attachment; filename="divido-${groupId}.csv"`);
     return csv;

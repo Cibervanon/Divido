@@ -12,7 +12,7 @@ export function setToken(token: string | null): void {
 // URL base del backend. En local se deja vacío (usa el proxy de Vite).
 // En Vercel se define la variable de entorno VITE_API_BASE, ej:
 //   https://divido-433u.onrender.com
-const API_BASE = (import.meta.env.VITE_API_BASE ?? "").replace(/\/+$/, "");
+export const API_BASE = (import.meta.env.VITE_API_BASE ?? "").replace(/\/+$/, "");
 
 export class ApiError extends Error {
   constructor(

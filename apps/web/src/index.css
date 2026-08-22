@@ -135,3 +135,39 @@ button {
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+/* ---------- Informe de impresion / PDF ---------- */
+#print-root {
+  display: none;
+}
+
+@page {
+  size: A4;
+  margin: 14mm 12mm;
+}
+
+@media print {
+  html,
+  body {
+    height: auto !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    overscroll-behavior: auto !important;
+  }
+  /* Oculta toda la interfaz de la app salvo el informe */
+  body > *:not(#print-root) {
+    display: none !important;
+  }
+  #print-root {
+    display: block !important;
+  }
+  #print-root table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  #print-root tr,
+  #print-root .avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

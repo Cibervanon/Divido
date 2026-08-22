@@ -4,6 +4,7 @@ import { simplifyDebts, type SimplifyResult } from "../../lib/debtSimplifier";
 import type { GroupDetail, MemberInfo, ExpenseDto } from "../../lib/types";
 import type { SettlementTransfer } from "@divido/shared";
 import { ExportSummary } from "./ExportSummary";
+import { API_BASE, getToken } from "../../lib/api";
 
 function buildSummaryText(groupName: string, currency: string, transfers: SettlementTransfer[]): string {
   const sym = currencySymbol(currency);
@@ -114,6 +115,7 @@ export function BalancesTab({ detail, expenses, myUserId, onOpenMember, onToast 
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
   const isAdmin = detail.myRole === "admin";
 
   const simplified = useMemo(
@@ -177,19 +179,26 @@ export function BalancesTab({ detail, expenses, myUserId, onOpenMember, onToast 
   }
 
   async function exportCSV() {
+    setExportingCsv(true);
     try {
-      const res = await fetch(`/api/groups/${group.id}/export.csv`);
+      const token = getToken();
+      const res = await fetch(`${API_BASE}/api/groups/${group.id}/export.csv`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        cache: "no-store",
+      });
       if (!res.ok) throw new Error("Error al exportar");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `divido-${group.id}.csv`;
+      a.download = `divido-${group.name.replace(/[^\w-]+/g, "_")}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-      onToast("CSV exportado correctamente");
+      onToast("CSV descargado correctamente");
     } catch {
       onToast("Error al exportar CSV");
+    } finally {
+      setExportingCsv(false);
     }
   }
 
@@ -460,10 +469,12 @@ export function BalancesTab({ detail, expenses, myUserId, onOpenMember, onToast 
       ) : null}
       {showExport && (
         <ExportSummary
-group={group}
-        expenses={expenses}
-        balances={{ transfers: displayTransfers }}
-        currency={group.currency}
+          group={group}
+          expenses={expenses}
+          transfers={displayTransfers}
+          memberBalances={balances}
+          currency={group.currency}
+          onClose={() => setShowExport(false)}
         />
       )}
     </div>
