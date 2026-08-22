@@ -274,7 +274,7 @@ export function ExpensesTab({
                     <Money amount={e.amount} currency={e.currency} />
                     {e.currency !== undefined && e.exchangeRate !== 1 ? (
                       <span className="ml-1 text-[10px] font-normal text-slate-500">
-                        â‰ˆ <Money amount={e.amountGroup} currency={groupCurrency} />
+                        ≈ <Money amount={e.amountGroup} currency={groupCurrency} />
                       </span>
                     ) : null}
                   </p>

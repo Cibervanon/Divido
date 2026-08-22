@@ -63,7 +63,7 @@ function describeAuditDiff(diff: { before?: any; after?: any } | null): string {
       .slice(0, 3);
     if (keys.length === 0) return "";
     const parts = keys.map(
-      (k) => `${AUDIT_FIELD_LABELS[k] ?? k}: ${fmtAuditValue(k, diff.before?.[k])} â†’ ${fmtAuditValue(k, diff.after?.[k])}`
+      (k) => `${AUDIT_FIELD_LABELS[k] ?? k}: ${fmtAuditValue(k, diff.before?.[k])} → ${fmtAuditValue(k, diff.after?.[k])}`
     );
     return ` (${parts.join(", ")})`;
   }
