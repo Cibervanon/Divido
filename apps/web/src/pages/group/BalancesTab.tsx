@@ -194,11 +194,32 @@ export function BalancesTab({ detail, expenses, myUserId, onOpenMember, onToast 
         onToast("No hay gastos para exportar");
         return;
       }
-      // El listado llega paginado: descargamos todas las páginas para
-      // que el informe incluya el histórico completo del grupo.
+      // El listado llega paginado. Para grupos enormes (>50k gastos) el informe
+      // lo genera el servidor en streaming: evita bloquear el hilo principal.
+      const { api, API_BASE, getToken } = await import("../../lib/api");
+      const probe = await api.get<{ total: number }>(`/groups/${group.id}/expenses?limit=1&offset=0`);
+      if (probe.total > 50_000) {
+        const token = getToken();
+        const res = await fetch(`${API_BASE}/api/groups/${group.id}/export.csv`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (!res.ok) throw new Error(`export.csv respondió ${res.status}`);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `divido-${(group.name || "grupo").replace(/[^\w-]+/g, "_")}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        onToast("CSV descargado correctamente");
+        return;
+      }
+      // Por defecto seguimos exportando en cliente (coste plano) descargando
+      // todas las páginas para incluir el histórico completo del grupo.
       let fullExpenses = expenses;
       try {
-        const { api } = await import("../../lib/api");
         const pages: ExpenseDto[] = [];
         let offset = 0;
         for (;;) {
