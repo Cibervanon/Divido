@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeNetBalances, simplifyDebts, type MemberBalance } from "./settlement.js";
+import { computeNetBalances, round2, simplifyDebts, type MemberBalance } from "./settlement.js";
 
 describe("computeNetBalances", () => {
   it("reparte equitativamente cuando no hay shares personalizados", () => {
@@ -180,5 +180,111 @@ describe("simplifyDebts", () => {
     const transfers = simplifyDebts(balances);
     expect(transfers.length).toBe(1);
     expect(transfers[0].amount).toBe(50);
+  });
+
+  describe("propiedades (escenarios aleatorios deterministas)", () => {
+    // RNG con semilla fija: mismos escenarios en cada ejecución, sin dependencias.
+    function mulberry32(seed: number) {
+      return () => {
+        seed |= 0;
+        seed = (seed + 0x6d2b79f5) | 0;
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    /** Parte `total` en `parts` trozos positivos cuya suma es exactamente `total`. */
+    function splitAmount(total: number, parts: number, rand: () => number): number[] {
+      const out: number[] = [];
+      let rem = total;
+      for (let i = 0; i < parts; i++) {
+        const isLast = i === parts - 1;
+        const amt = isLast ? round2(rem) : round2(Math.min(rem * (0.15 + 0.85 * rand()), rem));
+        out.push(amt);
+        if (!isLast) rem = round2(rem - amt);
+        else break;
+      }
+      return out;
+    }
+
+    function randomScenario(rand: () => number): MemberBalance[] {
+      const n = 2 + Math.floor(rand() * 8); // entre 2 y 9 personas
+      const debtorsCount = 1 + Math.floor(rand() * (n - 1)); // al menos 1 deudor y 1 acreedor
+      const creditorsCount = n - debtorsCount;
+      const total = round2(10 + rand() * 990);
+      const debts = splitAmount(total, debtorsCount, rand);
+      const credits = splitAmount(total, creditorsCount, rand);
+
+      const ids = Array.from({ length: n }, (_, i) => `u${i}`).sort(() => rand() - 0.5);
+      const balances: MemberBalance[] = [];
+      debts.forEach((amount, i) =>
+        balances.push(makeBalance({ userId: ids[i], name: ids[i], net: -amount, owesOthers: amount }))
+      );
+      credits.forEach((amount, j) =>
+        balances.push(
+          makeBalance({
+            userId: ids[debtorsCount + j],
+            name: ids[debtorsCount + j],
+            net: amount,
+            paidForOthers: amount,
+          })
+        )
+      );
+      return balances;
+    }
+
+    it("en 300 escenarios aleatorios: todo deudor paga su deuda completa", () => {
+      const rand = mulberry32(42);
+      for (let s = 0; s < 300; s++) {
+        const balances = randomScenario(rand).map((b) => ({ ...b }));
+        const transfers = simplifyDebts(balances);
+
+        const pagado = new Map<string, number>();
+        const recibido = new Map<string, number>();
+        for (const t of transfers) {
+          expect(t.amount).toBeGreaterThan(0);
+          pagado.set(t.fromUserId, (pagado.get(t.fromUserId) ?? 0) + t.amount);
+          recibido.set(t.toUserId, (recibido.get(t.toUserId) ?? 0) + t.amount);
+        }
+        for (const b of balances) {
+          expect(pagado.get(b.userId) ?? 0).toBeCloseTo(Math.max(-b.net, 0), 2);
+          expect(recibido.get(b.userId) ?? 0).toBeCloseTo(Math.max(b.net, 0), 2);
+        }
+      }
+    });
+
+    it("en 300 escenarios aleatorios: nunca más de n-1 transferencias", () => {
+      const rand = mulberry32(1337);
+      for (let s = 0; s < 300; s++) {
+        const balances = randomScenario(rand);
+        const transfers = simplifyDebts(balances);
+        expect(transfers.length).toBeLessThanOrEqual(Math.max(balances.length - 1, 0));
+      }
+    });
+
+    it("computeNetBalances suma casi cero en cualquier escenario (residuo de redondeo acotado)", () => {
+      const rand = mulberry32(777);
+      for (let s = 0; s < 200; s++) {
+        const n = 2 + Math.floor(rand() * 6);
+        const memberIds = Array.from({ length: n }, (_, i) => `u${i}`);
+        const names = Object.fromEntries(memberIds.map((id, i) => [id, `P${i}`]));
+        const expenseCount = Math.floor(rand() * 10);
+        const expenses = Array.from({ length: expenseCount }, () => ({
+          payerId: memberIds[Math.floor(rand() * n)],
+          amountGroup: round2(rand() * 500),
+          participants: memberIds.filter(() => rand() > 0.3),
+        })).filter((e) => e.participants.length > 0 && e.amountGroup > 0);
+        const payments = Array.from({ length: Math.floor(rand() * 4) }, () => ({
+          fromUserId: memberIds[Math.floor(rand() * n)],
+          toUserId: memberIds[Math.floor(rand() * n)],
+          amount: round2(rand() * 100),
+        }));
+        const result = computeNetBalances({ memberIds, names, expenses, payments });
+        const sum = result.reduce((acc, b) => acc + b.net, 0);
+        // El redondeo individual por persona introduce hasta ~0,005 por miembro.
+        expect(Math.abs(sum)).toBeLessThanOrEqual(0.005 * n + 0.001);
+      }
+    });
   });
 });
