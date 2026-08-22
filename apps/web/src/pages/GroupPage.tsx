@@ -62,7 +62,19 @@ interface GroupCacheData {
   recurringExpenses: RecurringExpenseDto[];
   audit: any[];
 }
+// Caché de grupos visitados con tope (LRU por inserción): retener todos los
+// grupos completos de una sesión larga terminaba pesando decenas de MB en RAM.
+const GROUP_CACHE_LIMIT = 8;
 const groupCache = new Map<string, GroupCacheData>();
+function cacheGroup(groupId: string, data: GroupCacheData): void {
+  groupCache.delete(groupId);
+  groupCache.set(groupId, data);
+  while (groupCache.size > GROUP_CACHE_LIMIT) {
+    const oldest = groupCache.keys().next().value;
+    if (oldest === undefined) break;
+    groupCache.delete(oldest);
+  }
+}
 
 export default function GroupPage() {
   const { groupId } = useParams<{ groupId: string }>();
@@ -208,7 +220,7 @@ export default function GroupPage() {
           recurringExpenses: rec?.expenses ?? [],
           audit: a?.audit ?? [],
         };
-        groupCache.set(groupId, data);
+        cacheGroup(groupId, data);
         applyData(data);
         setError("");
       } catch (err) {
