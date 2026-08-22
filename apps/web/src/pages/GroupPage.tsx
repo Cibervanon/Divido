@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type Dispatch, type SetStateAction } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type Dispatch, type SetStateAction } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -8,6 +8,7 @@ import { PaymentModal } from "../components/PaymentModal";
 import { BalancesTab } from "./group/BalancesTab";
 import { SettingsModal } from "./group/SettingsModal";
 import { useExpenseFilters } from "./group/hooks/useExpenseFilters";
+import { downloadText, fmtDate, fmtTime, similarNames } from "./group/utils";
 import { simplifyDebts, type SimplifyResult } from "../lib/debtSimplifier";
 import { getCategoryColor, getIconComponent, MODULE_FALLBACKS } from "../constants/categories";
 import type {
@@ -27,24 +28,6 @@ import type { InformalDebtStatus, PiqueKind, SettlementTransfer } from "@divido/
 
 type Tab = "expenses" | "balances" | "members" | "history" | "debts" | "pot" | "recurring";
 
-function normalizeName(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, " ");
-}
-
-function similarNames(a: string, b: string): boolean {
-  const na = normalizeName(a).trim();
-  const nb = normalizeName(b).trim();
-  if (!na || !nb) return false;
-  if (na === nb) return true;
-  if (na.includes(nb) || nb.includes(na)) return true;
-  const ta = na.split(" ").filter((t) => t.length > 2);
-  const tb = nb.split(" ").filter((t) => t.length > 2);
-  return ta.some((t) => tb.includes(t));
-}
 
 const GROUP_EXTRAS: Array<{ key: string; label: string; description: string }> = [
   {
@@ -54,8 +37,8 @@ const GROUP_EXTRAS: Array<{ key: string; label: string; description: string }> =
   },
   {
     key: "common_pot",
-    label: "Bote Común",
-    description: "Fondo común al que los miembros aportan dinero para gastos compartidos.",
+    label: "Bote ComÃºn",
+    description: "Fondo comÃºn al que los miembros aportan dinero para gastos compartidos.",
   },
   {
     key: "recurring_expenses",
@@ -64,8 +47,8 @@ const GROUP_EXTRAS: Array<{ key: string; label: string; description: string }> =
   },
 ];
 
-// Caché de sesión por grupo: permite navegar entre pestañas (y volver a un grupo)
-// de forma instantánea sin pantallas de carga, refrescando en segundo plano.
+// CachÃ© de sesiÃ³n por grupo: permite navegar entre pestaÃ±as (y volver a un grupo)
+// de forma instantÃ¡nea sin pantallas de carga, refrescando en segundo plano.
 interface GroupCacheData {
   detail: GroupDetail;
   expenses: ExpenseDto[];
@@ -160,7 +143,7 @@ export default function GroupPage() {
     async (opts?: { silent?: boolean; filters?: { category?: string; payerId?: string; from?: string; to?: string; q?: string } }) => {
       if (!groupId) return;
       const cached = groupCache.get(groupId);
-      // Solo mostramos la pantalla de carga si no hay nada que pintar todavía.
+      // Solo mostramos la pantalla de carga si no hay nada que pintar todavÃ­a.
       if (!cached && !opts?.silent) setLoading(true);
       try {
         const activeFilters = opts?.filters ?? {
@@ -176,8 +159,8 @@ export default function GroupPage() {
         if (activeFilters.from) queryParams.set("from", activeFilters.from);
         if (activeFilters.to) queryParams.set("to", activeFilters.to);
         if (activeFilters.q) queryParams.set("q", activeFilters.q);
-        // Paginación: la primera carga trae una página; los refrescos silenciosos
-        // mantienen el tamaño ya cargado para no perder filas en pantalla.
+        // PaginaciÃ³n: la primera carga trae una pÃ¡gina; los refrescos silenciosos
+        // mantienen el tamaÃ±o ya cargado para no perder filas en pantalla.
         if (!cached) {
           expenseLimitRef.current = 50;
           historyLimitRef.current = 100;
@@ -266,7 +249,7 @@ export default function GroupPage() {
         expenseLimitRef.current = expenseLimitRef.current + res.expenses.length;
         setExpensePaging({ total: typeof res.total === "number" ? res.total : 0, hasMore: !!res.hasMore });
       } catch {
-        showToast("No se pudieron cargar más gastos");
+        showToast("No se pudieron cargar mÃ¡s gastos");
       } finally {
         setLoadingMoreExpenses(false);
       }
@@ -290,7 +273,7 @@ export default function GroupPage() {
         historyLimitRef.current = historyLimitRef.current + res.events.length;
         setHistoryPaging({ total: typeof res.total === "number" ? res.total : 0, hasMore: !!res.hasMore });
       } catch {
-        showToast("No se pudo cargar más actividad");
+        showToast("No se pudo cargar mÃ¡s actividad");
       } finally {
         setLoadingMoreHistory(false);
       }
@@ -302,7 +285,7 @@ export default function GroupPage() {
     if (!groupId) return;
     const cached = groupCache.get(groupId);
     if (cached) {
-      // Render inmediato desde caché y refresco silencioso en segundo plano.
+      // Render inmediato desde cachÃ© y refresco silencioso en segundo plano.
       applyData(cached);
       setLoading(false);
       load({ silent: true });
@@ -346,13 +329,13 @@ export default function GroupPage() {
     try {
       await navigator.clipboard.writeText(g.inviteUrl);
     } catch {
-      window.prompt("Copia este enlace de invitación:", g.inviteUrl);
+      window.prompt("Copia este enlace de invitaciÃ³n:", g.inviteUrl);
     }
-    showToast("Enlace de invitación copiado");
+    showToast("Enlace de invitaciÃ³n copiado");
   }
 
   async function leaveGroup() {
-    if (!confirm("¿Abandonar este grupo? Tu balance quedará congelado y visible para los demás.")) return;
+    if (!confirm("Â¿Abandonar este grupo? Tu balance quedarÃ¡ congelado y visible para los demÃ¡s.")) return;
     try {
       await api.post(`/groups/${groupId}/leave`);
       navigate("/");
@@ -419,8 +402,8 @@ export default function GroupPage() {
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-extrabold text-slate-100">{group.name}</h1>
             <p className="text-[11px] text-slate-500">
-              {group.type === "closed" ? "Cerrado" : "Abierto"} · {group.currency}
-              {detail.members.length > 0 ? ` · ${detail.members.length} miembros` : ""}
+              {group.type === "closed" ? "Cerrado" : "Abierto"} Â· {group.currency}
+              {detail.members.length > 0 ? ` Â· ${detail.members.length} miembros` : ""}
             </p>
           </div>
           <button
@@ -466,7 +449,7 @@ export default function GroupPage() {
             ) : null}
             {!positive && !negative ? (
               <span className="rounded-lg bg-emerald-500/10 px-2.5 py-1 font-semibold text-emerald-400">
-                Al día
+                Al dÃ­a
               </span>
             ) : null}
           </div>
@@ -656,7 +639,7 @@ export default function GroupPage() {
       <Modal
         open={Boolean(deleteTarget)}
         onClose={() => setDeleteTarget(null)}
-        title={deleteTarget?.editable ? "Eliminar gasto" : "Solicitar eliminación"}
+        title={deleteTarget?.editable ? "Eliminar gasto" : "Solicitar eliminaciÃ³n"}
         footer={
           <>
             <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
@@ -670,8 +653,8 @@ export default function GroupPage() {
       >
         <p className="text-sm text-slate-300">
           {deleteTarget?.editable
-            ? `¿Eliminar "${deleteTarget.description}"?`
-            : `"${deleteTarget?.description}" supera las 24 horas. Envía la solicitud y un administrador la revisará.`}
+            ? `Â¿Eliminar "${deleteTarget.description}"?`
+            : `"${deleteTarget?.description}" supera las 24 horas. EnvÃ­a la solicitud y un administrador la revisarÃ¡.`}
         </p>
       </Modal>
 
@@ -795,7 +778,7 @@ function ExpensesTab({
   const pending = requests.filter((r) => r.status === "pending");
   const [viewReceipt, setViewReceipt] = useState<string | null>(null);
 
-  // Estado de filtros: multiselección categorías, booleano "Mi pagador", acordeón
+  // Estado de filtros: multiselecciÃ³n categorÃ­as, booleano "Mi pagador", acordeÃ³n
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [onlyMyPayments, setOnlyMyPayments] = useState<boolean>(false);
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
@@ -807,7 +790,7 @@ function ExpensesTab({
     { key: "housing", label: "Vivienda" },
     { key: "health", label: "Salud" },
     { key: "shopping", label: "Compras" },
-    { key: "coffee", label: "Café" },
+    { key: "coffee", label: "CafÃ©" },
     { key: "pets", label: "Mascotas" },
     { key: "streaming", label: "Streaming" },
     { key: "sports", label: "Deportes" },
@@ -830,7 +813,7 @@ function ExpensesTab({
 
   return (
     <div className="space-y-4">
-      {/* Filtros: botón único compacto */}
+      {/* Filtros: botÃ³n Ãºnico compacto */}
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
@@ -937,7 +920,7 @@ function ExpensesTab({
               <div key={r.id} className="flex items-center justify-between gap-2 rounded-xl bg-slate-900 px-3 py-2">
                 <div className="min-w-0">
                   <p className="truncate text-xs text-slate-200">
-                    <strong>{r.requesterName}</strong> · {r.action === "edit" ? "editar" : "eliminar"}{" "}
+                    <strong>{r.requesterName}</strong> Â· {r.action === "edit" ? "editar" : "eliminar"}{" "}
                     "{r.expenseDescription}"
                   </p>
                 </div>
@@ -957,8 +940,8 @@ function ExpensesTab({
 
       {filteredExpenses.length === 0 ? (
         <EmptyState
-          title="Aún no hay gastos en este grupo"
-          subtitle="Añade tu primer gasto para empezar a repartir cuentas con tus compañeros"
+          title="AÃºn no hay gastos en este grupo"
+          subtitle="AÃ±ade tu primer gasto para empezar a repartir cuentas con tus compaÃ±eros"
           icon={
             <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path
@@ -973,7 +956,7 @@ function ExpensesTab({
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
-              Añadir primer gasto
+              AÃ±adir primer gasto
             </Button>
           }
         />
@@ -992,13 +975,13 @@ function ExpensesTab({
                   {e.description}
                   {e.paidFromPot ? (
                     <span className="ml-2 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
-                      Bote común
+                      Bote comÃºn
                     </span>
                   ) : null}
                   {e.deleted ? <span className="ml-2 rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] text-rose-400">eliminado</span> : null}
                 </p>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  {e.payerName} pagó · {e.participantsCount} participante{e.participantsCount !== 1 ? "s" : ""}
+                  {e.payerName} pagÃ³ Â· {e.participantsCount} participante{e.participantsCount !== 1 ? "s" : ""}
                   {e.receiptUrl ? (
                     <button
                       type="button"
@@ -1022,7 +1005,7 @@ function ExpensesTab({
                     <Money amount={e.amount} currency={e.currency} />
                     {e.currency !== undefined && e.exchangeRate !== 1 ? (
                       <span className="ml-1 text-[10px] font-normal text-slate-500">
-                        ≈ <Money amount={e.amountGroup} currency={groupCurrency} />
+                        â‰ˆ <Money amount={e.amountGroup} currency={groupCurrency} />
                       </span>
                     ) : null}
                   </p>
@@ -1081,7 +1064,7 @@ function ExpensesTab({
           disabled={loadingMore}
           className="mt-4 w-full rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 py-3 text-sm font-semibold text-indigo-300 transition hover:border-indigo-500 hover:text-indigo-200 disabled:opacity-60"
         >
-          {loadingMore ? "Cargando…" : "Cargar más gastos"}
+          {loadingMore ? "Cargandoâ€¦" : "Cargar mÃ¡s gastos"}
         </button>
       ) : null}
 
@@ -1213,7 +1196,7 @@ function ExpenseComments({
               ))}
             </div>
           ) : (
-            <p className="text-[11px] text-slate-500">Sin comentarios todavía.</p>
+            <p className="text-[11px] text-slate-500">Sin comentarios todavÃ­a.</p>
           )}
           <div className="flex gap-2">
             <input
@@ -1225,7 +1208,7 @@ function ExpenseComments({
                   void send();
                 }
               }}
-              placeholder="Añade un comentario..."
+              placeholder="AÃ±ade un comentario..."
               maxLength={500}
               className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
             />
@@ -1317,7 +1300,7 @@ function MembersTab({
       } catch {
         window.prompt("Copia este texto:", res.claimUrl);
       }
-      onToast("Enlace de reclamación copiado. Compártelo con esa persona");
+      onToast("Enlace de reclamaciÃ³n copiado. CompÃ¡rtelo con esa persona");
     } catch (err) {
       alert(err instanceof ApiError ? err.message : "Error");
     }
@@ -1333,7 +1316,7 @@ function MembersTab({
   }
 
   async function removeMember(userId: string, name: string) {
-    if (!confirm(`¿Expulsar a ${name} del grupo?`)) return;
+    if (!confirm(`Â¿Expulsar a ${name} del grupo?`)) return;
     try {
       await api.delete(`/groups/${group.id}/members/${userId}`);
       onChanged();
@@ -1347,10 +1330,10 @@ function MembersTab({
       {matchingGhosts.length > 0 ? (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
           <p className="text-sm font-semibold text-amber-200">
-            ¿Eres {matchingGhosts[0].name}?
+            Â¿Eres {matchingGhosts[0].name}?
           </p>
           <p className="mt-1 text-xs text-slate-400">
-            Hay un participante sin cuenta con un nombre parecido al tuyo. Reclámalo para conservar su historial en el grupo.
+            Hay un participante sin cuenta con un nombre parecido al tuyo. ReclÃ¡malo para conservar su historial en el grupo.
           </p>
           <Button
             variant="secondary"
@@ -1373,7 +1356,7 @@ function MembersTab({
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
             </svg>
-            Añadir participante sin correo
+            AÃ±adir participante sin correo
           </button>
         </div>
       ) : null}
@@ -1403,8 +1386,8 @@ function MembersTab({
                   ) : (
                     <>
                       {m.userId === group.creatorId ? "Creador" : m.role === "admin" ? "Administrador" : "Miembro"}
-                      {isMe ? " · tú" : null}
-                      {m.emailVerified ? " · " : null}
+                      {isMe ? " Â· tÃº" : null}
+                      {m.emailVerified ? " Â· " : null}
                       {m.emailVerified && <VerifiedBadge size="xs" />}
                     </>
                   )}
@@ -1540,7 +1523,7 @@ function DebtsTab({
       {sorted.length === 0 ? (
         <EmptyState
           title="No hay piques o apuestas activas en este grupo"
-          subtitle="Registra aquí apuestas o deudas informales entre miembros; solo los piques de dinero aceptados cuentan en el balance"
+          subtitle="Registra aquÃ­ apuestas o deudas informales entre miembros; solo los piques de dinero aceptados cuentan en el balance"
           icon={
             <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0" />
@@ -1569,7 +1552,7 @@ function DebtsTab({
                     <p className="truncate text-sm font-semibold text-slate-100">{d.title}</p>
                     <p className="mt-0.5 text-xs text-slate-400">
                       <span className="font-medium text-slate-300">{isMoney ? "Dinero" : "Premio"}</span>
-                      <span className="text-slate-600"> · </span>
+                      <span className="text-slate-600"> Â· </span>
                       <PiqueNames names={d.loserNames} ghosts={d.loserIsGhost} />
                       <span className="text-slate-500"> {solePair ? "debe" : "deben"} </span>
                       <PiqueNames names={d.winnerNames} ghosts={d.winnerIsGhost} />
@@ -1778,7 +1761,7 @@ function NewDebtModal({
         </div>
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Quiénes ganan
+            QuiÃ©nes ganan
           </label>
           <div className="flex flex-wrap gap-1.5">
             {active.map((m) => (
@@ -1795,7 +1778,7 @@ function NewDebtModal({
         </div>
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Quiénes deben
+            QuiÃ©nes deben
           </label>
           <div className="flex flex-wrap gap-1.5">
             {active.map((m) => (
@@ -1830,19 +1813,19 @@ function NewDebtModal({
         ) : (
           <Input
             label="Premio"
-            placeholder="Ej. Una comida, Un café..."
+            placeholder="Ej. Una comida, Un cafÃ©..."
             value={prize}
             onChange={(e) => setPrize(e.target.value)}
           />
         )}
-        <Input label="Concepto" placeholder="Ej. Apuesta Clásico" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Input label="Concepto" placeholder="Ej. Apuesta ClÃ¡sico" value={title} onChange={(e) => setTitle(e.target.value)} />
         {error ? <p className="text-xs font-medium text-rose-400">{error}</p> : null}
       </div>
     </Modal>
   );
 }
 
-// ---------- Bote común ----------
+// ---------- Bote comÃºn ----------
 
 function PotTab({
   balance,
@@ -1877,7 +1860,7 @@ function PotTab({
   onOpenExpense?: (expenseId: string) => void;
 }) {
   async function removeContribution(contribution: PotContributionDto) {
-    if (!confirm(`¿Eliminar la aportación de ${contribution.userName}?`)) return;
+    if (!confirm(`Â¿Eliminar la aportaciÃ³n de ${contribution.userName}?`)) return;
     try {
       await api.delete(`/groups/${contribution.groupId}/common-pot/contributions/${contribution.id}`);
       onChanged();
@@ -1889,7 +1872,7 @@ function PotTab({
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-slate-900/50 p-5">
-        <p className="text-xs font-medium uppercase tracking-wider text-emerald-400">Saldo del bote común</p>
+        <p className="text-xs font-medium uppercase tracking-wider text-emerald-400">Saldo del bote comÃºn</p>
         <p className="mt-1 text-3xl font-extrabold text-emerald-300">
           <Money amount={Math.max(0, balance)} currency={currency} />
         </p>
@@ -1907,7 +1890,7 @@ function PotTab({
             <svg className="h-4 w-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
             </svg>
-            <p>El bote común no tiene saldo disponible. Las aportaciones y gastos pagados se mantienen en el historial inferior.</p>
+            <p>El bote comÃºn no tiene saldo disponible. Las aportaciones y gastos pagados se mantienen en el historial inferior.</p>
           </div>
         </div>
       ) : null}
@@ -1916,7 +1899,7 @@ function PotTab({
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Extracto del bote</p>
         {contributions.length === 0 ? (
           <EmptyState
-            title="El bote está vacío"
+            title="El bote estÃ¡ vacÃ­o"
             subtitle="Cada miembro puede aportar dinero para gastos compartidos del grupo"
             icon={
               <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -1932,7 +1915,7 @@ function PotTab({
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
-                Añadir dinero al bote
+                AÃ±adir dinero al bote
               </Button>
             }
           />
@@ -1946,7 +1929,7 @@ function PotTab({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-200">{c.userName}</p>
                 <p className="truncate text-[11px] text-slate-500">
-                  {c.note ? `${c.note} · ` : ""}
+                  {c.note ? `${c.note} Â· ` : ""}
                   {fmtDate(c.createdAt)}
                 </p>
               </div>
@@ -1966,7 +1949,7 @@ function PotTab({
                 <button
                   onClick={() => void removeContribution(c)}
                   className="shrink-0 rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-rose-400"
-                  title="Eliminar aportación"
+                  title="Eliminar aportaciÃ³n"
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
@@ -2035,7 +2018,7 @@ function NewContributionModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Aportar al bote común"
+      title="Aportar al bote comÃºn"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
@@ -2049,7 +2032,7 @@ function NewContributionModal({
     >
       <div className="space-y-4">
         <p className="text-xs text-slate-400">
-          El importe se suma al saldo del bote del grupo. Apunta un concepto para que los demás sepan a qué se destina.
+          El importe se suma al saldo del bote del grupo. Apunta un concepto para que los demÃ¡s sepan a quÃ© se destina.
         </p>
         <Input
           label="Importe"
@@ -2108,7 +2091,7 @@ function RecurringTab({
   }
 
   async function removeExpense(expense: RecurringExpenseDto) {
-    if (!confirm(`¿Eliminar la cuota fija "${expense.title}"?`)) return;
+    if (!confirm(`Â¿Eliminar la cuota fija "${expense.title}"?`)) return;
     try {
       await api.delete(`/recurring/${expense.id}`);
       onChanged();
@@ -2130,14 +2113,14 @@ function RecurringTab({
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          Añadir cuota fija
+          AÃ±adir cuota fija
         </button>
       ) : null}
 
       {sorted.length === 0 ? (
         <EmptyState
-          title="Sin cuotas ni suscripciones periódicas configuradas"
-          subtitle="Programa aquí suscripciones o cuotas que se repiten cada mes o cada semana"
+          title="Sin cuotas ni suscripciones periÃ³dicas configuradas"
+          subtitle="Programa aquÃ­ suscripciones o cuotas que se repiten cada mes o cada semana"
           icon={
             <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path
@@ -2168,8 +2151,8 @@ function RecurringTab({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-200">{expense.title}</p>
                 <p className="truncate text-[11px] text-slate-500">
-                  {FREQUENCY_LABELS[expense.frequency]} · Responsable: {expense.responsibleName}
-                  {expense.active ? "" : " · Pausada"}
+                  {FREQUENCY_LABELS[expense.frequency]} Â· Responsable: {expense.responsibleName}
+                  {expense.active ? "" : " Â· Pausada"}
                 </p>
                 <span
                   className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${
@@ -2179,7 +2162,7 @@ function RecurringTab({
                   }`}
                   title={
                     expense.autoCreate
-                      ? "Se genera el gasto automáticamente cuando vence"
+                      ? "Se genera el gasto automÃ¡ticamente cuando vence"
                       : "Solo recuerda: el gasto se registra manualmente"
                   }
                 >
@@ -2299,24 +2282,24 @@ function NewRecurringModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Añadir cuota fija"
+      title="AÃ±adir cuota fija"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancelar
           </Button>
           <Button onClick={() => void submit()} disabled={!canSubmit} loading={loading}>
-            Añadir cuota
+            AÃ±adir cuota
           </Button>
         </>
       }
     >
       <div className="space-y-4">
         <p className="text-xs text-slate-400">
-          Define una suscripción o pago que se repite cada mes o cada semana. El miembro responsable podrá marcarla como
-          pagada pausándola.
+          Define una suscripciÃ³n o pago que se repite cada mes o cada semana. El miembro responsable podrÃ¡ marcarla como
+          pagada pausÃ¡ndola.
         </p>
-        <Input label="Título" placeholder="Ej. Netflix, gimnasio, alquiler..." value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Input label="TÃ­tulo" placeholder="Ej. Netflix, gimnasio, alquiler..." value={title} onChange={(e) => setTitle(e.target.value)} />
         <Input
           label="Importe"
           type="number"
@@ -2351,7 +2334,7 @@ function NewRecurringModal({
             <p className="text-sm font-medium text-slate-200">Autoregistrar gasto</p>
             <p className="text-[11px] text-slate-500">
               {autoCreate
-                ? "Al vencer se crea el gasto automáticamente"
+                ? "Al vencer se crea el gasto automÃ¡ticamente"
                 : "Solo recuerda: el gasto se registra manualmente"}
             </p>
           </div>
@@ -2377,7 +2360,7 @@ function NewRecurringModal({
   );
 }
 
-// ---------- Añadir participante sin cuenta ----------
+// ---------- AÃ±adir participante sin cuenta ----------
 
 function AddGhostModal({
   open,
@@ -2414,7 +2397,7 @@ function AddGhostModal({
       onCreated();
       onClose();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Error al añadir el participante");
+      setError(err instanceof ApiError ? err.message : "Error al aÃ±adir el participante");
     } finally {
       setLoading(false);
     }
@@ -2424,22 +2407,22 @@ function AddGhostModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Añadir participante sin cuenta"
+      title="AÃ±adir participante sin cuenta"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancelar
           </Button>
           <Button onClick={() => void submit()} loading={loading}>
-            Añadir
+            AÃ±adir
           </Button>
         </>
       }
     >
       <div className="space-y-4">
         <p className="text-xs text-slate-400">
-          Se añadirá al grupo como participante sin correo ni registro. Podrá aparecer en gastos y saldos, y vincularse a
-          una cuenta real más adelante.
+          Se aÃ±adirÃ¡ al grupo como participante sin correo ni registro. PodrÃ¡ aparecer en gastos y saldos, y vincularse a
+          una cuenta real mÃ¡s adelante.
         </p>
         <Input label="Nombre" placeholder="Ej. Laura (invitada)" value={name} onChange={(e) => setName(e.target.value)} />
         {error ? <p className="text-xs font-medium text-rose-400">{error}</p> : null}
@@ -2458,11 +2441,11 @@ const AUDIT_ENTITY_LABELS: Record<string, string> = {
 };
 
 const AUDIT_ACTION_LABELS: Record<string, string> = {
-  created: "creó",
-  updated: "editó",
-  deleted: "eliminó",
-  approved: "aprobó",
-  rejected: "rechazó",
+  created: "creÃ³",
+  updated: "editÃ³",
+  deleted: "eliminÃ³",
+  approved: "aprobÃ³",
+  rejected: "rechazÃ³",
 };
 
 const AUDIT_FIELD_LABELS: Record<string, string> = {
@@ -2475,26 +2458,26 @@ const AUDIT_FIELD_LABELS: Record<string, string> = {
   payerId: "pagador",
   status: "estado",
   note: "nota",
-  title: "título",
-  category: "categoría",
+  title: "tÃ­tulo",
+  category: "categorÃ­a",
   kind: "tipo",
   prize: "premio",
   winnerIds: "ganadores",
   loserIds: "perdedores",
-  action: "acción",
+  action: "acciÃ³n",
   payload: "datos",
 };
 
 function fmtAuditValue(key: string, value: unknown): string {
-  if (value === null || value === undefined || value === "") return "—";
+  if (value === null || value === undefined || value === "") return "â€”";
   if (Array.isArray(value)) return value.length === 1 ? "1 persona" : `${value.length} personas`;
-  if (typeof value === "boolean") return value ? "sí" : "no";
+  if (typeof value === "boolean") return value ? "sÃ­" : "no";
   if (typeof value === "number" && /amount|prize/i.test(key)) return value.toFixed(2);
   const s = String(value);
-  return s.length > 28 ? `${s.slice(0, 28)}…` : s;
+  return s.length > 28 ? `${s.slice(0, 28)}â€¦` : s;
 }
 
-/** Convierte { before, after } del audit log en un resumen legible en español. */
+/** Convierte { before, after } del audit log en un resumen legible en espaÃ±ol. */
 function describeAuditDiff(diff: { before?: any; after?: any } | null): string {
   if (!diff) return "";
   if (!diff.before && diff.after) {
@@ -2508,7 +2491,7 @@ function describeAuditDiff(diff: { before?: any; after?: any } | null): string {
       .slice(0, 3);
     if (keys.length === 0) return "";
     const parts = keys.map(
-      (k) => `${AUDIT_FIELD_LABELS[k] ?? k}: ${fmtAuditValue(k, diff.before?.[k])} → ${fmtAuditValue(k, diff.after?.[k])}`
+      (k) => `${AUDIT_FIELD_LABELS[k] ?? k}: ${fmtAuditValue(k, diff.before?.[k])} â†’ ${fmtAuditValue(k, diff.after?.[k])}`
     );
     return ` (${parts.join(", ")})`;
   }
@@ -2558,7 +2541,7 @@ function HistoryTab({
 
   function exportHistory() {
     const lines = [
-      `Divido · Historial de actividad de ${groupName}`,
+      `Divido Â· Historial de actividad de ${groupName}`,
       `Exportado el ${new Date().toLocaleString("es-ES")}`,
       `Moneda del grupo: ${currency}`,
       "",
@@ -2571,17 +2554,17 @@ function HistoryTab({
         const actionLabel = AUDIT_ACTION_LABELS[e.action] ?? e.action;
         lines.push(`[${when}] ${e.actorName} ${actionLabel} ${entityLabel}${describeAuditDiff(e.diff)}`);
       } else if (e.type === "member_joined") {
-        lines.push(`[${when}] ${e.userName} se unió al grupo`);
+        lines.push(`[${when}] ${e.userName} se uniÃ³ al grupo`);
       } else if (e.type === "member_left") {
-        lines.push(`[${when}] ${e.userName} abandonó el grupo`);
+        lines.push(`[${when}] ${e.userName} abandonÃ³ el grupo`);
       } else if (e.type === "member_removed") {
         lines.push(`[${when}] ${e.userName} fue expulsado del grupo`);
       } else if (e.type === "payment") {
         lines.push(
-          `[${when}] ${e.fromName} pagó a ${e.toName} ${e.amount?.toFixed(2)} ${currency}${e.note ? ` (${e.note})` : ""}`
+          `[${when}] ${e.fromName} pagÃ³ a ${e.toName} ${e.amount?.toFixed(2)} ${currency}${e.note ? ` (${e.note})` : ""}`
         );
       } else if (e.type === "expense") {
-        const parts = [`[${when}] ${e.payerName} pagó ${e.description}`];
+        const parts = [`[${when}] ${e.payerName} pagÃ³ ${e.description}`];
         parts.push(`${(e.amountGroup ?? 0).toFixed(2)} ${e.currency ?? currency}`);
         if (e.deleted) parts.push("(eliminado)");
         if (e.edited) parts.push("(modificado)");
@@ -2592,7 +2575,7 @@ function HistoryTab({
     downloadText(lines.join("\n"), `historial-${groupName.replace(/[^a-z0-9]+/gi, "-")}.txt`);
   }
 
-  // Combina eventos del historial y auditoría en una sola línea temporal
+  // Combina eventos del historial y auditorÃ­a en una sola lÃ­nea temporal
   const combined = useMemo(() => {
     const auditEvents = audit.map((a) => ({
       type: "audit" as const,
@@ -2630,7 +2613,7 @@ function HistoryTab({
         {totalItems === 0 ? (
           <EmptyState
             title="No hay actividad registrada en este grupo"
-            subtitle="Aquí aparecerán los gastos, pagos y cambios en orden cronológico"
+            subtitle="AquÃ­ aparecerÃ¡n los gastos, pagos y cambios en orden cronolÃ³gico"
             icon={
               <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path
@@ -2705,15 +2688,15 @@ function HistoryTab({
                     <>
                       <strong>{e.userName}</strong>{" "}
                       {e.type === "member_joined"
-                        ? "se unió al grupo"
+                        ? "se uniÃ³ al grupo"
                         : e.type === "member_left"
-                          ? "abandonó el grupo"
+                          ? "abandonÃ³ el grupo"
                           : "fue expulsado del grupo"}
                     </>
                   ) : isPayment ? (
                     <>
-                      <strong>{e.fromName}</strong> pagó a <strong>{e.toName}</strong>
-                      {e.note ? ` · ${e.note}` : ""}
+                      <strong>{e.fromName}</strong> pagÃ³ a <strong>{e.toName}</strong>
+                      {e.note ? ` Â· ${e.note}` : ""}
                       {e.proofUrl ? (
                         <button
                           type="button"
@@ -2743,7 +2726,7 @@ function HistoryTab({
                     </>
                   ) : (
                     <>
-                      <strong>{e.payerName}</strong> pagó {e.description}
+                      <strong>{e.payerName}</strong> pagÃ³ {e.description}
                       {e.deleted ? <span className="ml-1.5 text-[10px] text-rose-400">(eliminado)</span> : null}
                       {e.edited ? <span className="ml-1.5 text-[10px] text-amber-400">(modificado)</span> : null}
                     </>
@@ -2787,7 +2770,7 @@ function HistoryTab({
             disabled={loadingMore}
             className="mt-4 w-full rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 py-3 text-sm font-semibold text-indigo-300 transition hover:border-indigo-500 hover:text-indigo-200 disabled:opacity-60"
           >
-            {loadingMore ? "Cargando…" : "Cargar más actividad"}
+            {loadingMore ? "Cargandoâ€¦" : "Cargar mÃ¡s actividad"}
           </button>
         ) : null}
         </div>
@@ -2834,7 +2817,7 @@ function MemberDetailModal({
                 {item.expenses.map((ex) => (
                   <div key={ex.id} className="flex items-center justify-between text-xs">
                     <span className="truncate text-slate-400">
-                      {ex.paidByMe ? "Pagaste tú · " : "Pagó él/ella · "}
+                      {ex.paidByMe ? "Pagaste tÃº Â· " : "PagÃ³ Ã©l/ella Â· "}
                       {ex.description}
                     </span>
                     <span className="ml-2 shrink-0 text-slate-300">{ex.share.toFixed(2)} {currency}</span>
@@ -2857,35 +2840,3 @@ function MemberDetailModal({
   );
 }
 
-function fmtDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
-  } catch {
-    return iso;
-  }
-}
-
-function fmtTime(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString("es-ES", {
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
-
-function downloadText(text: string, filename: string): void {
-  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
-}
