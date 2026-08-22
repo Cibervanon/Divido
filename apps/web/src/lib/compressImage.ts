@@ -9,6 +9,20 @@
 
 export const RECEIPT_MAX_DIMENSION = 1280;
 export const RECEIPT_JPEG_QUALITY = 0.8;
+export const COMPRESSION_TIMEOUT_MS = 10_000;
+
+/** Fases visibles de una foto dentro de un formulario. */
+export type ImageUploadPhase = "idle" | "compressing" | "uploading" | "saving";
+
+function withTimeout<T>(task: Promise<T>, ms: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([task, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
 
 type DecodedImage = {
   source: CanvasImageSource;
@@ -38,7 +52,7 @@ async function decodeImage(blob: Blob): Promise<DecodedImage> {
     const img = new Image();
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
-      img.onerror = () => reject(new Error("Formato de imagen no soportado"));
+      img.onerror = () => reject(new Error("El formato de la imagen no es compatible (por ejemplo HEIC). Prueba con un JPG o PNG."));
       img.src = url;
     });
     const width = img.naturalWidth;
@@ -64,25 +78,33 @@ export async function compressImageToJpeg(
   maxDimension = RECEIPT_MAX_DIMENSION,
   quality = RECEIPT_JPEG_QUALITY,
 ): Promise<Blob> {
-  const decoded = await decodeImage(file);
-  try {
-    const scale = Math.min(1, maxDimension / Math.max(decoded.width, decoded.height));
-    const width = Math.max(1, Math.round(decoded.width * scale));
-    const height = Math.max(1, Math.round(decoded.height * scale));
+  // Límite de tiempo total del proceso: si la imagen no decodifica (formatos
+  // complejos/HEIC) lanzamos un error claro en vez de quedarnos colgados.
+  return withTimeout(
+    (async () => {
+      const decoded = await decodeImage(file);
+      try {
+        const scale = Math.min(1, maxDimension / Math.max(decoded.width, decoded.height));
+        const width = Math.max(1, Math.round(decoded.width * scale));
+        const height = Math.max(1, Math.round(decoded.height * scale));
 
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("El navegador no permite procesar imágenes");
-    ctx.drawImage(decoded.source, 0, 0, width, height);
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("El navegador no permite procesar imágenes");
+        ctx.drawImage(decoded.source, 0, 0, width, height);
 
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob((result) => resolve(result), "image/jpeg", quality),
-    );
-    if (!blob) throw new Error("No se pudo comprimir la imagen");
-    return blob;
-  } finally {
-    decoded.release();
-  }
+        const blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob((result) => resolve(result), "image/jpeg", quality),
+        );
+        if (!blob) throw new Error("No se pudo comprimir la imagen");
+        return blob;
+      } finally {
+        decoded.release();
+      }
+    })(),
+    COMPRESSION_TIMEOUT_MS,
+    "La imagen tardó demasiado en procesarse. Prueba con otra foto o con un JPG/PNG.",
+  );
 }

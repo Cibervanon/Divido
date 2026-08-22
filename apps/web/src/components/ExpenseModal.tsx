@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../lib/api";
 import { supabaseEnabled } from "../lib/supabase";
-import { compressImageToJpeg } from "../lib/compressImage";
+import { compressImageToJpeg, type ImageUploadPhase } from "../lib/compressImage";
 import { Button, Input, Modal, Select } from "./ui";
 import { CATEGORY_LIST, detectCategory, getCategoryColor, getIconComponent } from "../constants/categories";
 import type { ExpenseDto, MemberInfo } from "../lib/types";
@@ -141,10 +141,30 @@ export function ExpenseModal({
   const [paidFromPot, setPaidFromPot] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
-  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [phase, setPhase] = useState<ImageUploadPhase>("idle");
+  const phaseRef = useRef<ImageUploadPhase>("idle");
+  const receiptWorkRef = useRef<Promise<void> | null>(null);
   const [receiptError, setReceiptError] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+
+  function setPhaseBoth(next: ImageUploadPhase) {
+    phaseRef.current = next;
+    setPhase(next);
+  }
+
+  function requestClose() {
+    if (phaseRef.current === "idle") onClose();
+  }
+
+  const busy = phase !== "idle";
+  const phaseLabelText =
+    phase === "compressing"
+      ? "Comprimiendo foto…"
+      : phase === "uploading"
+        ? "Subiendo comprobante…"
+        : phase === "saving"
+          ? "Guardando gasto…"
+          : "";
 
   const [category, setCategory] = useState("general");
   const [iconName, setIconName] = useState("wallet");
@@ -158,7 +178,8 @@ export function ExpenseModal({
       setError("");
       setReceiptError("");
       setReceiptPreview(null);
-      setUploadingReceipt(false);
+      receiptWorkRef.current = null;
+      setPhaseBoth("idle");
       setCategoryPopoverOpen(false);
       if (expense) {
         setDescription(expense.description);
@@ -332,70 +353,79 @@ export function ExpenseModal({
     }
   }
 
-  async function readReceiptFile(file: File | undefined) {
+  function readReceiptFile(file: File | undefined) {
     setReceiptError("");
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       setReceiptError("El tique debe ser una imagen");
       return;
     }
-    setUploadingReceipt(true);
-    // Comprimir en memoria ANTES de tocar la red: las fotos de cámara a
-    // resolución completa pueden agotar la RAM y matar la PWA en móviles.
-    let blob: Blob;
-    try {
-      blob = await compressImageToJpeg(file, 1280, 0.8);
-    } catch (err) {
-      console.error("No se pudo procesar la imagen del tique", err);
-      setReceiptError("No se pudo procesar la imagen. Prueba con un JPG o PNG.");
-      setUploadingReceipt(false);
-      return;
-    }
-    if (blob.size > 5 * 1024 * 1024) {
-      setReceiptError("El tique supera los 5 MB");
-      setUploadingReceipt(false);
-      return;
-    }
-    if (supabaseEnabled) {
+    // El trabajo queda registrado en receiptWorkRef: submit() esperará a que
+    // termine antes de guardar, para no crear el gasto sin la foto.
+    const work = (async () => {
       try {
-        // 1. La API valida permisos y devuelve URL firmada de subida.
-        // Tras comprimir siempre es JPEG, así que pedimos ext "jpg".
-        const { path, signedUrl } = await api.post<{ path: string; signedUrl: string }>(
-          `/groups/${groupId}/receipt-upload-url`,
-          { ext: "jpg" },
-        );
-        // 2. PUT directo navegador → Storage con el binario (sin FormData).
-        const put = await fetch(signedUrl, {
-          method: "PUT",
-          headers: { "Content-Type": "image/jpeg" },
-          body: blob,
-        });
-        if (!put.ok) {
-          let detail = "";
-          try {
-            detail = (await put.text()).slice(0, 300);
-          } catch {
-            detail = put.statusText || "(respuesta sin cuerpo)";
-          }
-          console.error(`Supabase Storage rechazó el PUT (${put.status}): ${detail}`);
-          throw new Error(`Storage respondió ${put.status}`);
+        // Fase 1: compresión en memoria (evita agotar la RAM con fotos de cámara)
+        setPhaseBoth("compressing");
+        let blob: Blob;
+        try {
+          blob = await compressImageToJpeg(file, 1280, 0.8);
+        } catch (err) {
+          console.error("No se pudo procesar la imagen del tique", err);
+          throw new Error(
+            err instanceof Error && err.message
+              ? err.message
+              : "No se pudo procesar la imagen. Prueba con un JPG o PNG.",
+          );
         }
-        setReceiptUrl(`supabase:${path}`);
-        setReceiptPreview(signedUrl); // vista previa inmediata
+        if (blob.size > 5 * 1024 * 1024) throw new Error("El tique supera los 5 MB");
+
+        if (supabaseEnabled) {
+          // Fase 2: subida binaria directa a Storage (tras comprimir siempre es JPEG)
+          setPhaseBoth("uploading");
+          const { path, signedUrl } = await api.post<{ path: string; signedUrl: string }>(
+            `/groups/${groupId}/receipt-upload-url`,
+            { ext: "jpg" },
+          );
+          const put = await fetch(signedUrl, {
+            method: "PUT",
+            headers: { "Content-Type": "image/jpeg" },
+            body: blob,
+          });
+          if (!put.ok) {
+            let detail = "";
+            try {
+              detail = (await put.text()).slice(0, 300);
+            } catch {
+              detail = put.statusText || "(respuesta sin cuerpo)";
+            }
+            console.error(`Supabase Storage rechazó el PUT (${put.status}): ${detail}`);
+            throw new Error(`Storage respondió ${put.status}`);
+          }
+          setReceiptUrl(`supabase:${path}`);
+          setReceiptPreview(signedUrl);
+          return;
+        }
+
+        // Sin Supabase configurado: data-URL embebida clásica (también comprimida)
+        await new Promise<void>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            setReceiptUrl(String(reader.result ?? null));
+            setReceiptPreview(null);
+            resolve();
+          };
+          reader.onerror = () => reject(new Error("No se pudo leer el archivo"));
+          reader.readAsDataURL(blob);
+        });
       } catch (err) {
-        console.error("Fallo al subir el tique a la nube", err);
-        setReceiptError("No se pudo subir el tique. Inténtalo de nuevo.");
+        const motivo = err instanceof Error && err.message ? err.message : "error desconocido";
+        setReceiptError(`No se pudo subir la foto: ${motivo}`);
       } finally {
-        setUploadingReceipt(false);
+        receiptWorkRef.current = null;
+        setPhaseBoth("idle");
       }
-      return;
-    }
-    // Sin Supabase configurado: comportamiento clásico (data-URL embebida),
-    // también con la imagen comprimida para no inflar la base de datos.
-    const reader = new FileReader();
-    reader.onload = () => setReceiptUrl(String(reader.result ?? null));
-    reader.onerror = () => setReceiptError("No se pudo leer el archivo");
-    reader.readAsDataURL(blob);
+    })();
+    receiptWorkRef.current = work;
   }
 
   function selectCategory(e: React.MouseEvent<HTMLButtonElement>, cat: { category: string; iconName: string }) {
@@ -425,8 +455,12 @@ export function ExpenseModal({
       setError(err instanceof Error ? err.message : "Reparto inválido");
       return;
     }
-    setLoading(true);
     try {
+      // Espera estricta: no se guarda nada hasta que el tique esté
+      // 100% procesado y, si aplica, subido a Storage.
+      if (receiptWorkRef.current) await receiptWorkRef.current;
+      if (phaseRef.current !== "idle") return; // aún ocupado por otra foto
+      setPhaseBoth("saving");
       const body: Record<string, unknown> = {
         description,
         amount: Number(amount),
@@ -456,7 +490,7 @@ export function ExpenseModal({
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error inesperado");
     } finally {
-      setLoading(false);
+      setPhaseBoth("idle");
     }
   }
 
@@ -465,19 +499,19 @@ export function ExpenseModal({
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
       title={expense ? (locked ? "Solicitar modificación" : "Editar gasto") : "Nuevo gasto"}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={requestClose} disabled={busy}>
             Cancelar
           </Button>
           <Button
             onClick={submit}
-            loading={loading}
-            disabled={!description.trim() || Number(amount) <= 0 || participants.length === 0}
+            loading={phase === "saving"}
+            disabled={!description.trim() || Number(amount) <= 0 || participants.length === 0 || busy}
           >
-            {submitLabel}
+            {phase === "saving" ? "Guardando gasto…" : submitLabel}
           </Button>
         </>
       }
@@ -632,6 +666,7 @@ export function ExpenseModal({
               <button
                 type="button"
                 onClick={() => {
+                  if (busy) return;
                   setReceiptUrl(null);
                   setReceiptPreview(null);
                 }}
@@ -643,15 +678,13 @@ export function ExpenseModal({
           ) : (
             <label
               className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed px-3 py-3 text-xs font-medium transition ${
-                uploadingReceipt
+                busy
                   ? "border-slate-800 text-slate-500"
                   : "border-slate-700 text-slate-400 hover:border-indigo-500 hover:text-indigo-300"
               }`}
             >
-              {uploadingReceipt ? (
-                <>
-                  Subiendo tique…
-                </>
+              {busy ? (
+                <>{phase === "compressing" ? "Comprimiendo foto…" : phase === "uploading" ? "Subiendo comprobante…" : "Guardando gasto…"}</>
               ) : (
                 <>
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -669,12 +702,15 @@ export function ExpenseModal({
                 accept="image/*"
                 capture="environment"
                 className="hidden"
-                disabled={uploadingReceipt}
+                disabled={busy}
                 onChange={(e) => readReceiptFile(e.target.files?.[0])}
               />
             </label>
           )}
           {receiptError ? <p className="mt-1 text-[11px] font-medium text-rose-400">{receiptError}</p> : null}
+          {!receiptError && phaseLabelText && phase !== "saving" ? (
+            <p className="mt-1 text-[11px] font-medium text-indigo-300">{phaseLabelText}</p>
+          ) : null}
         </div>
         <div>
           <div className="mb-1.5 flex items-center justify-between">
