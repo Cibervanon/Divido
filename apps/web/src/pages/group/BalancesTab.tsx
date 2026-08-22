@@ -188,11 +188,31 @@ export function BalancesTab({ detail, expenses, myUserId, onOpenMember, onToast 
     window.open(`https://${kind}.me/${encodeURIComponent(username)}`, "_blank", "noopener,noreferrer");
   }
 
-  function exportCSV() {
+  async function exportCSV() {
     try {
       if (!Array.isArray(expenses) || expenses.length === 0) {
         onToast("No hay gastos para exportar");
         return;
+      }
+      // El listado llega paginado: descargamos todas las páginas para
+      // que el informe incluya el histórico completo del grupo.
+      let fullExpenses = expenses;
+      try {
+        const { api } = await import("../../lib/api");
+        const pages: ExpenseDto[] = [];
+        let offset = 0;
+        for (;;) {
+          const page = await api.get<{ expenses: ExpenseDto[]; total: number; hasMore: boolean }>(
+            `/groups/${group.id}/expenses?limit=200&offset=${offset}`
+          );
+          pages.push(...page.expenses);
+          if (!page.hasMore || page.expenses.length === 0) break;
+          offset += page.expenses.length;
+          if (offset > 5000) break;
+        }
+        if (pages.length > 0) fullExpenses = pages;
+      } catch {
+        // Si falla la descarga completa, exportamos al menos lo ya cargado.
       }
       const sym = currencySymbol(group.currency);
       const nameOf = (id?: string | null) =>
@@ -204,7 +224,7 @@ export function BalancesTab({ detail, expenses, myUserId, onOpenMember, onToast 
       const fmtSigned = (n: number) => `${n > 0.004 ? "+" : ""}${fmt(n)}`;
       const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-      const total = expenses.reduce((acc, e) => acc + (typeof e?.amountGroup === "number" ? e.amountGroup : 0), 0);
+      const total = fullExpenses.reduce((acc, e) => acc + (typeof e?.amountGroup === "number" ? e.amountGroup : 0), 0);
       const fechaEmision = new Date().toLocaleDateString("es-ES");
 
       const lines: string[] = [];
@@ -212,7 +232,7 @@ export function BalancesTab({ detail, expenses, myUserId, onOpenMember, onToast 
       // 1) Cabecera informativa del grupo
       lines.push(`INFORME DE GASTOS COMPARTIDOS - ${group.name || "Grupo"}`);
       lines.push(`Fecha de emisión: ${fechaEmision} ; Creado con Divido`);
-      lines.push(`Total acumulado: ${fmt(total)} ${sym} ; Gastos registrados: ${expenses.length}`);
+      lines.push(`Total acumulado: ${fmt(total)} ${sym} ; Gastos registrados: ${fullExpenses.length}`);
       lines.push("");
 
       // 2) Resumen de saldos por integrante
@@ -227,7 +247,7 @@ export function BalancesTab({ detail, expenses, myUserId, onOpenMember, onToast 
       lines.push(
         ["FECHA", "CONCEPTO", "CATEGORÍA", "PAGADO POR", `IMPORTE (${sym})`, "PARTICIPANTES", `CUOTA POR PERSONA (${sym})`].join(";")
       );
-      for (const e of expenses) {
+      for (const e of fullExpenses) {
         const participantes = Array.isArray(e?.participants)
           ? e.participants.map((p) => nameOf(typeof p === "string" ? p : null)).join(", ")
           : "";

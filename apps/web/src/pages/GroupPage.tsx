@@ -111,6 +111,12 @@ export default function GroupPage() {
   const [tab, setTab] = useState<Tab>("expenses");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [expensePaging, setExpensePaging] = useState({ total: 0, hasMore: false });
+  const [historyPaging, setHistoryPaging] = useState({ total: 0, hasMore: false });
+  const [loadingMoreExpenses, setLoadingMoreExpenses] = useState(false);
+  const [loadingMoreHistory, setLoadingMoreHistory] = useState(false);
+  const expenseLimitRef = useRef(50);
+  const historyLimitRef = useRef(100);
 
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [expensePrefill, setExpensePrefill] = useState<{ description: string; amount: string; payerId: string } | null>(
@@ -170,13 +176,24 @@ export default function GroupPage() {
         if (activeFilters.from) queryParams.set("from", activeFilters.from);
         if (activeFilters.to) queryParams.set("to", activeFilters.to);
         if (activeFilters.q) queryParams.set("q", activeFilters.q);
+        // Paginación: la primera carga trae una página; los refrescos silenciosos
+        // mantienen el tamaño ya cargado para no perder filas en pantalla.
+        if (!cached) {
+          expenseLimitRef.current = 50;
+          historyLimitRef.current = 100;
+        }
+        queryParams.set("limit", String(expenseLimitRef.current));
+        queryParams.set("offset", "0");
         const queryString = queryParams.toString();
         const expensesUrl = `/groups/${groupId}/expenses${queryString ? `?${queryString}` : ""}`;
 
         const [d, e, h, r, dd, pot, rec, a] = await Promise.all([
           api.get<GroupDetail>(`/groups/${groupId}`),
-          api.get<{ expenses: ExpenseDto[] }>(expensesUrl),
-          api.get<{ events: HistoryEvent[] }>(`/groups/${groupId}/history`),
+          api.get<{ expenses: ExpenseDto[]; total: number; hasMore?: boolean }>(expensesUrl),
+          api
+            .get<{ events: HistoryEvent[]; total: number; hasMore?: boolean }>(
+              `/groups/${groupId}/history?limit=${historyLimitRef.current}&offset=0`
+            ),
           api.get<{ requests: ModificationRequestDto[] }>(`/groups/${groupId}/requests`).catch(() => null),
           api.get<{ debts: InformalDebtDto[] }>(`/groups/${groupId}/informal-debts`).catch(() => null),
           api
@@ -185,6 +202,16 @@ export default function GroupPage() {
           api.get<{ expenses: RecurringExpenseDto[] }>(`/groups/${groupId}/recurring`).catch(() => null),
           api.get<{ audit: any[] }>(`/groups/${groupId}/audit`).catch(() => ({ audit: [] })),
         ]);
+        expenseLimitRef.current = Math.max(50, e.expenses.length);
+        historyLimitRef.current = Math.max(100, h.events.length);
+        setExpensePaging({
+          total: typeof e.total === "number" ? e.total : e.expenses.length,
+          hasMore: !!e.hasMore,
+        });
+        setHistoryPaging({
+          total: typeof h.total === "number" ? h.total : h.events.length,
+          hasMore: !!h.hasMore,
+        });
         const data: GroupCacheData = {
           detail: d,
           expenses: e.expenses,
@@ -207,6 +234,68 @@ export default function GroupPage() {
       }
     },
     [groupId, applyData]
+  );
+
+  const loadMoreExpenses = useCallback(
+    async () => {
+      if (!groupId || loadingMoreExpenses) return;
+      setLoadingMoreExpenses(true);
+      try {
+        const activeFilters = {
+          category: filters.category,
+          payerId: filters.payerId === "my" ? user?.id : filters.payerId,
+          from: filters.from,
+          to: filters.to,
+          q: debouncedQ,
+        };
+        const qp = new URLSearchParams();
+        if (activeFilters.category) qp.set("category", activeFilters.category);
+        if (activeFilters.payerId) qp.set("payerId", activeFilters.payerId);
+        if (activeFilters.from) qp.set("from", activeFilters.from);
+        if (activeFilters.to) qp.set("to", activeFilters.to);
+        if (activeFilters.q) qp.set("q", activeFilters.q);
+        qp.set("limit", "50");
+        qp.set("offset", String(expenseLimitRef.current));
+        const res = await api.get<{ expenses: ExpenseDto[]; total: number; hasMore?: boolean }>(
+          `/groups/${groupId}/expenses?${qp.toString()}`
+        );
+        setExpenses((prev) => {
+          const seen = new Set(prev.map((x) => x.id));
+          return [...prev, ...res.expenses.filter((x) => !seen.has(x.id))];
+        });
+        expenseLimitRef.current = expenseLimitRef.current + res.expenses.length;
+        setExpensePaging({ total: typeof res.total === "number" ? res.total : 0, hasMore: !!res.hasMore });
+      } catch {
+        showToast("No se pudieron cargar más gastos");
+      } finally {
+        setLoadingMoreExpenses(false);
+      }
+    },
+    [groupId, filters, debouncedQ, user?.id, loadingMoreExpenses]
+  );
+
+  const loadMoreHistory = useCallback(
+    async () => {
+      if (!groupId || loadingMoreHistory) return;
+      setLoadingMoreHistory(true);
+      try {
+        const res = await api.get<{ events: HistoryEvent[]; total: number; hasMore?: boolean }>(
+          `/groups/${groupId}/history?limit=100&offset=${historyLimitRef.current}`
+        );
+        setHistory((prev) => {
+          const seen = new Set(prev.map((x) => `${(x as any).type}-${(x as any).id}`));
+          const fresh = res.events.filter((x) => !seen.has(`${(x as any).type}-${(x as any).id}`));
+          return [...prev, ...fresh];
+        });
+        historyLimitRef.current = historyLimitRef.current + res.events.length;
+        setHistoryPaging({ total: typeof res.total === "number" ? res.total : 0, hasMore: !!res.hasMore });
+      } catch {
+        showToast("No se pudo cargar más actividad");
+      } finally {
+        setLoadingMoreHistory(false);
+      }
+    },
+    [groupId, loadingMoreHistory]
   );
 
   useEffect(() => {
@@ -415,6 +504,9 @@ export default function GroupPage() {
               hasActiveFilters={hasActiveFilters}
               onFilterChange={setFilter}
               onClearFilters={clearFilters}
+              hasMore={expensePaging.hasMore}
+              loadingMore={loadingMoreExpenses}
+              onLoadMore={() => void loadMoreExpenses()}
               onReload={() => load({ filters: {
                 category: filters.category,
                 payerId: filters.payerId === "my" ? user.id : filters.payerId,
@@ -448,6 +540,9 @@ export default function GroupPage() {
               memberName={memberName}
               myUserId={user.id}
               onChanged={load}
+              hasMore={historyPaging.hasMore}
+              loadingMore={loadingMoreHistory}
+              onLoadMore={() => void loadMoreHistory()}
               onViewProof={(url) => setViewProof(url)}
               onOpenExpense={(expenseId) => setEditTarget(expenses.find((e) => e.id === expenseId) ?? null)}
             />
@@ -673,6 +768,9 @@ function ExpensesTab({
   onFilterChange,
   onClearFilters,
   onReload,
+  hasMore,
+  loadingMore,
+  onLoadMore,
 }: {
   expenses: ExpenseDto[];
   memberName: (id: string) => string;
@@ -690,6 +788,9 @@ function ExpensesTab({
   onFilterChange: (key: keyof typeof filters, value: string | undefined) => void;
   onClearFilters: () => void;
   onReload: () => void;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 }) {
   const pending = requests.filter((r) => r.status === "pending");
   const [viewReceipt, setViewReceipt] = useState<string | null>(null);
@@ -972,6 +1073,17 @@ function ExpensesTab({
           ))}
         </div>
       )}
+
+      {hasMore ? (
+        <button
+          type="button"
+          onClick={onLoadMore}
+          disabled={loadingMore}
+          className="mt-4 w-full rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 py-3 text-sm font-semibold text-indigo-300 transition hover:border-indigo-500 hover:text-indigo-200 disabled:opacity-60"
+        >
+          {loadingMore ? "Cargando…" : "Cargar más gastos"}
+        </button>
+      ) : null}
 
       {viewReceipt ? (
         <div
@@ -2413,6 +2525,9 @@ function HistoryTab({
   onChanged,
   onViewProof,
   onOpenExpense,
+  hasMore,
+  loadingMore,
+  onLoadMore,
 }: {
   events: HistoryEvent[];
   audit: any[];
@@ -2423,6 +2538,9 @@ function HistoryTab({
   onChanged: () => void;
   onViewProof: (url: string) => void;
   onOpenExpense: (expenseId: string) => void;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 }) {
   const [deciding, setDeciding] = useState(false);
 
@@ -2662,6 +2780,16 @@ function HistoryTab({
           );
         })
       )}
+        {hasMore ? (
+          <button
+            type="button"
+            onClick={onLoadMore}
+            disabled={loadingMore}
+            className="mt-4 w-full rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 py-3 text-sm font-semibold text-indigo-300 transition hover:border-indigo-500 hover:text-indigo-200 disabled:opacity-60"
+          >
+            {loadingMore ? "Cargando…" : "Cargar más actividad"}
+          </button>
+        ) : null}
         </div>
       </div>
   );

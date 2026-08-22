@@ -311,6 +311,7 @@ CREATE INDEX IF NOT EXISTS idx_payments_group ON payments(group_id);
 CREATE INDEX IF NOT EXISTS idx_requests_group ON modification_requests(group_id);
 CREATE INDEX IF NOT EXISTS idx_requests_expense ON modification_requests(expense_id);
 CREATE INDEX IF NOT EXISTS idx_events_group ON group_events(group_id);
+CREATE INDEX IF NOT EXISTS idx_events_group_created ON group_events(group_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_informal_debts_group ON informal_debts(group_id);
 CREATE INDEX IF NOT EXISTS idx_pot_group ON common_pot_contributions(group_id);
 CREATE INDEX IF NOT EXISTS idx_recurring_group ON recurring_expenses(group_id);

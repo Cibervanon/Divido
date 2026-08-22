@@ -15,6 +15,8 @@ import {
   getPotExpenseWithdrawal,
   listExpenseComments,
   listExpenses,
+  countExpensesFiltered,
+  countExpensesInGroup,
   listExpensesFiltered,
   listExpensesWithDetails,
   listMembers,
@@ -48,26 +50,43 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       from?: string;
       to?: string;
       q?: string;
+      limit?: string;
+      offset?: string;
     };
     const hasFilters = query.category || query.payerId || query.from || query.to || query.q;
 
+    // Paginación: limit ∈ [1,200] (defecto 50); offset ≥ 0. Sin limit → compatibilidad completa.
+    const limit =
+      query.limit != null && query.limit !== ""
+        ? Math.min(Math.max(Number(query.limit) || 50, 1), 200)
+        : undefined;
+    const offset = Math.max(Number(query.offset ?? 0) || 0, 0);
+
     let rows;
+    let total: number;
     if (hasFilters) {
-      rows = await listExpensesFiltered(request.db, groupId, {
+      const filters = {
         category: query.category,
         payerId: query.payerId,
         from: query.from,
         to: query.to,
         q: query.q,
-      }, includeDeleted);
+      };
+      rows = await listExpensesFiltered(request.db, groupId, filters, includeDeleted, { limit, offset });
+      total = await countExpensesFiltered(request.db, groupId, filters, includeDeleted);
     } else {
-      rows = await listExpensesWithDetails(request.db, groupId, includeDeleted);
+      rows = await listExpensesWithDetails(request.db, groupId, includeDeleted, { limit, offset });
+      total = await countExpensesInGroup(request.db, groupId, includeDeleted);
     }
     const expenses = rows.map((e) => ({
       ...expenseRowToDto(e),
       editable: isEditable(e.created_at),
     }));
-    return { expenses };
+    return {
+      expenses,
+      total,
+      hasMore: limit != null ? offset + expenses.length < total : false,
+    };
   });
 
   app.get("/api/expenses/:expenseId", async (request) => {

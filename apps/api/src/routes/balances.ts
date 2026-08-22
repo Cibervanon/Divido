@@ -29,6 +29,14 @@ export const balanceRoutes: FastifyPluginAsync = async (app) => {
   app.get("/api/groups/:groupId/history", async (request) => {
     const { groupId } = request.params as { groupId: string };
     await requireActiveMember(request, groupId);
+
+    // Paginación sobre el feed combinado: limit ∈ [1,500] (defecto 100).
+    const query = request.query as { limit?: string; offset?: string };
+    const limit =
+      query.limit != null && query.limit !== ""
+        ? Math.min(Math.max(Number(query.limit) || 100, 1), 500)
+        : undefined;
+    const offset = Math.max(Number(query.offset ?? 0) || 0, 0);
     const expenses = await listExpenses(request.db, groupId, true);
     const [payments, participantsByExpense] = await Promise.all([
       listPayments(request.db, groupId),
@@ -83,6 +91,8 @@ export const balanceRoutes: FastifyPluginAsync = async (app) => {
     }
 
     events.sort((a, b) => String(b.date).localeCompare(String(a.date)));
-    return { events };
+    const total = events.length;
+    const page = limit != null ? events.slice(offset, offset + limit) : events;
+    return { events: page, total, hasMore: limit != null ? offset + page.length < total : false };
   });
 };

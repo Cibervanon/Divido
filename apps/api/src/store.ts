@@ -10,7 +10,7 @@ import type {
   PaymentStatus,
   PiqueKind,
 } from "@divido/shared";
-import type { Db } from "./db.js";
+import type { Db, SqlValue } from "./db.js";
 
 export type Row = Record<string, unknown>;
 
@@ -1416,7 +1416,8 @@ export async function listExpensesFiltered(
   db: Db,
   groupId: string,
   filters: ExpenseFilters,
-  includeDeleted = false
+  includeDeleted = false,
+  opts: { limit?: number; offset?: number } = {}
 ): Promise<ExpenseDetailRow[]> {
   const conditions = ["e.group_id = ?", "e.deleted = 0"];
   const params: any[] = [groupId];
@@ -1438,7 +1439,8 @@ export async function listExpensesFiltered(
     params.push(filters.to);
   }
   if (filters.q) {
-    conditions.push("e.description ILIKE ?");
+    // LOWER(...) LIKE LOWER(...) en lugar de ILIKE: mismo resultado y portable.
+    conditions.push("LOWER(e.description) LIKE LOWER(?)");
     params.push(`%${filters.q}%`);
   }
   if (!includeDeleted) {
@@ -1462,7 +1464,9 @@ export async function listExpensesFiltered(
     WHERE ${conditions.join(" AND ")}
     GROUP BY e.id, u.name
     ORDER BY e.created_at DESC
+    ${opts.limit != null ? "LIMIT ? OFFSET ?" : ""}
   `;
+  if (opts.limit != null) params.push(opts.limit, opts.offset ?? 0);
   return (await db.prepare(sql).all(...params)) as unknown as ExpenseDetailRow[];
 }
 
@@ -1478,7 +1482,8 @@ export interface ExpenseDetailRow extends ExpenseRow {
 export async function listExpensesWithDetails(
   db: Db,
   groupId: string,
-  includeDeleted = false
+  includeDeleted = false,
+  opts: { limit?: number; offset?: number } = {}
 ): Promise<ExpenseDetailRow[]> {
   const sql = `
     SELECT
@@ -1497,8 +1502,56 @@ export async function listExpensesWithDetails(
     WHERE e.group_id = ? ${includeDeleted ? "" : "AND e.deleted = 0"}
     GROUP BY e.id, u.name
     ORDER BY e.created_at DESC
+    ${opts.limit != null ? "LIMIT ? OFFSET ?" : ""}
   `;
-  return (await db.prepare(sql).all(groupId)) as unknown as ExpenseDetailRow[];
+  const params: SqlValue[] = [groupId];
+  if (opts.limit != null) params.push(opts.limit, opts.offset ?? 0);
+  return (await db.prepare(sql).all(...params)) as unknown as ExpenseDetailRow[];
+}
+
+/** Total de gastos del grupo (para paginación), respetando soft-delete. */
+export async function countExpensesInGroup(db: Db, groupId: string, includeDeleted = false): Promise<number> {
+  const row = (await db
+    .prepare(`SELECT COUNT(*) AS total FROM expenses WHERE group_id = ? ${includeDeleted ? "" : "AND deleted = 0"}`)
+    .get(groupId)) as { total: number } | undefined;
+  return Number(row?.total ?? 0);
+}
+
+/** Total de gastos que cumplen los filtros dados (para paginación con filtros). */
+export async function countExpensesFiltered(
+  db: Db,
+  groupId: string,
+  filters: ExpenseFilters,
+  includeDeleted = false
+): Promise<number> {
+  void includeDeleted;
+  const conditions = ["e.group_id = ?", "e.deleted = 0"];
+  const params: any[] = [groupId];
+  if (filters.category) {
+    conditions.push("e.category = ?");
+    params.push(filters.category);
+  }
+  if (filters.payerId) {
+    conditions.push("e.payer_id = ?");
+    params.push(filters.payerId);
+  }
+  if (filters.from) {
+    conditions.push("e.created_at >= ?");
+    params.push(filters.from);
+  }
+  if (filters.to) {
+    conditions.push("e.created_at <= ?");
+    params.push(filters.to);
+  }
+  if (filters.q) {
+    // Portable: ver listExpensesFiltered
+    conditions.push("LOWER(e.description) LIKE LOWER(?)");
+    params.push(`%${filters.q}%`);
+  }
+  const row = (await db
+    .prepare(`SELECT COUNT(DISTINCT e.id) AS total FROM expenses e WHERE ${conditions.join(" AND ")}`)
+    .get(...params)) as { total: number } | undefined;
+  return Number(row?.total ?? 0);
 }
 
 export interface ExpenseParticipantRow {
