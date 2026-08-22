@@ -393,7 +393,7 @@
     <div class="cover-rule"></div>
 
     <div class="cover-meta">
-      <div class="cover-meta-cell"><span class="k">Versión</span><span class="v">2.4.0</span></div>
+      <div class="cover-meta-cell"><span class="k">Versión</span><span class="v">2.5.0</span></div>
       <div class="cover-meta-cell"><span class="k">Fecha</span><span class="v">Agosto 2026</span></div>
       <div class="cover-meta-cell"><span class="k">Plataforma</span><span class="v">Web App (PWA)</span></div>
       <div class="cover-meta-cell"><span class="k">Compatibilidad</span><span class="v">iOS · Android · Escritorio</span></div>
@@ -445,12 +445,13 @@
     <ol>
       <li><a href="#sec-1">Inicio Rápido <span class="toc-desc">Crea tu primer grupo y salda tus primeras cuentas en 4 pasos</span></a></li>
       <li><a href="#sec-2">Dashboard y Grupos <span class="toc-desc">Ancla tus grupos, ordena y entiende tu balance</span></a></li>
-      <li><a href="#sec-3">Gastos e Historial <span class="toc-desc">Registro, validaciones, repartos y auditoría de gastos</span></a></li>
+      <li><a href="#sec-3">Gastos e Historial <span class="toc-desc">Registro, filtros en español, repartos y auditoría de gastos</span></a></li>
       <li><a href="#sec-3b">Categorías e Iconos <span class="toc-desc">Iconos dinámicos por categoría y detección automática</span></a></li>
       <li><a href="#sec-3c">Comprobantes y Autoconfirmación <span class="toc-desc">Adjuntar tiques a pagos y aprobar automáticamente</span></a></li>
       <li><a href="#sec-4">Simplificación de Deudas <span class="toc-desc">El algoritmo Greedy Net Debt Settlement y sus ventajas</span></a></li>
       <li><a href="#sec-5">Bote Común y Piques <span class="toc-desc">Fondos para viajes y fiestas frente a retos 1 contra 1</span></a></li>
       <li><a href="#sec-6">Gastos Fijos <span class="toc-desc">Cuotas semanales, mensuales y anuales automatizadas</span></a></li>
+      <li><a href="#sec-exp">Exportar y Compartir <span class="toc-desc">CSV contable, PDF formal y resumen rápido para compartir</span></a></li>
       <li><a href="#sec-7">Notificaciones PWA <span class="toc-desc">Avisos in-app y notificaciones nativas en tu móvil</span></a></li>
       <li><a href="#sec-8">Preguntas Frecuentes <span class="toc-desc">Instalación, fantasmas, iconos y dudas habituales</span></a></li>
     </ol>
@@ -460,7 +461,7 @@
        SECCIÓN 1 · INICIO RÁPIDO
        ============================================================ -->
   <section id="sec-1" class="section">
-    <h2 class="sec-title">Inicio Rápido</h2>
+    <h2 class="sec-title">🚀 Inicio Rápido</h2>
     <p>En menos de cinco minutos tendrás tu primer grupo creado, tu primer gasto registrado y tus cuentas saldadas. Sigue estos cuatro pasos:</p>
 
     <!-- Stepper -->
@@ -478,12 +479,9 @@
       <div class="step-num"><span class="n">1</span></div>
       <div class="step-body">
         <h4>Crea tu primer grupo</h4>
-        <p>Desde el <strong>Dashboard</strong> pulsa <strong>Nuevo grupo</strong>. Elige un nombre claro (p. ej. «Casa compartida»), la <strong>moneda</strong> (EUR, USD…) y el tipo:</p>
-        <ul>
-          <li><strong>Grupo abierto</strong>: cualquiera puede entrar con un enlace de invitación.</li>
-          <li><strong>Grupo cerrado</strong>: solo entran quienes invites manualmente.</li>
-        </ul>
+        <p>Desde el <strong>Dashboard</strong> pulsa <strong>Nuevo grupo</strong>. Elige un nombre claro (p. ej. «Casa compartida») y la <strong>moneda</strong> (EUR, USD…). Si quieres, añade un logo para reconocerlo de un vistazo.</p>
         <div class="callout warn"><span class="callout-label">Importante</span><p>La <strong>moneda no se puede cambiar</strong> después de crear el grupo. Elige bien antes de empezar.</p></div>
+        <div class="callout info"><span class="callout-label">Estado del grupo</span><p>Todo grupo nace <span class="badge tiny green">Abierto 🟢</span>: se puede gastar y saldar con normalidad. Si algún día quieres congelarlo, un administrador puede cerrarlo desde los ajustes (ver <a href="#sec-2">Sección 2</a>).</p></div>
       </div>
     </div>
 
@@ -519,7 +517,7 @@
        SECCIÓN 2 · DASHBOARD Y GRUPOS
        ============================================================ -->
   <section id="sec-2" class="section">
-    <h2 class="sec-title">Dashboard y Grupos</h2>
+    <h2 class="sec-title">📊 Dashboard y Grupos</h2>
     <p>El <strong>Dashboard</strong> es tu centro de control: un resumen de tu balance global y la lista de todos tus grupos. Cada grupo muestra su <strong>saldo neto</strong> — positivo si te deben y negativo si debes — para que sepas de un vistazo dónde estás.</p>
 
     <h3>Ancla tus grupos con 📌</h3>
@@ -537,6 +535,27 @@
 
     <h3>Ordenación inteligente ⇅</h3>
     <p>Ordena tu lista de grupos por el selector <strong>⇅</strong>: por <strong>actividad reciente</strong>, por <strong>nombre (A–Z)</strong> o por <strong>saldo</strong>. Los grupos anclados siempre se mantienen por encima del resto, ordenados según este criterio.</p>
+
+    <h3>🟢🔴 Estado del grupo: abierto o cerrado</h3>
+    <p>Cada grupo tiene un <strong>estado</strong> que indica si está en marcha o en pausa:</p>
+    <ul>
+      <li><span class="badge tiny green">Abierto 🟢</span> — funcionamiento normal: gastos, piques, pagos y aportaciones al bote fluyen sin restricciones.</li>
+      <li><span class="badge tiny red">Cerrado 🔴</span> — el grupo queda en <strong>solo lectura</strong>: nadie crea ni modifica movimientos hasta reabrirlo. Ideal al terminar un viaje o una convivencia y querer conservar las cuentas tal cual.</li>
+    </ul>
+    <p>Solo un <strong>administrador</strong> puede cambiarlo desde <strong>Ajustes del grupo</strong>, con el botón <strong>Cerrar grupo</strong> / <strong>Reabrir grupo</strong>. Aparece una pantalla «Cerrando…» mientras se aplica el cambio, y el estado queda visible en la cabecera del grupo para todos los miembros.</p>
+
+    <h3>👥 Miembros y permisos</h3>
+    <table class="data">
+      <thead><tr><th style="width:44%">Acción</th><th>Miembro con cuenta</th><th>Fantasma (sin cuenta)</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl">Ver gastos, saldos e historial</td><td>Sí</td><td>Sí, a través de las cuentas del grupo</td></tr>
+        <tr><td class="lbl">Registrar gastos, piques y pagos</td><td>Sí</td><td>No</td></tr>
+        <tr><td class="lbl">Editar o eliminar sus propios gastos</td><td>Sí</td><td>No</td></tr>
+        <tr><td class="lbl">Ajustes del grupo (logo, extras, simplificar por defecto)</td><td>Solo admin</td><td>No</td></tr>
+        <tr><td class="lbl">Cerrar/reabrir el grupo y gestionar miembros</td><td>Solo admin</td><td>No</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warn"><span class="callout-label">Importante</span><p>Un <strong>miembro fantasma</strong> nunca puede ser administrador: no tiene sesión propia. Para darle control real, vincúlalo primero a su cuenta desde <strong>Ajustes del grupo</strong>; sus gastos se trasladan solos.</p></div>
 
     <h3>Así se ve el Dashboard</h3>
     <div class="mockup">
@@ -568,8 +587,8 @@
         </div>
       </div>
       <div class="mockup-label">Tus grupos</div>
-      <div class="mrow"><span class="m-left"><span class="chip green">EN</span><span class="gname">Clases de inglés</span> <span class="badge tiny green">+€8.00</span><br/><span class="gmeta">3 miembros · hace 2 días</span></span><span class="m-right"><span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="#8b949e"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></span></span></div>
-      <div class="mrow"><span class="m-left"><span class="chip amber">CF</span><span class="gname">Cena de fin de curso</span> <span class="badge tiny amber">−€5.25</span><br/><span class="gmeta">6 miembros · hace 1 semana</span></span><span class="m-right"><span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="#8b949e"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></span></span></div>
+      <div class="mrow"><span class="m-left"><span class="chip green">EN</span><span class="gname">Clases de inglés</span> <span class="badge tiny green">+€8.00</span><br/><span class="gmeta">3 miembros · hace 2 días</span> <span class="badge tiny green">Abierto 🟢</span></span><span class="m-right"><span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="#8b949e"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></span></span></div>
+      <div class="mrow"><span class="m-left"><span class="chip amber">CF</span><span class="gname">Cena de fin de curso</span> <span class="badge tiny amber">−€5.25</span><br/><span class="gmeta">6 miembros · hace 1 semana</span> <span class="badge tiny red">Cerrado 🔴</span></span><span class="m-right"><span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="#8b949e"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></span></span></div>
     </div>
 
     <div class="callout info"><span class="callout-label">Cómo se calcula</span><p>Los totales del Dashboard son <strong>estrictos por grupo</strong>: tu balance neto (<span class="mono">myBalance</span>) indica o bien «te deben» (positivo) o bien «debes» (negativo). Nunca se mezclan ambos signos en un mismo grupo.</p></div>
@@ -579,8 +598,14 @@
        SECCIÓN 3 · GASTOS E HISTORIAL
        ============================================================ -->
   <section id="sec-3" class="section">
-    <h2 class="sec-title">Gastos e Historial</h2>
+    <h2 class="sec-title">🧾 Gastos e Historial</h2>
     <p>Cada gasto queda registrado en el <strong>historial del grupo</strong> con su fecha, pagador, participantes y reparto. Este es el corazón de la app: un registro limpio y auditable de todo lo que se mueve.</p>
+
+    <h3>🔍 Filtros que sí ayudan</h3>
+    <p>Pulsa el botón único <strong>🔍 Filtros</strong> sobre el historial: dentro conviven la <strong>búsqueda por texto</strong> y los <strong>chips de categoría</strong> en español — <em>Comida 🍕 · Casa 🏠 · Transporte 🚗 · Ocio 🎮 · Salud 💊 · Otros</em> — en una tira deslizable en horizontal en móvil. Activa también <strong>Mi pagador</strong> para ver solo lo que pagaste tú. Los filtros activos quedan como chips visibles encima de la lista, con un botón <strong>Limpiar</strong> para quitarlos todos de golpe.</p>
+
+    <h3>👆 Historial interactivo</h3>
+    <p>Toca cualquier gasto del historial y se abre su <strong>ficha completa</strong>: importe, pagador, participantes, reparto, comprobante adjunto y acciones disponibles según tus permisos (editar o eliminar). Cada línea es una puerta directa a su detalle auditable: nada de buscar a ciegas.</p>
 
     <h3>Reglas de validación al registrar un gasto</h3>
     <table class="data">
@@ -637,7 +662,7 @@
        SECCIÓN 3C · COMPROBANTES Y AUTOCONFIRMACIÓN
        ============================================================ -->
   <section id="sec-3c" class="section">
-    <h2 class="sec-title">Comprobantes y Autoconfirmación</h2>
+    <h2 class="sec-title">📷 Comprobantes y Autoconfirmación</h2>
     <p>Divido permite adjuntar pruebas visuales a los pagos y automatizar su validación para reducir fricción en grupos de confianza.</p>
 
     <h3>Adjuntar tique al registrar un pago</h3>
@@ -668,7 +693,7 @@
        SECCIÓN 3B · CATEGORÍAS E ICONOS
        ============================================================ -->
   <section id="sec-3b" class="section">
-    <h2 class="sec-title">Categorías e Iconos</h2>
+    <h2 class="sec-title">🏷️ Categorías e Iconos</h2>
     <p>Los gastos, el bote común, los piques y los gastos fijos tienen un <strong>icono de identificación</strong> que ayuda a distinguirlos de un vistazo en listas, tarjetas y el historial.</p>
 
     <h3>Categorías de gastos</h3>
@@ -752,7 +777,7 @@
        SECCIÓN 4 · SIMPLIFICACIÓN DE DEUDAS
        ============================================================ -->
   <section id="sec-4" class="section">
-    <h2 class="sec-title">Simplificación de Deudas</h2>
+    <h2 class="sec-title">⚡ Simplificación de Deudas</h2>
     <p>En un grupo con varios participantes es fácil acabar con un <strong>enredo de deudas cruzadas</strong>: A debe a B, B debe a C y C debe a A. La simplificación reduce ese enredo a un número mínimo de transferencias.</p>
 
     <h3>El algoritmo: Greedy Net Debt Settlement</h3>
@@ -820,7 +845,7 @@
        SECCIÓN 5 · BOTE COMÚN Y PIQUES
        ============================================================ -->
   <section id="sec-5" class="section">
-    <h2 class="sec-title">Bote Común y Piques</h2>
+    <h2 class="sec-title">🐷 Bote Común y Piques</h2>
     <p>Dos herramientas para dos situaciones muy distintas: el <strong>bote común</strong> reúne dinero compartido, mientras que los <strong>piques</strong> anotan retos y deudas informales entre miembros, de dinero o de premio.</p>
 
     <div class="cols">
@@ -859,13 +884,37 @@
         <tr><td class="lbl">«Tú me debes de ayer»</td><td>—</td><td><span class="badge tiny amber">Pique</span> déjalo anotado y no se olvida.</td></tr>
       </tbody>
     </table>
+
+    <h3>📒 Extracto contable del bote</h3>
+    <p>El bote funciona como una mini cuenta bancaria: su pantalla muestra un <strong>extracto</strong> con cada movimiento — aportación (<span style="color:#3fb950;font-weight:700">+</span>) o pago realizado desde el bote (<span style="color:#d29922;font-weight:700">−</span>) — junto al <strong>saldo acumulado</strong> tras cada operación, la fecha y el concepto. Los movimientos ligados a un gasto actúan como <strong>enlaces</strong>: tócalos y saltas directo al gasto correspondiente del historial.</p>
+
+    <div class="mockup">
+      <div class="mockup-bar"><span class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></span><span class="url">divido.app/grupos/…/bote</span></div>
+      <div class="mrow">
+        <span class="m-left"><span class="chip green">🐷</span></span>
+        <span class="m-mid" style="display:table-cell;vertical-align:middle;padding-left:2.5mm"><span class="ename">Aportación de María</span><br/><span class="emeta">12 ago · ingreso manual · saldo €160.00</span></span>
+        <span class="m-right"><span class="badge tiny green">+€40.00</span></span>
+      </div>
+      <div class="mrow">
+        <span class="m-left"><span class="chip amber">🔗</span></span>
+        <span class="m-mid" style="display:table-cell;vertical-align:middle;padding-left:2.5mm"><span class="ename">Alquiler de coche</span><br/><span class="emeta">10 ago · pago desde el bote · toca para abrir el gasto · saldo €118.00</span></span>
+        <span class="m-right"><span class="badge tiny amber">−€42.00</span></span>
+      </div>
+      <div class="mrow">
+        <span class="m-left"><span class="chip sky">🐷</span></span>
+        <span class="m-mid" style="display:table-cell;vertical-align:middle;padding-left:2.5mm"><span class="ename">Aportación de Luis</span><br/><span class="emeta">8 ago · ingreso manual · saldo €138.00</span></span>
+        <span class="m-right"><span class="badge tiny green">+€20.00</span></span>
+      </div>
+    </div>
+
+    <div class="callout tip"><span class="callout-label">Consejo</span><p>¿La pregunta eterna de todo viaje: «¿en qué se fue el dinero del bote?». Abre el extracto y toca cada movimiento con enlace para ver su gasto original al detalle.</p></div>
   </section>
 
   <!-- ============================================================
        SECCIÓN 6 · GASTOS FIJOS
        ============================================================ -->
   <section id="sec-6" class="section">
-    <h2 class="sec-title">Gastos Fijos</h2>
+    <h2 class="sec-title">🔁 Gastos Fijos</h2>
     <p>Los <strong>gastos fijos</strong> son cuotas que se repiten cada cierto tiempo: el alquiler, la factura de la luz, el gimnasio, las suscripciones… En lugar de registrarlos a mano cada mes, configúralos una sola vez.</p>
 
     <h3>Frecuencias disponibles</h3>
@@ -901,10 +950,39 @@
   </section>
 
   <!-- ============================================================
+       SECCIÓN EXPORTAR · EXPORTAR Y COMPARTIR
+       ============================================================ -->
+  <section id="sec-exp" class="section">
+    <h2 class="sec-title">📤 Exportar y Compartir</h2>
+    <p>Cuando hay que enseñar las cuentas — al casero, a quien no usa Divido o para tu propio archivo — entra en la pestaña <strong>Saldos</strong> del grupo y usa el menú <strong>Compartir / Exportar</strong>. Dos formatos, dos propósitos:</p>
+
+    <div class="cols">
+      <div class="cell"><div class="inner">
+        <div class="col-head" style="border-color:#3fb950; color:#3fb950"><span class="col-icon"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg></span></span><span class="col-name">CSV · informe contable</span></div>
+        <p>Fichero estructurado pensado para <strong>abrir en Excel o Google Sheets</strong>: una fila por movimiento (gastos, pagos y aportaciones al bote) con fecha, concepto, pagador, participantes, categorías e importes. El formato para <strong>auditar y calcular</strong>.</p>
+      </div></div>
+      <div class="cell"><div class="inner">
+        <div class="col-head" style="border-color:#6366f1; color:#a5b4fc"><span class="col-icon"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg></span></span><span class="col-name">PDF · informe formal</span></div>
+        <p>Pulsa <strong>Vista imprimir</strong> y genera el PDF desde el diálogo de impresión del navegador (en móvil, «Guardar como PDF»). Obtienes un <strong>documento formal</strong> con portada, balances, deudas simplificadas, historial y extracto del bote: perfecto para <strong>compartir y archivar</strong>.</p>
+      </div></div>
+    </div>
+
+    <table class="data">
+      <thead><tr><th style="width:22%">Formato</th><th style="width:39%">Qué contiene</th><th>Úsalo cuando…</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge green">CSV</span></td><td>Movimiento a movimiento, listo para filtrar, sumar y cruzar.</td><td>Necesitas recalcular o auditar los datos.</td></tr>
+        <tr><td><span class="badge indigo">PDF</span></td><td>Informe maquetado: balances, deudas, historial y bote.</td><td>Necesitas enseñarlo o guardarlo como constancia.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout tip"><span class="callout-label">Consejo</span><p>¿Solo quieres dar un aviso rápido por WhatsApp? Copia el <strong>resumen de saldos</strong> («te deben X», «debes Y») directamente desde la pestaña Saldos: sin ficheros y sin fricción.</p></div>
+  </section>
+
+  <!-- ============================================================
        SECCIÓN 7 · NOTIFICACIONES PWA
        ============================================================ -->
   <section id="sec-7" class="section">
-    <h2 class="sec-title">Notificaciones PWA</h2>
+    <h2 class="sec-title">🔔 Notificaciones PWA</h2>
     <p>Divido funciona en dos niveles de avisos: el <strong>panel in-app</strong> (dentro de la app) y las <strong>notificaciones nativas</strong> (Web Push) que llegan incluso con la app cerrada.</p>
 
     <h3>Panel in-app</h3>
@@ -972,7 +1050,7 @@
        SECCIÓN 8 · FAQ
        ============================================================ -->
   <section id="sec-8" class="section">
-    <h2 class="sec-title">Preguntas Frecuentes</h2>
+    <h2 class="sec-title">❓ Preguntas Frecuentes</h2>
 
     <div class="faq">
       <div class="faq-q"><span class="q-ic"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg></span></span><span class="q-tx">¿Cómo instalo la app en mi móvil?</span></div>
@@ -1017,12 +1095,22 @@
     </div>
 
     <div class="faq">
-      <div class="faq-q"><span class="q-ic"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span></span><span class="q-tx">¿Puedo cambiar la moneda o el tipo de un grupo?</span></div>
-      <div class="faq-a"><p>La <strong>moneda no se puede cambiar</strong> tras crear el grupo para mantener los registros coherentes. El <strong>tipo</strong> (abierto/cerrado) sí puedes ajustarlo en cualquier momento desde los ajustes del grupo.</p></div>
+      <div class="faq-q"><span class="q-ic"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span></span><span class="q-tx">¿Puedo cambiar la moneda de un grupo?</span></div>
+      <div class="faq-a"><p>La <strong>moneda no se puede cambiar</strong> tras crear el grupo para mantener los registros coherentes. Lo que sí puedes ajustar en cualquier momento es el <strong>estado</strong> del grupo (abierto/cerrado) desde sus ajustes, si eres administrador.</p></div>
+    </div>
+
+    <div class="faq">
+      <div class="faq-q"><span class="q-ic"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg></span></span><span class="q-tx">¿Cómo consigo las cuentas en Excel o PDF?</span></div>
+      <div class="faq-a"><p>Desde <strong>Saldos → Compartir / Exportar</strong>: descarga el <strong>CSV contable</strong> para hojas de cálculo o usa la <strong>Vista imprimir</strong> para generar el <strong>PDF formal</strong>. Todo el detalle en la sección <a href="#sec-exp">Exportar y Compartir</a>.</p></div>
+    </div>
+
+    <div class="faq">
+      <div class="faq-q"><span class="q-ic"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></span></span><span class="q-tx">¿Un miembro sin cuenta puede ser administrador?</span></div>
+      <div class="faq-a"><p>No. Los <strong>miembros fantasma</strong> no tienen sesión propia, así que no pueden administrar el grupo. Vincula a esa persona a su cuenta real desde <strong>Ajustes del grupo</strong> y podrá asumir permisos completos, incluido el de administrador.</p></div>
     </div>
 
     <div class="end-note">
-      <p class="center" style="text-align:center">— Fin del manual · Divido 2.4.0 · Documentación de agosto 2026 —</p>
+      <p class="center" style="text-align:center">— Fin del manual · Divido 2.5.0 · Documentación de agosto 2026 —</p>
       <p class="center small muted" style="text-align:center">¿Tienes dudas? Escribe a soporte@divido.app · Gracias por usar Divido 💙</p>
     </div>
   </section>
