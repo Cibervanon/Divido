@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../lib/api";
 import { supabaseEnabled } from "../lib/supabase";
+import { compressImageToJpeg } from "../lib/compressImage";
 import { Button, Input, Modal, Select } from "./ui";
 import { CATEGORY_LIST, detectCategory, getCategoryColor, getIconComponent } from "../constants/categories";
 import type { ExpenseDto, MemberInfo } from "../lib/types";
@@ -338,43 +339,63 @@ export function ExpenseModal({
       setReceiptError("El tique debe ser una imagen");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
+    setUploadingReceipt(true);
+    // Comprimir en memoria ANTES de tocar la red: las fotos de cámara a
+    // resolución completa pueden agotar la RAM y matar la PWA en móviles.
+    let blob: Blob;
+    try {
+      blob = await compressImageToJpeg(file, 1280, 0.8);
+    } catch (err) {
+      console.error("No se pudo procesar la imagen del tique", err);
+      setReceiptError("No se pudo procesar la imagen. Prueba con un JPG o PNG.");
+      setUploadingReceipt(false);
+      return;
+    }
+    if (blob.size > 5 * 1024 * 1024) {
       setReceiptError("El tique supera los 5 MB");
+      setUploadingReceipt(false);
       return;
     }
     if (supabaseEnabled) {
-      if (!["image/jpeg", "image/png"].includes(file.type)) {
-        setReceiptError("Para subirlo a la nube usa JPG o PNG");
-        return;
-      }
-      setUploadingReceipt(true);
       try {
-        // 1. La API valida permisos y devuelve URL firmada de subida
+        // 1. La API valida permisos y devuelve URL firmada de subida.
+        // Tras comprimir siempre es JPEG, así que pedimos ext "jpg".
         const { path, signedUrl } = await api.post<{ path: string; signedUrl: string }>(
           `/groups/${groupId}/receipt-upload-url`,
-          { ext: file.type === "image/png" ? "png" : "jpg" }
+          { ext: "jpg" },
         );
-        // 2. PUT directo navegador → Storage (sin pasar por el backend)
+        // 2. PUT directo navegador → Storage con el binario (sin FormData).
         const put = await fetch(signedUrl, {
           method: "PUT",
-          headers: { "Content-Type": file.type },
-          body: file,
+          headers: { "Content-Type": "image/jpeg" },
+          body: blob,
         });
-        if (!put.ok) throw new Error(String(put.status));
+        if (!put.ok) {
+          let detail = "";
+          try {
+            detail = (await put.text()).slice(0, 300);
+          } catch {
+            detail = put.statusText || "(respuesta sin cuerpo)";
+          }
+          console.error(`Supabase Storage rechazó el PUT (${put.status}): ${detail}`);
+          throw new Error(`Storage respondió ${put.status}`);
+        }
         setReceiptUrl(`supabase:${path}`);
         setReceiptPreview(signedUrl); // vista previa inmediata
-      } catch {
+      } catch (err) {
+        console.error("Fallo al subir el tique a la nube", err);
         setReceiptError("No se pudo subir el tique. Inténtalo de nuevo.");
       } finally {
         setUploadingReceipt(false);
       }
       return;
     }
-    // Sin Supabase configurado: comportamiento clásico (data-URL embebida)
+    // Sin Supabase configurado: comportamiento clásico (data-URL embebida),
+    // también con la imagen comprimida para no inflar la base de datos.
     const reader = new FileReader();
     reader.onload = () => setReceiptUrl(String(reader.result ?? null));
     reader.onerror = () => setReceiptError("No se pudo leer el archivo");
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(blob);
   }
 
   function selectCategory(e: React.MouseEvent<HTMLButtonElement>, cat: { category: string; iconName: string }) {

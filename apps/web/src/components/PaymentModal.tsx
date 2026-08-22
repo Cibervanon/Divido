@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { api, ApiError } from "../lib/api";
+import { compressImageToJpeg } from "../lib/compressImage";
 import { Button, Input, Modal, Select } from "./ui";
 import type { MemberInfo } from "../lib/types";
 
@@ -40,21 +41,31 @@ export function PaymentModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, groupId]);
 
-  function readProofFile(file: File | undefined) {
+  async function readProofFile(file: File | undefined) {
     setProofError("");
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       setProofError("El comprobante debe ser una imagen");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
+    // Comprimir en memoria antes de convertir a data-URL para no
+    // agotar la RAM con fotos de cámara a resolución completa.
+    let blob: Blob;
+    try {
+      blob = await compressImageToJpeg(file, 1280, 0.8);
+    } catch (err) {
+      console.error("No se pudo procesar la imagen del comprobante", err);
+      setProofError("No se pudo procesar la imagen. Prueba con un JPG o PNG.");
+      return;
+    }
+    if (blob.size > 5 * 1024 * 1024) {
       setProofError("El comprobante supera los 5 MB");
       return;
     }
     const reader = new FileReader();
     reader.onload = () => setProofUrl(String(reader.result ?? null));
     reader.onerror = () => setProofError("No se pudo leer el archivo");
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(blob);
   }
 
   async function submit() {
@@ -145,7 +156,7 @@ export function PaymentModal({
               <Button variant="secondary" className="!px-3 !py-1.5 text-xs" onClick={() => fileRef.current?.click()}>
                 Subir foto del comprobante
               </Button>
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => readProofFile(e.target.files?.[0])} />
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => void readProofFile(e.target.files?.[0])} />
             </>
           )}
           {proofError ? <p className="mt-1 text-[11px] font-medium text-rose-400">{proofError}</p> : null}

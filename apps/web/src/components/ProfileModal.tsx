@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { api, ApiError } from "../lib/api";
+import { compressImageToJpeg } from "../lib/compressImage";
 import { useAuth } from "../lib/auth";
 import { getStoredTheme, setStoredTheme, THEMES, type ThemeId } from "../lib/theme";
 import { Avatar, Button, Input, Modal, Spinner, VerifiedBadge } from "./ui";
@@ -91,12 +92,20 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
 
   if (!user) return null;
 
-  function onPickFile(e: ChangeEvent<HTMLInputElement>) {
+  async function onPickFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setAvatarUrl(String(reader.result ?? ""));
-    reader.readAsDataURL(file);
+    // Comprimir en memoria: evita el reinicio de la PWA al hacer
+    // fotos grandes con la cámara del móvil.
+    try {
+      const blob = await compressImageToJpeg(file, 512, 0.85);
+      const reader = new FileReader();
+      reader.onload = () => setAvatarUrl(String(reader.result ?? ""));
+      reader.readAsDataURL(blob);
+    } catch (err) {
+      console.error("No se pudo procesar la foto de perfil", err);
+      setError("No se pudo procesar la foto. Prueba con un JPG o PNG.");
+    }
   }
 
   async function save() {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { api, ApiError } from "../../lib/api";
+import { compressImageToJpeg } from "../../lib/compressImage";
 import { Avatar, Button, Input, Modal, Select, Spinner } from "../../components/ui";
 import { GROUP_EXTRAS } from "../../constants/categories";
 import type { GroupDetail } from "../../lib/types";
@@ -72,13 +73,19 @@ export function SettingsModal({
     }
   }
 
-  function onPickFile(e: ChangeEvent<HTMLInputElement>) {
+  async function onPickFile(e: ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => setLogoUrl(String(reader.result));
-    reader.readAsDataURL(f);
-    e.target.value = "";
+    // Comprimir en memoria antes de convertir a data-URL.
+    try {
+      const blob = await compressImageToJpeg(f, 512, 0.85);
+      const reader = new FileReader();
+      reader.onload = () => setLogoUrl(String(reader.result));
+      reader.readAsDataURL(blob);
+    } catch (err) {
+      console.error("No se pudo procesar el logo", err);
+      setError("No se pudo procesar el logo. Prueba con un JPG o PNG.");
+    }
   }
 
   let closeReopenButton = null;
