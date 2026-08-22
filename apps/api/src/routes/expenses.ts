@@ -33,9 +33,9 @@ import { invalidateBalanceCache } from "../balanceCache.js";
 import { logAudit } from "../audit.js";
 import {
   issueReceiptUploadUrl,
+  isSupabaseEnabled,
   publishGroupEvent,
   resolveReceiptUrl,
-  supabaseEnabled,
 } from "../lib/supabase.js";
 
 const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
@@ -370,7 +370,7 @@ if (expense.payer_id !== user.id && member.role !== "admin") {
     const { groupId } = request.params as { groupId: string };
     const user = requireAuth(request);
     await requireActiveMember(request, groupId);
-    if (!supabaseEnabled) throw unavailable("El almacenamiento de tiques no está disponible");
+    if (!isSupabaseEnabled()) throw unavailable("El almacenamiento de tiques no está disponible");
     const { ext } = (request.body ?? {}) as { ext?: unknown };
     if (ext !== undefined && ext !== "jpg" && ext !== "jpeg" && ext !== "png") {
       throw badRequest("Formato no soportado");
@@ -385,7 +385,9 @@ if (expense.payer_id !== user.id && member.role !== "admin") {
     if (!expense) throw notFound("Gasto no encontrado");
     await requireActiveMember(request, expense.group_id);
     if (!expense.receipt_url) throw notFound("El gasto no tiene tique");
-    return { url: await resolveReceiptUrl(expense.receipt_url) };
+    const resolved = await resolveReceiptUrl(expense.receipt_url);
+    if (!resolved) throw notFound("No se pudo generar el enlace del tique en este momento");
+    return { url: resolved };
   });
 
   app.post("/api/groups/:groupId/expenses/:expenseId/comments", async (request) => {

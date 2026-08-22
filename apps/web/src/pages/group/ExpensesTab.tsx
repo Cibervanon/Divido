@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../../lib/api";
 import { Button, EmptyState, Input, Money, Select, VerifiedBadge } from "../../components/ui";
 import type { ExpenseCommentDto, ExpenseDto, ModificationRequestDto } from "../../lib/types";
@@ -46,15 +46,34 @@ export function ExpensesTab({
 }) {
   const pending = requests.filter((r) => r.status === "pending");
   const [viewReceipt, setViewReceipt] = useState<string | null>(null);
+  const [receiptNotice, setReceiptNotice] = useState("");
 
-  // Abre el tique con una URL recién firmada (las de nube caducan en 1 h)
+  useEffect(() => {
+    if (!receiptNotice) return;
+    const t = setTimeout(() => setReceiptNotice(""), 3500);
+    return () => clearTimeout(t);
+  }, [receiptNotice]);
+
+  // Abre el tique con una URL recién firmada (las de nube caducan en 1 h).
+  // Si la firma falla, avisamos al usuario en vez de abrir un enlace roto.
   async function openReceipt(expenseId: string, fallback: string | null) {
     try {
-      const r = await api.get<{ url: string }>(`/expenses/${expenseId}/receipt-url`);
-      setViewReceipt(r.url);
+      const r = await api.get<{ url: string | null }>(`/expenses/${expenseId}/receipt-url`);
+      if (r.url) {
+        setViewReceipt(r.url);
+        return;
+      }
+      setReceiptNotice("El tique no está disponible ahora mismo, inténtalo en un momento");
     } catch (err) {
-      if (err instanceof ApiError && err.status === 404) return;
-      if (fallback) setViewReceipt(fallback);
+      if (fallback && fallback.startsWith("data:")) {
+        setViewReceipt(fallback);
+        return;
+      }
+      setReceiptNotice(
+        err instanceof ApiError && err.status === 404
+          ? "Este gasto no tiene tique adjunto"
+          : "No se pudo abrir el tique"
+      );
     }
   }
 
@@ -373,6 +392,14 @@ export function ExpensesTab({
               onClick={(e) => e.stopPropagation()}
             />
           </div>
+        </div>
+      ) : null}
+      {receiptNotice ? (
+        <div
+          role="status"
+          className="fixed inset-x-0 bottom-24 z-[60] mx-auto w-fit max-w-[90vw] rounded-full bg-slate-800 px-4 py-2 text-xs font-medium text-slate-200 shadow-lg"
+        >
+          {receiptNotice}
         </div>
       ) : null}
     </div>

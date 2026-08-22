@@ -399,7 +399,13 @@ export function ExpenseModal({
               detail = put.statusText || "(respuesta sin cuerpo)";
             }
             console.error(`Supabase Storage rechazó el PUT (${put.status}): ${detail}`);
-            throw new Error(`Storage respondió ${put.status}`);
+            throw new Error(
+              put.status === 404
+                ? "el almacén remoto no está configurado (falta el bucket «comprobantes»)"
+                : put.status === 403
+                  ? "permiso denegado por el almacén (revisa las claves de la API en Render)"
+                  : `el almacén respondió ${put.status}`
+            );
           }
           setReceiptUrl(`supabase:${path}`);
           setReceiptPreview(signedUrl);
