@@ -1,7 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { api } from "../../../lib/api";
 import type { GroupDetail, ExpenseDto, PaymentDto } from "../../../lib/types";
 import type { SettlementTransfer } from "@divido/shared";
+
+/** Tiempo durante el que una lectura se considera fresca: evita re-peticiones
+ *  al alternar pestañas/ventanas (refetchOnWindowFocus) sin afectar a las
+ *  invalidaciones tras mutaciones, que siguen forzando refetch inmediato. */
+const STALE_TIME_MS = 60_000;
 
 export interface AuditEntry {
   id: string;
@@ -20,6 +25,7 @@ export function useGroupDetail(groupId: string) {
     queryKey: ["group", groupId],
     queryFn: () => api.get<GroupDetail>(`/groups/${groupId}`),
     enabled: !!groupId,
+    staleTime: STALE_TIME_MS,
   });
 }
 
@@ -39,6 +45,8 @@ export function useGroupExpenses(groupId: string, filters?: { category?: string;
       return res.expenses;
     },
     enabled: !!groupId,
+    staleTime: STALE_TIME_MS,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -51,6 +59,7 @@ export function useGroupBalances(groupId: string) {
       rawTransfers: SettlementTransfer[];
     }>(`/groups/${groupId}/balances`),
     enabled: !!groupId,
+    staleTime: STALE_TIME_MS,
   });
 }
 
@@ -61,6 +70,7 @@ export function useGroupMembers(groupId: string) {
     queryFn: () => api.get<GroupDetail>(`/groups/${groupId}`).then((d) => d.members),
     enabled: !!groupId,
     initialData: data?.members,
+    staleTime: STALE_TIME_MS,
   });
 }
 
@@ -138,5 +148,6 @@ export function useGroupAudit(groupId: string, entityType?: string) {
     queryKey: ["audit", groupId, entityType],
     queryFn: () => api.get<{ audit: AuditEntry[] }>(`/groups/${groupId}/audit${entityType ? `?entityType=${entityType}` : ""}`),
     enabled: !!groupId,
+    staleTime: STALE_TIME_MS,
   });
 }
