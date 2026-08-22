@@ -200,6 +200,12 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     if (role !== "admin" && role !== "member") throw badRequest("Rol inválido");
     const target = await getMemberRow(request.db, groupId, userId);
     if (!target || target.status !== "active") throw notFound("Miembro no encontrado");
+    if (role === "admin") {
+      const targetUser = await request.db
+        .prepare("SELECT is_ghost FROM users WHERE id = ?")
+        .get(userId) as { is_ghost: number } | undefined;
+      if (targetUser?.is_ghost) throw badRequest("Un miembro sin cuenta no puede ser administrador");
+    }
     await setRole(request.db, groupId, userId, role);
     return { ok: true };
   });

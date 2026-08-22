@@ -774,7 +774,7 @@ function ExpensesTab({
             className="max-w-xs"
           />
 
-          <div className="no-scrollbar flex flex-nowrap gap-2 overflow-x-auto pb-1 pr-2">
+          <div className="scrollbar-none flex flex-nowrap gap-2 overflow-x-auto pb-1 pr-2">
             {categories.map((cat) => (
               <button
                 key={cat.key}
@@ -1309,15 +1309,17 @@ function MembersTab({
                       Enviar enlace
                     </Button>
                   ) : null}
-                  {m.role === "admin" ? (
-                    <Button variant="ghost" size="sm" onClick={() => setRole(m.userId, "member")}>
-                      Quitar admin
-                    </Button>
-                  ) : (
-                    <Button variant="ghost" size="sm" onClick={() => setRole(m.userId, "admin")}>
-                      Hacer admin
-                    </Button>
-                  )}
+                  {!m.isGhost ? (
+                    m.role === "admin" ? (
+                      <Button variant="ghost" size="sm" onClick={() => setRole(m.userId, "member")}>
+                        Quitar admin
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" size="sm" onClick={() => setRole(m.userId, "admin")}>
+                        Hacer admin
+                      </Button>
+                    )
+                  ) : null}
                   <Button variant="ghost" size="sm" className="text-rose-400" onClick={() => removeMember(m.userId, m.name)}>
                     Expulsar
                   </Button>
