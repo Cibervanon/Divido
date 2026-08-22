@@ -125,7 +125,7 @@ export function toGroup(r: GroupRow): Group {
     id: r.id,
     name: r.name,
     currency: r.currency,
-    type: r.type,
+    type: r.type === "closed" ? "closed" : "open",
     inviteToken: r.invite_token,
     creatorId: r.creator_id,
     logoUrl: r.logo_url,

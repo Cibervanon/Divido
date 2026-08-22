@@ -327,6 +327,8 @@ const MIGRATIONS = [
   "DO $$ BEGIN ALTER TABLE payments ADD CONSTRAINT chk_payment_amount_positive CHECK (amount > 0); EXCEPTION WHEN duplicate_object THEN END $$;",
   "DO $$ BEGIN ALTER TABLE payments ADD CONSTRAINT chk_payment_status CHECK (status IN ('confirmed','pending_confirmation','rejected')); EXCEPTION WHEN duplicate_object THEN END $$;",
   "DO $$ BEGIN ALTER TABLE groups ADD CONSTRAINT chk_group_type CHECK (type IN ('open','closed')); EXCEPTION WHEN duplicate_object THEN END $$;",
+  // Normalización: todo grupo existente debe tener estado 'open' por defecto
+  "UPDATE groups SET type = 'open' WHERE type IS NULL OR type NOT IN ('open','closed')",
 ];
 
 export async function initDb(db: Db): Promise<void> {
