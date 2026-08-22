@@ -8,7 +8,6 @@ import { PaymentModal } from "../components/PaymentModal";
 import { BalancesTab } from "./group/BalancesTab";
 import { SettingsModal } from "./group/SettingsModal";
 import { useExpenseFilters } from "./group/hooks/useExpenseFilters";
-import { useGroupAudit } from "./group/hooks/useGroupDetail";
 import { simplifyDebts, type SimplifyResult } from "../lib/debtSimplifier";
 import { getCategoryColor, getIconComponent, MODULE_FALLBACKS } from "../constants/categories";
 import type {
@@ -174,7 +173,7 @@ export default function GroupPage() {
         const queryString = queryParams.toString();
         const expensesUrl = `/groups/${groupId}/expenses${queryString ? `?${queryString}` : ""}`;
 
-        const [d, e, h, r, dd, pot, rec, a, potLedgerRes] = await Promise.all([
+        const [d, e, h, r, dd, pot, rec, a] = await Promise.all([
           api.get<GroupDetail>(`/groups/${groupId}`),
           api.get<{ expenses: ExpenseDto[] }>(expensesUrl),
           api.get<{ events: HistoryEvent[] }>(`/groups/${groupId}/history`),
@@ -183,11 +182,8 @@ export default function GroupPage() {
           api
             .get<{ balance: number; contributions: PotContributionDto[]; ledger: any[] }>(`/groups/${groupId}/common-pot`)
             .catch(() => null),
-          api.get<{ expenses: RecurringExpenseDto[] }>(`/groups/${groupId}/recurring-expenses`).catch(() => null),
-          api.get<{ audit: any[] }>(`/api/groups/${groupId}/audit`).catch(() => ({ audit: [] })),
-          api
-            .get<{ ledger: any[] }>(`/groups/${groupId}/common-pot/ledger`)
-            .catch(() => ({ ledger: [] })),
+          api.get<{ expenses: RecurringExpenseDto[] }>(`/groups/${groupId}/recurring`).catch(() => null),
+          api.get<{ audit: any[] }>(`/groups/${groupId}/audit`).catch(() => ({ audit: [] })),
         ]);
         const data: GroupCacheData = {
           detail: d,
@@ -197,7 +193,7 @@ export default function GroupPage() {
           debts: dd?.debts ?? [],
           potBalance: pot?.balance ?? 0,
           potContributions: pot?.contributions ?? [],
-          potLedger: potLedgerRes?.ledger ?? [],
+          potLedger: pot?.ledger ?? [],
           recurringExpenses: rec?.expenses ?? [],
           audit: a?.audit ?? [],
         };
@@ -1990,7 +1986,7 @@ function RecurringTab({
   async function toggleActive(expense: RecurringExpenseDto) {
     setTogglingId(expense.id);
     try {
-      await api.patch(`/groups/${expense.groupId}/recurring-expenses/${expense.id}`, { active: !expense.active });
+      await api.patch(`/recurring/${expense.id}/toggle`, { active: !expense.active });
       onChanged();
     } catch (err) {
       alert(err instanceof ApiError ? err.message : "Error");
@@ -2002,7 +1998,7 @@ function RecurringTab({
   async function removeExpense(expense: RecurringExpenseDto) {
     if (!confirm(`¿Eliminar la cuota fija "${expense.title}"?`)) return;
     try {
-      await api.delete(`/groups/${expense.groupId}/recurring-expenses/${expense.id}`);
+      await api.delete(`/recurring/${expense.id}`);
       onChanged();
     } catch (err) {
       alert(err instanceof ApiError ? err.message : "Error");
@@ -2168,7 +2164,7 @@ function NewRecurringModal({
     setLoading(true);
     setError("");
     try {
-      await api.post(`/groups/${groupId}/recurring-expenses`, {
+      await api.post(`/groups/${groupId}/recurring`, {
         title,
         amount: parseFloat(amount),
         frequency,

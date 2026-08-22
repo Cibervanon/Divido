@@ -18,7 +18,7 @@ export interface AuditEntry {
 export function useGroupDetail(groupId: string) {
   return useQuery({
     queryKey: ["group", groupId],
-    queryFn: () => api.get<GroupDetail>(`/api/groups/${groupId}`),
+    queryFn: () => api.get<GroupDetail>(`/groups/${groupId}`),
     enabled: !!groupId,
   });
 }
@@ -34,7 +34,10 @@ export function useGroupExpenses(groupId: string, filters?: { category?: string;
 
   return useQuery({
     queryKey: ["expenses", groupId, filters],
-    queryFn: () => api.get<ExpenseDto[]>(`/api/groups/${groupId}/expenses${queryString ? `?${queryString}` : ""}`),
+    queryFn: async () => {
+      const res = await api.get<{ expenses: ExpenseDto[] }>(`/groups/${groupId}/expenses${queryString ? `?${queryString}` : ""}`);
+      return res.expenses;
+    },
     enabled: !!groupId,
   });
 }
@@ -46,23 +49,25 @@ export function useGroupBalances(groupId: string) {
       balances: Array<{ userId: string; name: string; net: number; paidForOthers: number; owesOthers: number }>;
       transfers: SettlementTransfer[];
       rawTransfers: SettlementTransfer[];
-    }>(`/api/groups/${groupId}/balances`),
+    }>(`/groups/${groupId}/balances`),
     enabled: !!groupId,
   });
 }
 
 export function useGroupMembers(groupId: string) {
+  const { data } = useGroupDetail(groupId);
   return useQuery({
     queryKey: ["members", groupId],
-    queryFn: () => api.get<Array<{ userId: string; name: string; email: string | null; avatarUrl: string | null; role: string; status: string; emailVerified: boolean; isGhost: boolean }>>(`/api/groups/${groupId}/members`),
+    queryFn: () => api.get<GroupDetail>(`/groups/${groupId}`).then((d) => d.members),
     enabled: !!groupId,
+    initialData: data?.members,
   });
 }
 
 export function useCreateExpense(groupId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: any) => api.post<ExpenseDto>(`/api/groups/${groupId}/expenses`, body),
+    mutationFn: (body: any) => api.post<ExpenseDto>(`/groups/${groupId}/expenses`, body),
     onMutate: async (newExpense) => {
       await qc.cancelQueries({ queryKey: ["expenses", groupId] });
       const previous = qc.getQueryData<ExpenseDto[]>(["expenses", groupId]);
@@ -86,7 +91,7 @@ export function useCreateExpense(groupId: string) {
 export function useUpdateExpense(groupId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ expenseId, body }: { expenseId: string; body: any }) => api.patch<ExpenseDto>(`/api/expenses/${expenseId}`, body),
+    mutationFn: ({ expenseId, body }: { expenseId: string; body: any }) => api.patch<ExpenseDto>(`/expenses/${expenseId}`, body),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["expenses", groupId] });
       qc.invalidateQueries({ queryKey: ["balances", groupId] });
@@ -98,7 +103,7 @@ export function useUpdateExpense(groupId: string) {
 export function useDeleteExpense(groupId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (expenseId: string) => api.delete(`/api/expenses/${expenseId}`),
+    mutationFn: (expenseId: string) => api.delete(`/expenses/${expenseId}`),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["expenses", groupId] });
       qc.invalidateQueries({ queryKey: ["balances", groupId] });
@@ -110,7 +115,7 @@ export function useDeleteExpense(groupId: string) {
 export function useCreatePayment(groupId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: any) => api.post<PaymentDto>(`/api/groups/${groupId}/payments`, body),
+    mutationFn: (body: any) => api.post<PaymentDto>(`/groups/${groupId}/payments`, body),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["balances", groupId] });
       qc.invalidateQueries({ queryKey: ["group", groupId] });
@@ -121,7 +126,7 @@ export function useCreatePayment(groupId: string) {
 export function useUpdateGroup(groupId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: any) => api.patch(`/api/groups/${groupId}`, body),
+    mutationFn: (body: any) => api.patch(`/groups/${groupId}`, body),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["group", groupId] });
     },
@@ -131,7 +136,7 @@ export function useUpdateGroup(groupId: string) {
 export function useGroupAudit(groupId: string, entityType?: string) {
   return useQuery({
     queryKey: ["audit", groupId, entityType],
-    queryFn: () => api.get<{ audit: AuditEntry[] }>(`/api/groups/${groupId}/audit${entityType ? `?entityType=${entityType}` : ""}`),
+    queryFn: () => api.get<{ audit: AuditEntry[] }>(`/groups/${groupId}/audit${entityType ? `?entityType=${entityType}` : ""}`),
     enabled: !!groupId,
   });
 }
