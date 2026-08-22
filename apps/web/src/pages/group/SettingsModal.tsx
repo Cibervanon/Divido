@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { api, ApiError } from "../../lib/api";
-import { Avatar, Button, Input, Modal, Select } from "../../components/ui";
+import { Avatar, Button, Input, Modal, Select, Spinner } from "../../components/ui";
 import { GROUP_EXTRAS } from "../../constants/categories";
 import type { GroupDetail } from "../../lib/types";
 
@@ -30,6 +30,7 @@ export function SettingsModal({
   const [enabledExtras, setEnabledExtras] = useState<string[]>(group.enabledExtras ?? []);
   const [simplifyDebts, setSimplifyDebts] = useState(group.simplifyDebts);
   const [saving, setSaving] = useState(false);
+  const [statusBusy, setStatusBusy] = useState<null | "closing" | "opening">(null);
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -45,22 +46,16 @@ export function SettingsModal({
     }
   }, [open, group]);
 
-  async function handleToggleCloseGroup() {
-    const newStatus = group.type === "open" ? "closed" : "open";
-    if (
-      confirm(
-        group.type === "open"
-          ? "Seguro que quieres cerrar este grupo?\n\nNo se podran anadir nuevos gastos ni pagos\nNo se podran crear nuevos piques\nEl grupo se marcara como Cerrado\nLos miembros podran ver el historial pero no modificar nada\n\nEsta accion es reversible (puedes reabrirlo desde Ajustes)."
-          : "Seguro que quieres reabrir este grupo?\n\nSe permitiran anadir nuevos gastos y pagos\nSe podran crear nuevos piques\nEl grupo se marcara como Abierto\n\nEsta accion es reversible (puedes cerrarlo desde Ajustes)."
-      )
-    ) {
-      try {
-        await api.patch(`/groups/${group.id}`, { type: group.type === "open" ? "closed" : "open" });
-        onChanged();
-        onClose();
-      } catch (err) {
-        alert(err instanceof Error ? err.message : "Error al cambiar el estado del grupo");
-      }
+  async function toggleGroupStatus(next: "open" | "closed") {
+    setStatusBusy(next === "closed" ? "closing" : "opening");
+    try {
+      await api.patch(`/groups/${group.id}`, { type: next });
+      onChanged();
+      onClose();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error al cambiar el estado del grupo");
+    } finally {
+      setStatusBusy(null);
     }
   }
 
@@ -95,26 +90,19 @@ export function SettingsModal({
           <button
             type="button"
             className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-rose-500/50 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-400 transition hover:bg-rose-500/20"
+            disabled={statusBusy !== null}
             onClick={() => {
               if (
                 confirm(
-                  "Seguro que quieres cerrar este grupo?\n\n" +
-                    "No se podran anadir nuevos gastos ni pagos\n" +
-                    "No se podran crear nuevos piques\n" +
-                    "El grupo se marcara como Cerrado\n" +
-                    "Los miembros podran ver el historial pero no modificar nada\n\n" +
-                    "Esta accion es reversible (puedes reabrirlo desde Ajustes)."
+                  "¿Seguro que quieres cerrar este grupo?\n\n" +
+                    "• No se podrán añadir nuevos gastos ni pagos\n" +
+                    "• No se podrán crear nuevos piques\n" +
+                    "• El grupo se marcará como 'Cerrado'\n" +
+                    "• Los miembros podrán ver el historial pero no modificar nada\n\n" +
+                    "Esta acción es reversible (puedes reabrirlo desde Ajustes)."
                 )
               ) {
-                (async () => {
-                  try {
-                    await api.patch(`/groups/${group.id}`, { type: "closed" });
-                    onChanged();
-                    onClose();
-                  } catch (err) {
-                    alert(err instanceof Error ? err.message : "Error al cerrar el grupo");
-                  }
-                })();
+                void toggleGroupStatus("closed");
               }
             }}
           >
@@ -131,25 +119,18 @@ export function SettingsModal({
           <button
             type="button"
             className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-emerald-500/50 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-400 transition hover:bg-emerald-500/20"
+            disabled={statusBusy !== null}
             onClick={() => {
               if (
                 confirm(
-                  "Seguro que quieres reabrir este grupo?\n\n" +
-                    "Se permitiran anadir nuevos gastos y pagos\n" +
-                    "Se podran crear nuevos piques\n" +
-                    "El grupo se marcara como Abierto\n\n" +
-                    "Esta accion es reversible (puedes cerrarlo desde Ajustes)."
+                  "¿Seguro que quieres reabrir este grupo?\n\n" +
+                    "• Se permitirán añadir nuevos gastos y pagos\n" +
+                    "• Se podrán crear nuevos piques\n" +
+                    "• El grupo se marcará como 'Abierto'\n\n" +
+                    "Esta acción es reversible (puedes cerrarlo desde Ajustes)."
                 )
               ) {
-                (async () => {
-                  try {
-                    await api.patch(`/groups/${group.id}`, { type: "open" });
-                    onChanged();
-                    onClose();
-                  } catch (err) {
-                    alert(err instanceof Error ? err.message : "Error al reabrir el grupo");
-                  }
-                })();
+                void toggleGroupStatus("open");
               }
             }}
           >
@@ -290,6 +271,14 @@ export function SettingsModal({
         </div>
         {closeReopenButton}
       </div>
+      {statusBusy ? (
+        <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center gap-3 bg-black/70 backdrop-blur-sm">
+          <Spinner className="h-8 w-8 text-indigo-400" />
+          <p className="text-sm font-semibold text-slate-100">
+            {statusBusy === "closing" ? "Cerrando grupo..." : "Abriendo grupo..."}
+          </p>
+        </div>
+      ) : null}
     </Modal>
   );
 }
