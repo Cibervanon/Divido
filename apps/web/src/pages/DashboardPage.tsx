@@ -246,7 +246,7 @@ export default function DashboardPage() {
                       </svg>
                     </span>
                     <p className="text-lg font-extrabold text-emerald-400">
-                      Estás al día · <Money amount={0} currency={summaryCurrency} />
+                      Estás al día{" · "}<Money amount={0} currency={summaryCurrency} />
                     </p>
                   </div>
                 ) : (
@@ -526,7 +526,7 @@ function GroupCard({
           ) : null}
         </p>
         <p className="mt-0.5 text-xs text-slate-500">
-          {group.memberCount} miembro{group.memberCount !== 1 ? "s" : ""} · {group.currency}
+          {group.memberCount} miembro{group.memberCount !== 1 ? "s" : ""}{" · "}{group.currency}
         </p>
       </div>
       {positive ? (

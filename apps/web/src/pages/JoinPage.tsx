@@ -69,7 +69,7 @@ export default function JoinPage() {
               <div>
                 <p className="text-lg font-bold text-slate-100">{preview.groupName}</p>
                 <p className="mt-1 text-sm text-slate-400">
-                  {preview.memberCount} miembro{preview.memberCount !== 1 ? "s" : ""} · Moneda {preview.currency}
+                  {preview.memberCount} miembro{preview.memberCount !== 1 ? "s" : ""}{" · "}Moneda {preview.currency}
                 </p>
                 {preview.existingMember ? (
                   <p className="mt-2 text-xs font-medium text-amber-400">

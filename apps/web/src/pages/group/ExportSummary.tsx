@@ -65,7 +65,7 @@ export function ExportSummary({ group, expenses, transfers, memberBalances, curr
             Generado el {fechaGen} a las {horaGen}
           </span>
           <span>
-            {sortedExpenses.length} gasto{sortedExpenses.length !== 1 ? "s" : ""} ·{" "}
+            {sortedExpenses.length} gasto{sortedExpenses.length !== 1 ? "s" : ""}{" · "}
             <strong className="text-lg font-bold text-slate-900">Total: {fmt(total)}</strong>
           </span>
         </div>
@@ -171,7 +171,7 @@ export function ExportSummary({ group, expenses, transfers, memberBalances, curr
       </section>
 
       <footer className="mt-10 border-t border-slate-300 pt-3 text-center text-xs text-slate-500">
-        Documento generado automáticamente por Divido · {group.currency}
+        Documento generado automáticamente por Divido{" · "}{group.currency}
       </footer>
     </div>
   );

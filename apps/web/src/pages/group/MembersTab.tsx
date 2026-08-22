@@ -52,7 +52,7 @@ export function MembersTab({
       } catch {
         window.prompt("Copia este texto:", res.claimUrl);
       }
-      onToast("Enlace de reclamaciÃ³n copiado. CompÃ¡rtelo con esa persona");
+      onToast("Enlace de reclamación copiado. Compártelo con esa persona");
     } catch (err) {
       alert(err instanceof ApiError ? err.message : "Error");
     }
@@ -68,7 +68,7 @@ export function MembersTab({
   }
 
   async function removeMember(userId: string, name: string) {
-    if (!confirm(`Â¿Expulsar a ${name} del grupo?`)) return;
+    if (!confirm(`¿Expulsar a ${name} del grupo?`)) return;
     try {
       await api.delete(`/groups/${group.id}/members/${userId}`);
       onChanged();
@@ -82,10 +82,10 @@ export function MembersTab({
       {matchingGhosts.length > 0 ? (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
           <p className="text-sm font-semibold text-amber-200">
-            Â¿Eres {matchingGhosts[0].name}?
+            ¿Eres {matchingGhosts[0].name}?
           </p>
           <p className="mt-1 text-xs text-slate-400">
-            Hay un participante sin cuenta con un nombre parecido al tuyo. ReclÃ¡malo para conservar su historial en el grupo.
+            Hay un participante sin cuenta con un nombre parecido al tuyo. Reclámalo para conservar su historial en el grupo.
           </p>
           <Button
             variant="secondary"
@@ -108,7 +108,7 @@ export function MembersTab({
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
             </svg>
-            AÃ±adir participante sin correo
+            Añadir participante sin correo
           </button>
         </div>
       ) : null}
@@ -138,8 +138,8 @@ export function MembersTab({
                   ) : (
                     <>
                       {m.userId === group.creatorId ? "Creador" : m.role === "admin" ? "Administrador" : "Miembro"}
-                      {isMe ? " Â· tÃº" : null}
-                      {m.emailVerified ? " Â· " : null}
+                      {isMe ? " · tú" : null}
+                      {m.emailVerified ? " · " : null}
                       {m.emailVerified && <VerifiedBadge size="xs" />}
                     </>
                   )}
@@ -229,7 +229,7 @@ function AddGhostModal({
       onCreated();
       onClose();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Error al aÃ±adir el participante");
+      setError(err instanceof ApiError ? err.message : "Error al añadir el participante");
     } finally {
       setLoading(false);
     }
@@ -239,22 +239,22 @@ function AddGhostModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="AÃ±adir participante sin cuenta"
+      title="Añadir participante sin cuenta"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancelar
           </Button>
           <Button onClick={() => void submit()} loading={loading}>
-            AÃ±adir
+            Añadir
           </Button>
         </>
       }
     >
       <div className="space-y-4">
         <p className="text-xs text-slate-400">
-          Se aÃ±adirÃ¡ al grupo como participante sin correo ni registro. PodrÃ¡ aparecer en gastos y saldos, y vincularse a
-          una cuenta real mÃ¡s adelante.
+          Se añadirá al grupo como participante sin correo ni registro. Podrá aparecer en gastos y saldos, y vincularse a
+          una cuenta real más adelante.
         </p>
         <Input label="Nombre" placeholder="Ej. Laura (invitada)" value={name} onChange={(e) => setName(e.target.value)} />
         {error ? <p className="text-xs font-medium text-rose-400">{error}</p> : null}

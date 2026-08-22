@@ -47,7 +47,7 @@ export function ExpensesTab({
   const pending = requests.filter((r) => r.status === "pending");
   const [viewReceipt, setViewReceipt] = useState<string | null>(null);
 
-  // Estado de filtros: multiselecciÃ³n categorÃ­as, booleano "Mi pagador", acordeÃ³n
+  // Estado de filtros: multiselección categorías, booleano "Mi pagador", acordeón
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [onlyMyPayments, setOnlyMyPayments] = useState<boolean>(false);
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
@@ -59,7 +59,7 @@ export function ExpensesTab({
     { key: "housing", label: "Vivienda" },
     { key: "health", label: "Salud" },
     { key: "shopping", label: "Compras" },
-    { key: "coffee", label: "CafÃ©" },
+    { key: "coffee", label: "Café" },
     { key: "pets", label: "Mascotas" },
     { key: "streaming", label: "Streaming" },
     { key: "sports", label: "Deportes" },
@@ -82,7 +82,7 @@ export function ExpensesTab({
 
   return (
     <div className="space-y-4">
-      {/* Filtros: botÃ³n Ãºnico compacto */}
+      {/* Filtros: botón único compacto */}
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
@@ -189,7 +189,7 @@ export function ExpensesTab({
               <div key={r.id} className="flex items-center justify-between gap-2 rounded-xl bg-slate-900 px-3 py-2">
                 <div className="min-w-0">
                   <p className="truncate text-xs text-slate-200">
-                    <strong>{r.requesterName}</strong> Â· {r.action === "edit" ? "editar" : "eliminar"}{" "}
+                    <strong>{r.requesterName}</strong>{" · "}{r.action === "edit" ? "editar" : "eliminar"}{" "}
                     "{r.expenseDescription}"
                   </p>
                 </div>
@@ -209,8 +209,8 @@ export function ExpensesTab({
 
       {filteredExpenses.length === 0 ? (
         <EmptyState
-          title="AÃºn no hay gastos en este grupo"
-          subtitle="AÃ±ade tu primer gasto para empezar a repartir cuentas con tus compaÃ±eros"
+          title="Aún no hay gastos en este grupo"
+          subtitle="Añade tu primer gasto para empezar a repartir cuentas con tus compañeros"
           icon={
             <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path
@@ -225,7 +225,7 @@ export function ExpensesTab({
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
-              AÃ±adir primer gasto
+              Añadir primer gasto
             </Button>
           }
         />
@@ -244,13 +244,13 @@ export function ExpensesTab({
                   {e.description}
                   {e.paidFromPot ? (
                     <span className="ml-2 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
-                      Bote comÃºn
+                      Bote común
                     </span>
                   ) : null}
                   {e.deleted ? <span className="ml-2 rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] text-rose-400">eliminado</span> : null}
                 </p>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  {e.payerName} pagÃ³ Â· {e.participantsCount} participante{e.participantsCount !== 1 ? "s" : ""}
+                  {e.payerName} pagó{" · "}{e.participantsCount} participante{e.participantsCount !== 1 ? "s" : ""}
                   {e.receiptUrl ? (
                     <button
                       type="button"
@@ -333,7 +333,7 @@ export function ExpensesTab({
           disabled={loadingMore}
           className="mt-4 w-full rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 py-3 text-sm font-semibold text-indigo-300 transition hover:border-indigo-500 hover:text-indigo-200 disabled:opacity-60"
         >
-          {loadingMore ? "Cargandoâ€¦" : "Cargar mÃ¡s gastos"}
+          {loadingMore ? "Cargando…" : "Cargar más gastos"}
         </button>
       ) : null}
 
@@ -465,7 +465,7 @@ function ExpenseComments({
               ))}
             </div>
           ) : (
-            <p className="text-[11px] text-slate-500">Sin comentarios todavÃ­a.</p>
+            <p className="text-[11px] text-slate-500">Sin comentarios todavía.</p>
           )}
           <div className="flex gap-2">
             <input
@@ -477,7 +477,7 @@ function ExpenseComments({
                   void send();
                 }
               }}
-              placeholder="AÃ±ade un comentario..."
+              placeholder="Añade un comentario..."
               maxLength={500}
               className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
             />

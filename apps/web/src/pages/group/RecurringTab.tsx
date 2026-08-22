@@ -39,7 +39,7 @@ export function RecurringTab({
   }
 
   async function removeExpense(expense: RecurringExpenseDto) {
-    if (!confirm(`Â¿Eliminar la cuota fija "${expense.title}"?`)) return;
+    if (!confirm(`¿Eliminar la cuota fija "${expense.title}"?`)) return;
     try {
       await api.delete(`/recurring/${expense.id}`);
       onChanged();
@@ -61,14 +61,14 @@ export function RecurringTab({
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          AÃ±adir cuota fija
+          Añadir cuota fija
         </button>
       ) : null}
 
       {sorted.length === 0 ? (
         <EmptyState
-          title="Sin cuotas ni suscripciones periÃ³dicas configuradas"
-          subtitle="Programa aquÃ­ suscripciones o cuotas que se repiten cada mes o cada semana"
+          title="Sin cuotas ni suscripciones periódicas configuradas"
+          subtitle="Programa aquí suscripciones o cuotas que se repiten cada mes o cada semana"
           icon={
             <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path
@@ -99,8 +99,8 @@ export function RecurringTab({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-200">{expense.title}</p>
                 <p className="truncate text-[11px] text-slate-500">
-                  {FREQUENCY_LABELS[expense.frequency]} Â· Responsable: {expense.responsibleName}
-                  {expense.active ? "" : " Â· Pausada"}
+                  {FREQUENCY_LABELS[expense.frequency]}{" · "}Responsable: {expense.responsibleName}
+                  {expense.active ? "" : " · Pausada"}
                 </p>
                 <span
                   className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${
@@ -110,7 +110,7 @@ export function RecurringTab({
                   }`}
                   title={
                     expense.autoCreate
-                      ? "Se genera el gasto automÃ¡ticamente cuando vence"
+                      ? "Se genera el gasto automáticamente cuando vence"
                       : "Solo recuerda: el gasto se registra manualmente"
                   }
                 >
@@ -230,24 +230,24 @@ export function NewRecurringModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="AÃ±adir cuota fija"
+      title="Añadir cuota fija"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancelar
           </Button>
           <Button onClick={() => void submit()} disabled={!canSubmit} loading={loading}>
-            AÃ±adir cuota
+            Añadir cuota
           </Button>
         </>
       }
     >
       <div className="space-y-4">
         <p className="text-xs text-slate-400">
-          Define una suscripciÃ³n o pago que se repite cada mes o cada semana. El miembro responsable podrÃ¡ marcarla como
-          pagada pausÃ¡ndola.
+          Define una suscripción o pago que se repite cada mes o cada semana. El miembro responsable podrá marcarla como
+          pagada pausándola.
         </p>
-        <Input label="TÃ­tulo" placeholder="Ej. Netflix, gimnasio, alquiler..." value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Input label="Título" placeholder="Ej. Netflix, gimnasio, alquiler..." value={title} onChange={(e) => setTitle(e.target.value)} />
         <Input
           label="Importe"
           type="number"
@@ -282,7 +282,7 @@ export function NewRecurringModal({
             <p className="text-sm font-medium text-slate-200">Autoregistrar gasto</p>
             <p className="text-[11px] text-slate-500">
               {autoCreate
-                ? "Al vencer se crea el gasto automÃ¡ticamente"
+                ? "Al vencer se crea el gasto automáticamente"
                 : "Solo recuerda: el gasto se registra manualmente"}
             </p>
           </div>
@@ -308,5 +308,5 @@ export function NewRecurringModal({
   );
 }
 
-// ---------- AÃ±adir participante sin cuenta ----------
+// ---------- Añadir participante sin cuenta ----------
 

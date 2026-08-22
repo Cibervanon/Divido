@@ -13,11 +13,11 @@ const AUDIT_ENTITY_LABELS: Record<string, string> = {
 };
 
 const AUDIT_ACTION_LABELS: Record<string, string> = {
-  created: "creÃ³",
-  updated: "editÃ³",
-  deleted: "eliminÃ³",
-  approved: "aprobÃ³",
-  rejected: "rechazÃ³",
+  created: "creó",
+  updated: "editó",
+  deleted: "eliminó",
+  approved: "aprobó",
+  rejected: "rechazó",
 };
 
 const AUDIT_FIELD_LABELS: Record<string, string> = {
@@ -30,26 +30,26 @@ const AUDIT_FIELD_LABELS: Record<string, string> = {
   payerId: "pagador",
   status: "estado",
   note: "nota",
-  title: "tÃ­tulo",
-  category: "categorÃ­a",
+  title: "título",
+  category: "categoría",
   kind: "tipo",
   prize: "premio",
   winnerIds: "ganadores",
   loserIds: "perdedores",
-  action: "acciÃ³n",
+  action: "acción",
   payload: "datos",
 };
 
 function fmtAuditValue(key: string, value: unknown): string {
-  if (value === null || value === undefined || value === "") return "â€”";
+  if (value === null || value === undefined || value === "") return "—";
   if (Array.isArray(value)) return value.length === 1 ? "1 persona" : `${value.length} personas`;
-  if (typeof value === "boolean") return value ? "sÃ­" : "no";
+  if (typeof value === "boolean") return value ? "sí" : "no";
   if (typeof value === "number" && /amount|prize/i.test(key)) return value.toFixed(2);
   const s = String(value);
-  return s.length > 28 ? `${s.slice(0, 28)}â€¦` : s;
+  return s.length > 28 ? `${s.slice(0, 28)}…` : s;
 }
 
-/** Convierte { before, after } del audit log en un resumen legible en espaÃ±ol. */
+/** Convierte { before, after } del audit log en un resumen legible en español. */
 function describeAuditDiff(diff: { before?: any; after?: any } | null): string {
   if (!diff) return "";
   if (!diff.before && diff.after) {
@@ -113,7 +113,7 @@ export function HistoryTab({
 
   function exportHistory() {
     const lines = [
-      `Divido Â· Historial de actividad de ${groupName}`,
+      `Divido · Historial de actividad de ${groupName}`,
       `Exportado el ${new Date().toLocaleString("es-ES")}`,
       `Moneda del grupo: ${currency}`,
       "",
@@ -126,17 +126,17 @@ export function HistoryTab({
         const actionLabel = AUDIT_ACTION_LABELS[e.action] ?? e.action;
         lines.push(`[${when}] ${e.actorName} ${actionLabel} ${entityLabel}${describeAuditDiff(e.diff)}`);
       } else if (e.type === "member_joined") {
-        lines.push(`[${when}] ${e.userName} se uniÃ³ al grupo`);
+        lines.push(`[${when}] ${e.userName} se unió al grupo`);
       } else if (e.type === "member_left") {
-        lines.push(`[${when}] ${e.userName} abandonÃ³ el grupo`);
+        lines.push(`[${when}] ${e.userName} abandonó el grupo`);
       } else if (e.type === "member_removed") {
         lines.push(`[${when}] ${e.userName} fue expulsado del grupo`);
       } else if (e.type === "payment") {
         lines.push(
-          `[${when}] ${e.fromName} pagÃ³ a ${e.toName} ${e.amount?.toFixed(2)} ${currency}${e.note ? ` (${e.note})` : ""}`
+          `[${when}] ${e.fromName} pagó a ${e.toName} ${e.amount?.toFixed(2)} ${currency}${e.note ? ` (${e.note})` : ""}`
         );
       } else if (e.type === "expense") {
-        const parts = [`[${when}] ${e.payerName} pagÃ³ ${e.description}`];
+        const parts = [`[${when}] ${e.payerName} pagó ${e.description}`];
         parts.push(`${(e.amountGroup ?? 0).toFixed(2)} ${e.currency ?? currency}`);
         if (e.deleted) parts.push("(eliminado)");
         if (e.edited) parts.push("(modificado)");
@@ -147,7 +147,7 @@ export function HistoryTab({
     downloadText(lines.join("\n"), `historial-${groupName.replace(/[^a-z0-9]+/gi, "-")}.txt`);
   }
 
-  // Combina eventos del historial y auditorÃ­a en una sola lÃ­nea temporal
+  // Combina eventos del historial y auditoría en una sola línea temporal
   const combined = useMemo(() => {
     const auditEvents = audit.map((a) => ({
       type: "audit" as const,
@@ -185,7 +185,7 @@ export function HistoryTab({
         {totalItems === 0 ? (
           <EmptyState
             title="No hay actividad registrada en este grupo"
-            subtitle="AquÃ­ aparecerÃ¡n los gastos, pagos y cambios en orden cronolÃ³gico"
+            subtitle="Aquí aparecerán los gastos, pagos y cambios en orden cronológico"
             icon={
               <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path
@@ -260,15 +260,15 @@ export function HistoryTab({
                     <>
                       <strong>{e.userName}</strong>{" "}
                       {e.type === "member_joined"
-                        ? "se uniÃ³ al grupo"
+                        ? "se unió al grupo"
                         : e.type === "member_left"
-                          ? "abandonÃ³ el grupo"
+                          ? "abandonó el grupo"
                           : "fue expulsado del grupo"}
                     </>
                   ) : isPayment ? (
                     <>
-                      <strong>{e.fromName}</strong> pagÃ³ a <strong>{e.toName}</strong>
-                      {e.note ? ` Â· ${e.note}` : ""}
+                      <strong>{e.fromName}</strong> pagó a <strong>{e.toName}</strong>
+                      {e.note ? ` · ${e.note}` : ""}
                       {e.proofUrl ? (
                         <button
                           type="button"
@@ -298,7 +298,7 @@ export function HistoryTab({
                     </>
                   ) : (
                     <>
-                      <strong>{e.payerName}</strong> pagÃ³ {e.description}
+                      <strong>{e.payerName}</strong> pagó {e.description}
                       {e.deleted ? <span className="ml-1.5 text-[10px] text-rose-400">(eliminado)</span> : null}
                       {e.edited ? <span className="ml-1.5 text-[10px] text-amber-400">(modificado)</span> : null}
                     </>
@@ -342,7 +342,7 @@ export function HistoryTab({
             disabled={loadingMore}
             className="mt-4 w-full rounded-2xl border border-dashed border-slate-700 bg-slate-900/60 py-3 text-sm font-semibold text-indigo-300 transition hover:border-indigo-500 hover:text-indigo-200 disabled:opacity-60"
           >
-            {loadingMore ? "Cargandoâ€¦" : "Cargar mÃ¡s actividad"}
+            {loadingMore ? "Cargando…" : "Cargar más actividad"}
           </button>
         ) : null}
         </div>

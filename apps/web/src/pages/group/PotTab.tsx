@@ -36,7 +36,7 @@ export function PotTab({
   onOpenExpense?: (expenseId: string) => void;
 }) {
   async function removeContribution(contribution: PotContributionDto) {
-    if (!confirm(`Â¿Eliminar la aportaciÃ³n de ${contribution.userName}?`)) return;
+    if (!confirm(`¿Eliminar la aportación de ${contribution.userName}?`)) return;
     try {
       await api.delete(`/groups/${contribution.groupId}/common-pot/contributions/${contribution.id}`);
       onChanged();
@@ -48,7 +48,7 @@ export function PotTab({
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-slate-900/50 p-5">
-        <p className="text-xs font-medium uppercase tracking-wider text-emerald-400">Saldo del bote comÃºn</p>
+        <p className="text-xs font-medium uppercase tracking-wider text-emerald-400">Saldo del bote común</p>
         <p className="mt-1 text-3xl font-extrabold text-emerald-300">
           <Money amount={Math.max(0, balance)} currency={currency} />
         </p>
@@ -66,7 +66,7 @@ export function PotTab({
             <svg className="h-4 w-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
             </svg>
-            <p>El bote comÃºn no tiene saldo disponible. Las aportaciones y gastos pagados se mantienen en el historial inferior.</p>
+            <p>El bote común no tiene saldo disponible. Las aportaciones y gastos pagados se mantienen en el historial inferior.</p>
           </div>
         </div>
       ) : null}
@@ -75,7 +75,7 @@ export function PotTab({
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Extracto del bote</p>
         {contributions.length === 0 ? (
           <EmptyState
-            title="El bote estÃ¡ vacÃ­o"
+            title="El bote está vacío"
             subtitle="Cada miembro puede aportar dinero para gastos compartidos del grupo"
             icon={
               <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -91,7 +91,7 @@ export function PotTab({
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
-                AÃ±adir dinero al bote
+                Añadir dinero al bote
               </Button>
             }
           />
@@ -105,7 +105,7 @@ export function PotTab({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-slate-200">{c.userName}</p>
                 <p className="truncate text-[11px] text-slate-500">
-                  {c.note ? `${c.note} Â· ` : ""}
+                  {c.note ? `${c.note} · ` : ""}
                   {fmtDate(c.createdAt)}
                 </p>
               </div>
@@ -125,7 +125,7 @@ export function PotTab({
                 <button
                   onClick={() => void removeContribution(c)}
                   className="shrink-0 rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-rose-400"
-                  title="Eliminar aportaciÃ³n"
+                  title="Eliminar aportación"
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
@@ -194,7 +194,7 @@ export function NewContributionModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Aportar al bote comÃºn"
+      title="Aportar al bote común"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
@@ -208,7 +208,7 @@ export function NewContributionModal({
     >
       <div className="space-y-4">
         <p className="text-xs text-slate-400">
-          El importe se suma al saldo del bote del grupo. Apunta un concepto para que los demÃ¡s sepan a quÃ© se destina.
+          El importe se suma al saldo del bote del grupo. Apunta un concepto para que los demás sepan a qué se destina.
         </p>
         <Input
           label="Importe"

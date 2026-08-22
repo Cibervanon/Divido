@@ -184,7 +184,7 @@ export async function findUserByResetToken(db: Db, token: string): Promise<UserR
   return (await db.prepare("SELECT * FROM users WHERE reset_token = ?").get(token)) as UserRow | undefined;
 }
 
-/** Grupos en los que el usuario tiene membresÃ­a activa. */
+/** Grupos en los que el usuario tiene membresía activa. */
 export async function listUserActiveGroupIds(db: Db, userId: string): Promise<string[]> {
   const rows = await db
     .prepare(`SELECT group_id FROM group_members WHERE user_id = ? AND status = 'active'`)
@@ -195,7 +195,7 @@ export async function listUserActiveGroupIds(db: Db, userId: string): Promise<st
 /**
  * Baja de cuenta (GDPR): elimina todos los datos personales conservando la
  * integridad contable (la fila sobrevive porque gastos/pagos/audit la referencian).
- * El flag `deleted` revoca de facto cualquier sesiÃ³n abierta.
+ * El flag `deleted` revoca de facto cualquier sesión abierta.
  */
 export async function anonymizeUser(db: Db, userId: string): Promise<void> {
   await db
@@ -890,7 +890,7 @@ export async function updateInformalDebtStatus(db: Db, id: string, status: Infor
   return (await getInformalDebt(db, id))!;
 }
 
-// ---------- Bote comÃºn ----------
+// ---------- Bote común ----------
 
 export type RecurringFrequency = "weekly" | "monthly" | "yearly";
 
@@ -923,7 +923,7 @@ function toPotContribution(r: PotContributionRow): PotContribution {
     id: r.id,
     groupId: r.group_id,
     userId: r.user_id,
-    userName: r.expense_id ? "Bote comÃºn" : (r.user_name ?? "Bote comÃºn"),
+    userName: r.expense_id ? "Bote común" : (r.user_name ?? "Bote común"),
     userAvatar: r.expense_id ? null : r.user_avatar,
     amount: r.amount,
     note: r.note,
@@ -992,8 +992,8 @@ export interface PotLedgerEntry {
 }
 
 /**
- * Extracto unificado del bote comÃºn: aportaciones (+) y retiradas por gastos pagados con bote (-).
- * Ordenado cronolÃ³gicamente con saldo corriente (running balance).
+ * Extracto unificado del bote común: aportaciones (+) y retiradas por gastos pagados con bote (-).
+ * Ordenado cronológicamente con saldo corriente (running balance).
  */
 export async function getPotLedger(db: Db, groupId: string): Promise<PotLedgerEntry[]> {
   // Aportaciones (positivas)
@@ -1381,7 +1381,7 @@ export async function createExpense(db: Db, input: CreateExpenseInput): Promise<
 export async function getExpense(db: Db, expenseId: string): Promise<ExpenseRow | undefined> {
   return (await db
     .prepare(
-      `SELECT e.*, COALESCE(u.name, 'Bote comÃºn') AS payer_name
+      `SELECT e.*, COALESCE(u.name, 'Bote común') AS payer_name
        FROM expenses e LEFT JOIN users u ON u.id = e.payer_id
        WHERE e.id = ?`
     )
@@ -1393,7 +1393,7 @@ export async function listExpenses(
   groupId: string,
   includeDeleted = false
 ): Promise<ExpenseRow[]> {
-  const sql = `SELECT e.*, COALESCE(u.name, 'Bote comÃºn') AS payer_name
+  const sql = `SELECT e.*, COALESCE(u.name, 'Bote común') AS payer_name
     FROM expenses e LEFT JOIN users u ON u.id = e.payer_id
     WHERE e.group_id = ? ${includeDeleted ? "" : "AND e.deleted = 0"}
     ORDER BY e.created_at DESC`;
@@ -1409,8 +1409,8 @@ export interface ExpenseFilters {
 }
 
 /**
- * Lista gastos con filtros opcionales (categorÃ­a, pagador, rango fechas, bÃºsqueda texto).
- * Usa la misma query optimizada que listExpensesWithDetails pero con WHERE dinÃ¡mico.
+ * Lista gastos con filtros opcionales (categoría, pagador, rango fechas, búsqueda texto).
+ * Usa la misma query optimizada que listExpensesWithDetails pero con WHERE dinámico.
  */
 export async function listExpensesFiltered(
   db: Db,
@@ -1444,13 +1444,13 @@ export async function listExpensesFiltered(
     params.push(`%${filters.q}%`);
   }
   if (!includeDeleted) {
-    // ya estÃ¡ en conditions base, pero por si acaso
+    // ya está en conditions base, pero por si acaso
   }
 
   const sql = `
     SELECT
       e.*,
-      COALESCE(u.name, 'Bote comÃºn') AS payer_name,
+      COALESCE(u.name, 'Bote común') AS payer_name,
       COALESCE(
         json_group_array(
           json_object('userId', ep.user_id, 'share', ep.share_amount)
@@ -1488,7 +1488,7 @@ export async function listExpensesWithDetails(
   const sql = `
     SELECT
       e.*,
-      COALESCE(u.name, 'Bote comÃºn') AS payer_name,
+      COALESCE(u.name, 'Bote común') AS payer_name,
       COALESCE(
         json_group_array(
           json_object('userId', ep.user_id, 'share', ep.share_amount)

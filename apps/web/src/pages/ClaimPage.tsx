@@ -76,7 +76,7 @@ export default function ClaimPage() {
                 <p className="text-sm text-slate-400">Te han invitado a reclamar el perfil</p>
                 <p className="text-lg font-bold text-slate-100">{preview.ghostName}</p>
                 <p className="mt-1 text-sm text-slate-400">
-                  en <span className="font-semibold text-slate-200">{preview.groupName}</span> · Moneda {preview.currency}
+                  en <span className="font-semibold text-slate-200">{preview.groupName}</span>{" · "}Moneda {preview.currency}
                 </p>
                 <p className="mt-3 text-xs text-slate-500">
                   Al reclamarlo conservarás los gastos, saldos y piques que había a su nombre.

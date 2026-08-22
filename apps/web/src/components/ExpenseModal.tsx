@@ -701,7 +701,7 @@ export function ExpenseModal({
 
           {splitMode === "equal" && totalGroup > 0 && participants.length > 0 ? (
             <p className="mt-2 rounded-xl bg-slate-800/60 px-3 py-2 text-xs text-slate-300">
-              {participants.length} participante{participants.length > 1 ? "s" : ""} ·{" "}
+              {participants.length} participante{participants.length > 1 ? "s" : ""}{" · "}
               <strong>{equalShare.toFixed(2)} {groupCurrency}</strong> cada uno
             </p>
           ) : null}

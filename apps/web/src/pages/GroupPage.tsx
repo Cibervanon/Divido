@@ -37,8 +37,8 @@ const GROUP_EXTRAS: Array<{ key: string; label: string; description: string }> =
   },
   {
     key: "common_pot",
-    label: "Bote ComÃºn",
-    description: "Fondo comÃºn al que los miembros aportan dinero para gastos compartidos.",
+    label: "Bote Común",
+    description: "Fondo común al que los miembros aportan dinero para gastos compartidos.",
   },
   {
     key: "recurring_expenses",
@@ -47,8 +47,8 @@ const GROUP_EXTRAS: Array<{ key: string; label: string; description: string }> =
   },
 ];
 
-// CachÃ© de sesiÃ³n por grupo: permite navegar entre pestaÃ±as (y volver a un grupo)
-// de forma instantÃ¡nea sin pantallas de carga, refrescando en segundo plano.
+// Caché de sesión por grupo: permite navegar entre pestañas (y volver a un grupo)
+// de forma instantánea sin pantallas de carga, refrescando en segundo plano.
 interface GroupCacheData {
   detail: GroupDetail;
   expenses: ExpenseDto[];
@@ -143,7 +143,7 @@ export default function GroupPage() {
     async (opts?: { silent?: boolean; filters?: { category?: string; payerId?: string; from?: string; to?: string; q?: string } }) => {
       if (!groupId) return;
       const cached = groupCache.get(groupId);
-      // Solo mostramos la pantalla de carga si no hay nada que pintar todavÃ­a.
+      // Solo mostramos la pantalla de carga si no hay nada que pintar todavía.
       if (!cached && !opts?.silent) setLoading(true);
       try {
         const activeFilters = opts?.filters ?? {
@@ -159,8 +159,8 @@ export default function GroupPage() {
         if (activeFilters.from) queryParams.set("from", activeFilters.from);
         if (activeFilters.to) queryParams.set("to", activeFilters.to);
         if (activeFilters.q) queryParams.set("q", activeFilters.q);
-        // PaginaciÃ³n: la primera carga trae una pÃ¡gina; los refrescos silenciosos
-        // mantienen el tamaÃ±o ya cargado para no perder filas en pantalla.
+        // Paginación: la primera carga trae una página; los refrescos silenciosos
+        // mantienen el tamaño ya cargado para no perder filas en pantalla.
         if (!cached) {
           expenseLimitRef.current = 50;
           historyLimitRef.current = 100;
@@ -249,7 +249,7 @@ export default function GroupPage() {
         expenseLimitRef.current = expenseLimitRef.current + res.expenses.length;
         setExpensePaging({ total: typeof res.total === "number" ? res.total : 0, hasMore: !!res.hasMore });
       } catch {
-        showToast("No se pudieron cargar mÃ¡s gastos");
+        showToast("No se pudieron cargar más gastos");
       } finally {
         setLoadingMoreExpenses(false);
       }
@@ -273,7 +273,7 @@ export default function GroupPage() {
         historyLimitRef.current = historyLimitRef.current + res.events.length;
         setHistoryPaging({ total: typeof res.total === "number" ? res.total : 0, hasMore: !!res.hasMore });
       } catch {
-        showToast("No se pudo cargar mÃ¡s actividad");
+        showToast("No se pudo cargar más actividad");
       } finally {
         setLoadingMoreHistory(false);
       }
@@ -285,7 +285,7 @@ export default function GroupPage() {
     if (!groupId) return;
     const cached = groupCache.get(groupId);
     if (cached) {
-      // Render inmediato desde cachÃ© y refresco silencioso en segundo plano.
+      // Render inmediato desde caché y refresco silencioso en segundo plano.
       applyData(cached);
       setLoading(false);
       load({ silent: true });
@@ -329,13 +329,13 @@ export default function GroupPage() {
     try {
       await navigator.clipboard.writeText(g.inviteUrl);
     } catch {
-      window.prompt("Copia este enlace de invitaciÃ³n:", g.inviteUrl);
+      window.prompt("Copia este enlace de invitación:", g.inviteUrl);
     }
-    showToast("Enlace de invitaciÃ³n copiado");
+    showToast("Enlace de invitación copiado");
   }
 
   async function leaveGroup() {
-    if (!confirm("Â¿Abandonar este grupo? Tu balance quedarÃ¡ congelado y visible para los demÃ¡s.")) return;
+    if (!confirm("¿Abandonar este grupo? Tu balance quedará congelado y visible para los demás.")) return;
     try {
       await api.post(`/groups/${groupId}/leave`);
       navigate("/");
@@ -402,8 +402,8 @@ export default function GroupPage() {
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-extrabold text-slate-100">{group.name}</h1>
             <p className="text-[11px] text-slate-500">
-              {group.type === "closed" ? "Cerrado" : "Abierto"} Â· {group.currency}
-              {detail.members.length > 0 ? ` Â· ${detail.members.length} miembros` : ""}
+              {group.type === "closed" ? "Cerrado" : "Abierto"} · {group.currency}
+              {detail.members.length > 0 ? ` · ${detail.members.length} miembros` : ""}
             </p>
           </div>
           <button
@@ -449,7 +449,7 @@ export default function GroupPage() {
             ) : null}
             {!positive && !negative ? (
               <span className="rounded-lg bg-emerald-500/10 px-2.5 py-1 font-semibold text-emerald-400">
-                Al dÃ­a
+                Al día
               </span>
             ) : null}
           </div>
@@ -639,7 +639,7 @@ export default function GroupPage() {
       <Modal
         open={Boolean(deleteTarget)}
         onClose={() => setDeleteTarget(null)}
-        title={deleteTarget?.editable ? "Eliminar gasto" : "Solicitar eliminaciÃ³n"}
+        title={deleteTarget?.editable ? "Eliminar gasto" : "Solicitar eliminación"}
         footer={
           <>
             <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
@@ -653,8 +653,8 @@ export default function GroupPage() {
       >
         <p className="text-sm text-slate-300">
           {deleteTarget?.editable
-            ? `Â¿Eliminar "${deleteTarget.description}"?`
-            : `"${deleteTarget?.description}" supera las 24 horas. EnvÃ­a la solicitud y un administrador la revisarÃ¡.`}
+            ? `¿Eliminar "${deleteTarget.description}"?`
+            : `"${deleteTarget?.description}" supera las 24 horas. Envía la solicitud y un administrador la revisará.`}
         </p>
       </Modal>
 
@@ -771,7 +771,7 @@ function MemberDetailModal({
                 {item.expenses.map((ex) => (
                   <div key={ex.id} className="flex items-center justify-between text-xs">
                     <span className="truncate text-slate-400">
-                      {ex.paidByMe ? "Pagaste tÃº Â· " : "PagÃ³ Ã©l/ella Â· "}
+                      {ex.paidByMe ? "Pagaste tú · " : "Pagó él/ella · "}
                       {ex.description}
                     </span>
                     <span className="ml-2 shrink-0 text-slate-300">{ex.share.toFixed(2)} {currency}</span>
