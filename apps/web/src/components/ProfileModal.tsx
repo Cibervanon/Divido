@@ -64,6 +64,8 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
   const [autoConfirm, setAutoConfirm] = useState(user?.autoConfirmPayments ?? false);
   const [autoConfirmSaving, setAutoConfirmSaving] = useState(false);
   const [autoConfirmError, setAutoConfirmError] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -197,6 +199,41 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
   function closeAndLogout() {
     onClose();
     logout();
+  }
+
+  async function exportData() {
+    setExporting(true);
+    try {
+      const data = await api.get<unknown>("/users/me/export");
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `divido-datos-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError("No se pudo exportar tus datos. Inténtalo de nuevo.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function deleteAccount() {
+    if (!confirm("¿Seguro que quieres eliminar tu cuenta? Se cerrará tu sesión en todos los dispositivos.")) return;
+    if (!confirm("Última confirmación: tu perfil se anonimizará definitivamente y no podrás recuperarla. Tus saldos quedarán congelados como exmiembro.")) return;
+    setDeleting(true);
+    setError("");
+    try {
+      await api.delete("/users/me");
+      onClose();
+      logout();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo eliminar la cuenta");
+      setDeleting(false);
+    }
   }
 
   return (
@@ -431,16 +468,34 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
 
         <div className="border-t border-slate-800 pt-5">
           <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Cuenta</p>
-          <Button variant="danger" className="w-full" onClick={closeAndLogout}>
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"
-              />
-            </svg>
-            Cerrar sesión
-          </Button>
+          <div className="space-y-2">
+            <Button variant="secondary" className="w-full" onClick={() => void exportData()} loading={exporting}>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              Descargar mis datos (JSON)
+            </Button>
+            <Button variant="danger" className="w-full" onClick={closeAndLogout}>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"
+                />
+              </svg>
+              Cerrar sesión
+            </Button>
+          </div>
+          <div className="mt-3 rounded-2xl border border-rose-500/30 bg-rose-500/5 p-3">
+            <p className="text-xs font-semibold text-rose-300">Eliminar cuenta</p>
+            <p className="mt-1 text-[11px] leading-snug text-slate-400">
+              Tu perfil se anonimiza definitivamente y se cierra la sesión en todos los dispositivos. Tus saldos en cada
+              grupo quedarán congelados como exmiembro y el histórico se conserva para el resto.
+            </p>
+            <Button variant="danger" className="mt-2 w-full !bg-rose-500/15 !text-rose-300 hover:!bg-rose-500/25" onClick={() => void deleteAccount()} loading={deleting}>
+              Eliminar mi cuenta
+            </Button>
+          </div>
         </div>
 
         {error ? <p className="text-xs text-rose-400">{error}</p> : null}

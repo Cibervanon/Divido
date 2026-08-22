@@ -22,7 +22,8 @@ export const authPlugin = fp(async (app: FastifyInstance) => {
     try {
       const { sub } = verifyToken(header.slice(7));
       const row = await findUserById(request.db, sub);
-      if (row) {
+      // Usuarios dados de baja: su sesión queda revocada de facto.
+      if (row && !Number(row.deleted)) {
         request.user = {
           id: row.id,
           email: row.email ?? "",

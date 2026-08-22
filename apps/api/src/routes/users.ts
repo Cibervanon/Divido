@@ -1,8 +1,20 @@
 import type { FastifyPluginAsync } from "fastify";
-import { parseStringArray, updateUser } from "../store.js";
+import {
+  anonymizeUser,
+  listExpenses,
+  listInformalDebtsForUser,
+  listMembers,
+  listPayments,
+  listUserActiveGroupIds,
+  parseStringArray,
+  setMemberStatus,
+  setRole,
+  updateUser,
+} from "../store.js";
 import { badRequest } from "../errors.js";
 import { requireAuth } from "../plugins.js";
 import { sendVerificationEmail } from "../email.js";
+import { getGroupBalances } from "../services.js";
 
 const HTTP_URL_RE = /^https?:\/\//i;
 const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
@@ -98,7 +110,78 @@ export const userRoutes: FastifyPluginAsync = async (app) => {
       expiresAt: result.expiresAt,
     };
   });
+
+  // Export de datos personales (GDPR art. 15/20): JSON descargable con todo lo
+  // que la app guarda del usuario.
+  app.get("/api/users/me/export", async (request) => {
+    const user = requireAuth(request);
+    const [groups, payments, debts] = await Promise.all([
+      request.db.prepare("SELECT * FROM group_members WHERE user_id = ?").all(user.id),
+      listPaymentsForUser(request.db, user.id),
+      listInformalDebtsForUser(request.db, user.id),
+    ]);
+
+    const groupExports = [];
+    for (const m of groups) {
+      const groupId = String(m.group_id);
+      const expenses = (await listExpenses(request.db, groupId, true)).filter(
+        (e) => e.payer_id === user.id || e.created_by_id === user.id
+      );
+      groupExports.push({
+        groupId,
+        role: m.role,
+        status: m.status,
+        joinedAt: m.joined_at,
+        leftAt: m.left_at,
+        frozenBalance: m.frozen_balance,
+        expensesCreatedByOrPaid: expenses,
+      });
+    }
+
+    const profile = await request.db.prepare("SELECT * FROM users WHERE id = ?").get(user.id);
+    return {
+      exportedAt: new Date().toISOString(),
+      profile,
+      groups: groupExports,
+      payments,
+      informalDebts: debts,
+    };
+  });
+
+  // Baja de cuenta (GDPR art. 17): anonimiza el perfil, congela el saldo en los
+  // grupos activos (como al abandonar) y revoca todas las sesiones.
+  app.delete("/api/users/me", async (request) => {
+    const user = requireAuth(request);
+    const activeGroupIds = await listUserActiveGroupIds(request.db, user.id);
+
+    for (const groupId of activeGroupIds) {
+      const bal = await getGroupBalances(request.db, groupId);
+      const frozen = bal.balances.find((b) => b.userId === user.id)?.net ?? null;
+      const admins = (await listMembers(request.db, groupId)).filter(
+        (m) => m.status === "active" && m.role === "admin" && m.user_id !== user.id
+      );
+      await setMemberStatus(request.db, groupId, user.id, "ex_member", new Date().toISOString(), frozen);
+      if (admins.length === 0) {
+        const remaining = (await listMembers(request.db, groupId)).filter((m) => m.status === "active");
+        if (remaining.length > 0) {
+          await setRole(request.db, groupId, remaining[0].user_id, "admin");
+        }
+      }
+    }
+
+    await anonymizeUser(request.db, user.id);
+    return { ok: true };
+  });
 };
+
+async function listPaymentsForUser(db: import("../db.js").Db, userId: string) {
+  return db.prepare(
+    `SELECT p.*, g.name AS group_name FROM payments p
+     JOIN groups g ON g.id = p.group_id
+     WHERE p.from_user_id = ? OR p.to_user_id = ?
+     ORDER BY p.created_at DESC`
+  ).all(userId, userId);
+}
 
 function toPublicUser(user: {
   id: string;

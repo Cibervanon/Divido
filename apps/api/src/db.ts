@@ -329,6 +329,8 @@ const MIGRATIONS = [
   "DO $$ BEGIN ALTER TABLE groups ADD CONSTRAINT chk_group_type CHECK (type IN ('open','closed')); EXCEPTION WHEN duplicate_object THEN END $$;",
   // Normalización: todo grupo existente debe tener estado 'open' por defecto
   "UPDATE groups SET type = 'open' WHERE type IS NULL OR type NOT IN ('open','closed')",
+  // Baja de cuenta (GDPR): marca al usuario como eliminado sin romper las FKs contables
+  "ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted INTEGER NOT NULL DEFAULT 0",
 ];
 
 export async function initDb(db: Db): Promise<void> {
