@@ -73,7 +73,7 @@ export default function (data) {
   const expenses = http.get(`${BASE_URL}/api/groups/${GROUP_ID}/expenses?limit=50&offset=0`, H);
   readLatency.add(expenses.timings.duration);
   http.get(`${BASE_URL}/api/groups/${GROUP_ID}/history?limit=100&offset=0`, H);
-  http.get(`${BASE_URL}/api/groups/${GROUP_ID}/pot`, H);
+  http.get(`${BASE_URL}/api/groups/${GROUP_ID}/common-pot`, H);
 
   // --- Escritura (≈5 %): crear gasto equitativo entre 2 miembros ---
   if (__VU % 20 === 0 && data.memberIds.length > 0) {
