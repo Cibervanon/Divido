@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { blobToDataUrl, compressImageToJpeg, dataUrlToBlob, isHeavyDataUrl } from "../lib/compressImage";
 import { Avatar, Button, GhostBadge, Modal, Money, Spinner, Tabs, Toast, VerifiedBadge } from "../components/ui";
 import { ExpenseModal } from "../components/ExpenseModal";
 import { PaymentModal } from "../components/PaymentModal";
@@ -73,6 +74,29 @@ function cacheGroup(groupId: string, data: GroupCacheData): void {
     const oldest = groupCache.keys().next().value;
     if (oldest === undefined) break;
     groupCache.delete(oldest);
+  }
+}
+
+// Logos legacy guardados como data-URL sin comprimir: al cargar un grupo con
+// uno de ellos lo recomprimimos una vez y persistimos la versión ligera, de
+// modo que la guarda anti-OOM del renderizado deja de ocultarlo. Clave por
+// longitud para reintentar solo si el valor cambia.
+const migratedGroupLogos = new Set<string>();
+
+async function migrateHeavyGroupLogo(groupId: string, logoUrl: string): Promise<string | null> {
+  const key = `${groupId}:${logoUrl.length}`;
+  if (migratedGroupLogos.has(key)) return null;
+  migratedGroupLogos.add(key);
+  try {
+    const blob = await compressImageToJpeg(await dataUrlToBlob(logoUrl), 512, 0.85, 100_000);
+    const optimized = await blobToDataUrl(blob);
+    await api.patch(`/groups/${groupId}`, { logoUrl: optimized });
+    return optimized;
+  } catch {
+    // Silencioso: si falla, la guarda de renderizado sigue protegiendo y
+    // se reintentará en otra visita.
+    migratedGroupLogos.delete(key);
+    return null;
   }
 }
 
@@ -223,6 +247,25 @@ export default function GroupPage() {
         cacheGroup(groupId, data);
         applyData(data);
         setError("");
+        // Sanear en segundo plano un logo pesado heredado (no bloquea la carga).
+        const heavyLogo = d.group.logoUrl;
+        if (heavyLogo && isHeavyDataUrl(heavyLogo)) {
+          void migrateHeavyGroupLogo(groupId, heavyLogo).then((optimized) => {
+            if (!optimized) return;
+            setDetail((prev) =>
+              prev && prev.group.id === groupId
+                ? { ...prev, group: { ...prev.group, logoUrl: optimized } }
+                : prev,
+            );
+            const cachedNow = groupCache.get(groupId);
+            if (cachedNow?.detail.group.id === groupId) {
+              cacheGroup(groupId, {
+                ...cachedNow,
+                detail: { ...cachedNow.detail, group: { ...cachedNow.detail.group, logoUrl: optimized } },
+              });
+            }
+          });
+        }
       } catch (err) {
         if (!cached) setError(err instanceof ApiError ? err.message : "Error cargando el grupo");
       } finally {

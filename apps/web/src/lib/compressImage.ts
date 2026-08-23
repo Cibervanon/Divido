@@ -34,6 +34,23 @@ export function isHeavyDataUrl(src: string | null | undefined): boolean {
   return typeof src === "string" && src.startsWith("data:") && src.length > HEAVY_DATA_URL_CHARS;
 }
 
+/** Convierte una data-URL en Blob para poder recomprimirla. */
+export async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
+  const res = await fetch(dataUrl);
+  if (!res.ok) throw new Error("La imagen no se pudo leer");
+  return res.blob();
+}
+
+/** Serializa un Blob como data-URL (para campos avatar/logo que guardan texto). */
+export function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("No se pudo leer el resultado comprimido"));
+    reader.readAsDataURL(blob);
+  });
+}
+
 /** Fases visibles de una foto dentro de un formulario. */
 export type ImageUploadPhase = "idle" | "compressing" | "uploading" | "saving";
 

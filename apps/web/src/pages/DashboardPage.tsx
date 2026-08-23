@@ -6,12 +6,12 @@ import { useAuth } from "../lib/auth";
 import { useNotifications } from "../lib/useNotifications";
 import { useUserChannel } from "../hooks/useRealtime";
 import { markPushAsked, shouldAskPush, subscribeToPush } from "../lib/push";
-import { Avatar, Button, DropdownMenu, EmptyState, Input, Modal, Money, Select, Spinner } from "../components/ui";
+import { Avatar, Button, DropdownMenu, EmptyState, Input, Modal, Money, Select, SmartImage, Spinner } from "../components/ui";
 import { NotificationBell } from "../components/NotificationBell";
 import { NotificationDrawer } from "../components/NotificationDrawer";
 import { Logo } from "../components/Logo";
 import { ProfileModal } from "../components/ProfileModal";
-import { isHeavyDataUrl } from "../lib/compressImage";
+import { blobToDataUrl, compressImageToJpeg, dataUrlToBlob, isHeavyDataUrl } from "../lib/compressImage";
 import type { GroupDetail, GroupSummary } from "../lib/types";
 
 type GroupSort = "activity" | "name" | "amount";
@@ -21,6 +21,9 @@ const SORT_OPTIONS: Array<{ value: GroupSort; label: string }> = [
   { value: "name", label: "Nombre A-Z" },
   { value: "amount", label: "Por saldo" },
 ];
+
+// Avatares legacy sin comprimir ya migrados en esta sesión (clave userId:len).
+const migratedAvatars = new Set<string>();
 
 export default function DashboardPage() {
   const { user, updateUser } = useAuth();
@@ -47,6 +50,27 @@ export default function DashboardPage() {
   useEffect(() => {
     if (user) setPinnedIds(user.pinnedGroupIds ?? []);
   }, [user]);
+
+  // Auto-migración del avatar propio si llegó como data-URL gigante legacy:
+  // lo recomprimimos una vez y guardamos la versión ligera en el servidor,
+  // de modo que la guarda anti-OOM del renderizado vuelva a mostrarlo.
+  useEffect(() => {
+    const avatar = user?.avatarUrl;
+    if (!avatar || !user.id || !isHeavyDataUrl(avatar)) return;
+    const key = `${user.id}:${avatar.length}`;
+    if (migratedAvatars.has(key)) return;
+    migratedAvatars.add(key);
+    void (async () => {
+      try {
+        const blob = await compressImageToJpeg(await dataUrlToBlob(avatar), 512, 0.85, 100_000);
+        const optimized = await blobToDataUrl(blob);
+        await api.patch("/users/me", { avatarUrl: optimized });
+        updateUser({ avatarUrl: optimized });
+      } catch {
+        migratedAvatars.delete(key);
+      }
+    })();
+  }, [user, updateUser]);
 
   function compareGroups(a: GroupSummary, b: GroupSummary): number {
     if (sort === "name") return a.name.localeCompare(b.name, "es");
@@ -505,17 +529,16 @@ function GroupCard({
             : "border-slate-800/60 bg-slate-900 hover:border-slate-700 hover:bg-slate-800/60"
       }`}
     >
-      {group.logoUrl && !isHeavyDataUrl(group.logoUrl) ? (
-        <img
-          src={group.logoUrl}
-          alt={group.name}
-          className="h-11 w-11 shrink-0 rounded-xl object-cover"
-        />
-      ) : (
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-lg font-bold text-indigo-300">
-          {group.name[0]?.toUpperCase()}
-        </div>
-      )}
+      <SmartImage
+        src={group.logoUrl && !isHeavyDataUrl(group.logoUrl) ? group.logoUrl : null}
+        alt={group.name}
+        className="h-11 w-11 shrink-0 rounded-xl object-cover"
+        fallback={
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-lg font-bold text-indigo-300">
+            {group.name[0]?.toUpperCase()}
+          </div>
+        }
+      />
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-2">
           <span className="truncate text-sm font-semibold text-slate-100">{group.name}</span>

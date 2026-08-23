@@ -277,6 +277,30 @@ export function Avatar({ name, url, size = "md" }: { name: string; url?: string 
   );
 }
 
+/**
+ * Imagen segura para contextos no-Avatar: muestra `fallback` mientras falta la
+ * URL, durante la carga inicial o si la imagen falla (p. ej. enlace firmado caducado).
+ */
+export function SmartImage({
+  src,
+  alt,
+  className,
+  fallback = null,
+}: {
+  src?: string | null;
+  alt: string;
+  className?: string;
+  fallback?: ReactNode;
+}) {
+  const [failed, setFailed] = useState(false);
+  // Si cambia la fuente (nueva firma, logo migrado...) reintentamos.
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+  if (!src || failed) return <>{fallback}</>;
+  return <img src={src} alt={alt} className={className} onError={() => setFailed(true)} />;
+}
+
 export function VerifiedBadge({
   className = "",
   size = "sm",
