@@ -4,6 +4,12 @@
 // Ejecutar SOLO contra staging o un entorno clonado con BD desechable:
 //   k6 run -e BASE_URL=https://staging.example.com -e EMAIL=tu@divido.app \
 //          -e PASSWORD=**** -e GROUP_ID=<uuid> scripts/loadtest/divido-load.js
+//
+// Variables de entorno para ajustar la carga (defaults: perfil beta realista):
+//   TARGET_VUS     usuarios virtuales máximos en la meseta (default: 30; usar 500 para test de estrés)
+//   RAMP_UP_DUR    duración subida inicial (default: "30s")
+//   PLATEAU_DUR    duración meseta (default: "2m")
+//   RAMP_DOWN_DUR  duración bajada final (default: "30s")
 import http from "k6/http";
 import { check, sleep } from "k6";
 import { Trend, Rate } from "k6/metrics";
@@ -12,6 +18,12 @@ const BASE_URL = __ENV.BASE_URL || "http://localhost:8787";
 const EMAIL = __ENV.EMAIL;
 const PASSWORD = __ENV.PASSWORD;
 const GROUP_ID = __ENV.GROUP_ID;
+
+// Configuración parametrizable: perfil beta por defecto, 500 VUs opcional via TARGET_VUS=500
+const TARGET_VUS = parseInt(__ENV.TARGET_VUS) || 30;
+const RAMP_UP_DUR = __ENV.RAMP_UP_DUR || "30s";
+const PLATEAU_DUR = __ENV.PLATEAU_DUR || "2m";
+const RAMP_DOWN_DUR = __ENV.RAMP_DOWN_DUR || "30s";
 
 const writeLatency = new Trend("divido_write_duration");
 const readLatency = new Trend("divido_read_duration");
@@ -23,11 +35,10 @@ export const options = {
       executor: "ramping-vus",
       startVUs: 0,
       stages: [
-        { duration: "2m", target: 100 },
-        { duration: "3m", target: 300 },
-        { duration: "2m", target: 500 },
-        { duration: "5m", target: 500 },
-        { duration: "1m", target: 0 },
+        { duration: RAMP_UP_DUR, target: Math.min(10, TARGET_VUS) },
+        { duration: "1m", target: Math.min(30, TARGET_VUS) },
+        { duration: PLATEAU_DUR, target: TARGET_VUS },
+        { duration: RAMP_DOWN_DUR, target: 0 },
       ],
       gracefulRampDown: "30s",
     },
