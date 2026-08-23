@@ -7,6 +7,9 @@ import { Spinner } from "./components/ui";
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
+const TermsPage = lazy(() => import("./pages/TermsPage"));
+const CookiesPage = lazy(() => import("./pages/CookiesPage"));
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const GroupPage = lazy(() => import("./pages/GroupPage"));
 const JoinPage = lazy(() => import("./pages/JoinPage"));
@@ -41,6 +44,9 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/cookies" element={<CookiesPage />} />
         <Route path="/join/:token" element={<JoinPage />} />
         <Route path="/claim/:token" element={<ClaimPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />

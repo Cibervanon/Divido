@@ -3,6 +3,7 @@ import { api, ApiError } from "../lib/api";
 import { compressImageToJpeg } from "../lib/compressImage";
 import { useAuth } from "../lib/auth";
 import { getStoredTheme, setStoredTheme, THEMES, type ThemeId } from "../lib/theme";
+import { Link } from "react-router-dom";
 import { Avatar, Button, Input, Modal, Spinner, VerifiedBadge } from "./ui";
 import type { NotificationPreferences } from "../lib/types";
 
@@ -506,10 +507,19 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
             <Button variant="danger" className="mt-2 w-full !bg-rose-500/15 !text-rose-300 hover:!bg-rose-500/25" onClick={() => void deleteAccount()} loading={deleting}>
               Eliminar mi cuenta
             </Button>
-          </div>
-        </div>
+</div>
+         </div>
 
-        {error ? <p className="text-xs text-rose-400">{error}</p> : null}
+         <div className="border-t border-slate-800 pt-4">
+           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Legal</p>
+           <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-400">
+             <Link to="/privacy" className="hover:text-indigo-400 underline">Política de privacidad</Link>
+             <Link to="/terms" className="hover:text-indigo-400 underline">Términos de uso</Link>
+             <Link to="/cookies" className="hover:text-indigo-400 underline">Política de cookies</Link>
+           </div>
+         </div>
+
+         {error ? <p className="text-xs text-rose-400">{error}</p> : null}
       </div>
     </Modal>
   );

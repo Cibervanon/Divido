@@ -140,7 +140,7 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-slate-600">
-          Al continuar aceptas los términos de uso de Divido.
+          Al continuar aceptas los <Link to="/terms" className="underline hover:text-indigo-400">términos de uso</Link> y la <Link to="/privacy" className="underline hover:text-indigo-400">política de privacidad</Link> de Divido.
         </p>
       </div>
     </div>

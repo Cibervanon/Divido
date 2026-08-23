@@ -440,6 +440,15 @@ export default function DashboardPage() {
         )}
       </main>
 
+      <footer className="mx-auto max-w-2xl px-4 pb-6 text-center">
+        <nav className="flex justify-center gap-6 text-xs text-slate-500">
+          <Link to="/privacy" className="hover:text-indigo-400 underline">Privacidad</Link>
+          <Link to="/terms" className="hover:text-indigo-400 underline">Términos</Link>
+          <Link to="/cookies" className="hover:text-indigo-400 underline">Cookies</Link>
+        </nav>
+        <p className="mt-2 text-[10px] text-slate-600">Divido · Gastos en grupo, saldados sin fricción</p>
+      </footer>
+
       <Modal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
