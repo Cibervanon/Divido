@@ -84,7 +84,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-semibold text-slate-100">7. Seguridad</h2>
             <ul className="mt-2 space-y-1 list-disc list-inside">
-              <li>Contraseñas: hash bcrypt (coste 12).</li>
+              <li>Contraseñas: hash bcrypt (coste 10).</li>
               <li>Sesiones: JWT firmado (HS256), guardado solo en localStorage del navegador (no en cookies).</li>
               <li>Fotos: URLs firmadas con expiración (no enlaces públicos permanentes).</li>
               <li>HTTPS forzado en producción (Vercel + Render).</li>

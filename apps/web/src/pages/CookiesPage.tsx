@@ -43,7 +43,6 @@ export default function CookiesPage() {
           <section>
             <h2 className="text-lg font-semibold text-slate-100">4. Terceros que podrían almacenar algo</h2>
             <ul className="mt-2 space-y-1 list-disc list-inside">
-              <li><strong>Supabase (auth):</strong> al iniciar sesión con email/contraseña o Google, Supabase puede establecer cookies de sesión en su dominio (<code>*.supabase.co</code>) para gestionar la autenticación. Son cookies de terceros estrictamente necesarias para el login; no las controlamos nosotros directamente.</li>
               <li><strong>Google (OAuth):</strong> si usas "Continuar con Google", Google puede establecer sus propias cookies en <code>accounts.google.com</code> para gestionar tu sesión de Google. Eso escapa a nuestro control y se rige por la política de Google.</li>
             </ul>
             <p className="mt-2 text-sm text-slate-500">Nosotros no leemos ni escribimos esas cookies; las gestiona cada proveedor en su dominio.</p>

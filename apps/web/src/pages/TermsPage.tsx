@@ -47,8 +47,7 @@ export default function TermsPage() {
             <h2 className="text-lg font-semibold text-slate-100">5. Cuentas, grupos y cierre</h2>
             <ul className="mt-2 space-y-1 list-disc list-inside">
               <li>Puedes eliminar tu cuenta en cualquier momento desde tu perfil (ver Política de privacidad para el detalle de qué pasa con tus saldos).</li>
-              <li>Un grupo lo puede cerrar su admin; los miembros siguen viendo el histórico de solo lectura.</li>
-              <li>Si un grupo queda sin miembros, se elimina automáticamente tras 30 días de inactividad.</li>
+              <li>Un grupo lo elimina su admin manualmente; los miembros siguen viendo el histórico de solo lectura. No hay borrado automático por inactividad.</li>
               <li>Nos reservamos el derecho a suspender el servicio completo con aviso previo razonable (email a usuarios registrados). En ese caso, tendrás tiempo para exportar tus datos.</li>
             </ul>
           </section>
