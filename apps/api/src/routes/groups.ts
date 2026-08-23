@@ -36,6 +36,7 @@ import { badRequest, conflict, forbidden, notFound } from "../errors.js";
 import { requireActiveMember, requireAdmin, requireAuth, requireGroup } from "../plugins.js";
 import { createAndPushNotification } from "../push.js";
 import { getGroupBalances } from "../services.js";
+import { getCachedBalances } from "../balanceCache.js";
 import { config } from "../config.js";
 import { createGroupSchema, updateGroupSchema, type CreateGroupInput, type UpdateGroupInput } from "../schemas/index.js";
 import { parseBody } from "../validate.js";
@@ -70,7 +71,7 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     return {
       groups: await Promise.all(
         groups.map(async (g) => {
-          const b = await getGroupBalances(request.db, g.id);
+          const b = await getCachedBalances(request.db, g.id);
           const mine = b.balances.find((x) => x.userId === user.id);
           return {
             ...g,
@@ -622,7 +623,7 @@ async function groupDetail(
   membership?: { role: string; status: string }
 ) {
   const members = await listMembers(db, group.id);
-  const balances = await getGroupBalances(db, group.id);
+  const balances = await getCachedBalances(db, group.id);
   const isAdmin = (membership?.role ?? "admin") === "admin";
   return {
     group: groupToPublic(group),
