@@ -709,7 +709,12 @@ export function ExpenseModal({
                 capture="environment"
                 className="hidden"
                 disabled={busy}
-                onChange={(e) => readReceiptFile(e.target.files?.[0])}
+                onChange={(e) => {
+                  readReceiptFile(e.target.files?.[0]);
+                  // Soltamos ya la referencia del picker para que el navegador
+                  // pueda liberar el fichero original multi-MB.
+                  e.target.value = "";
+                }}
               />
             </label>
           )}

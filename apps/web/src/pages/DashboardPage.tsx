@@ -11,6 +11,7 @@ import { NotificationBell } from "../components/NotificationBell";
 import { NotificationDrawer } from "../components/NotificationDrawer";
 import { Logo } from "../components/Logo";
 import { ProfileModal } from "../components/ProfileModal";
+import { isHeavyDataUrl } from "../lib/compressImage";
 import type { GroupDetail, GroupSummary } from "../lib/types";
 
 type GroupSort = "activity" | "name" | "amount";
@@ -504,7 +505,7 @@ function GroupCard({
             : "border-slate-800/60 bg-slate-900 hover:border-slate-700 hover:bg-slate-800/60"
       }`}
     >
-      {group.logoUrl ? (
+      {group.logoUrl && !isHeavyDataUrl(group.logoUrl) ? (
         <img
           src={group.logoUrl}
           alt={group.name}

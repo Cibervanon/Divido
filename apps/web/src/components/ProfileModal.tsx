@@ -94,6 +94,8 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
 
   async function onPickFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    // Soltamos ya la referencia del picker para ayudar al recolector de basura.
+    e.target.value = "";
     if (!file) return;
     // Comprimir en memoria: evita el reinicio de la PWA al hacer
     // fotos grandes con la cámara del móvil.

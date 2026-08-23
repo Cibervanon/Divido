@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type InputHTMLAttributes, type ButtonHTMLAttributes, type SelectHTMLAttributes } from "react";
 import { Check, Link as LinkIcon } from "lucide-react";
+import { isHeavyDataUrl } from "../lib/compressImage";
 
 export function Spinner({ className = "" }: { className?: string }) {
   return (
@@ -262,7 +263,9 @@ export function Avatar({ name, url, size = "md" }: { name: string; url?: string 
     .slice(0, 2)
     .join("")
     .toUpperCase();
-  if (url) {
+  // Las data-URL gigantes (avatares legacy sin comprimir) no se renderizan:
+  // decodificarlas en listas provocaba picos de RAM y crashes en móvil.
+  if (url && !isHeavyDataUrl(url)) {
     return <img src={url} alt={name} className={`${sizes[size]} rounded-full object-cover`} />;
   }
   return (

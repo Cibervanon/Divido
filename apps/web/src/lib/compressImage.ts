@@ -1,15 +1,36 @@
 /**
  * Compresión de imágenes en memoria antes de subirlas.
  *
- * Las cámaras de los móviles producen fotos de varios MB a resolución completa;
- * mantenerlas en memoria (data-URL o blob sin tratar) puede hacer que el SO
- * mate la PWA. Redimensionamos a un lado máximo y recomprimimos a JPEG antes
- * de tocar la red, liberando el bitmap intermedio en cuanto terminamos.
+ * Estrategia anti-OOM en móviles:
+ * - Decodificamos SIEMPRE vía <img> + objectURL (streaming gestionado por el
+ *   navegador) y NUNCA vía createImageBitmap, que materializa la foto entera
+ *   decodificada (una de 48 MP son ~200 MB de RGBA) y era la causa del crash.
+ * - drawImage muestrea directamente al tamaño destino (≤ maxDimension): el
+ *   navegador mantiene el bitmap original en memoria nativa/GPU y lo libera
+ *   en cuanto soltamos la referencia del <img>, antes de serializar el JPEG.
+ * - Todo el proceso tiene timeout para no quedarnos colgados con formatos
+ *   problemáticos.
+ *
+ * Bonus: Safari decodifica HEIC en <img>, así que fotos de galería de iPhone
+ * se convierten aquí a JPEG sin rechazo.
  */
 
 export const RECEIPT_MAX_DIMENSION = 1280;
 export const RECEIPT_JPEG_QUALITY = 0.8;
 export const COMPRESSION_TIMEOUT_MS = 10_000;
+/** Rechazamos fuentes patológicas antes de intentar decodificarlas. */
+export const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
+
+/**
+ * Una data-URL por encima de este tamaño (~150 KB de binarios) se considera
+ * "pesada": renderizar muchas de estas en listas (avatares, logos legacy)
+ * decodificaba megas en paralelo y agotaba la RAM del móvil.
+ */
+const HEAVY_DATA_URL_CHARS = 200_000;
+
+export function isHeavyDataUrl(src: string | null | undefined): boolean {
+  return typeof src === "string" && src.startsWith("data:") && src.length > HEAVY_DATA_URL_CHARS;
+}
 
 /** Fases visibles de una foto dentro de un formulario. */
 export type ImageUploadPhase = "idle" | "compressing" | "uploading" | "saving";
@@ -24,51 +45,6 @@ function withTimeout<T>(task: Promise<T>, ms: number, message: string): Promise<
   });
 }
 
-type DecodedImage = {
-  source: CanvasImageSource;
-  width: number;
-  height: number;
-  release: () => void;
-};
-
-async function decodeImage(blob: Blob): Promise<DecodedImage> {
-  if (typeof createImageBitmap === "function") {
-    try {
-      const bitmap = await createImageBitmap(blob, { imageOrientation: "from-image" });
-      return {
-        source: bitmap,
-        width: bitmap.width,
-        height: bitmap.height,
-        release: () => bitmap.close(),
-      };
-    } catch {
-      // Algunos navegadores no decodifican ciertos formatos vía ImageBitmap:
-      // caemos al camino clásico con <img>.
-    }
-  }
-
-  const url = URL.createObjectURL(blob);
-  try {
-    const img = new Image();
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error("El formato de la imagen no es compatible (por ejemplo HEIC). Prueba con un JPG o PNG."));
-      img.src = url;
-    });
-    const width = img.naturalWidth;
-    const height = img.naturalHeight;
-    return {
-      source: img,
-      width,
-      height,
-      release: () => URL.revokeObjectURL(url),
-    };
-  } catch (err) {
-    URL.revokeObjectURL(url);
-    throw err;
-  }
-}
-
 /**
  * Devuelve un Blob JPEG redimensionado para que su lado mayor sea
  * `maxDimension` píxeles (manteniendo proporción) con la calidad indicada.
@@ -78,30 +54,53 @@ export async function compressImageToJpeg(
   maxDimension = RECEIPT_MAX_DIMENSION,
   quality = RECEIPT_JPEG_QUALITY,
 ): Promise<Blob> {
-  // Límite de tiempo total del proceso: si la imagen no decodifica (formatos
-  // complejos/HEIC) lanzamos un error claro en vez de quedarnos colgados.
+  if (file.size > MAX_SOURCE_BYTES) throw new Error("La imagen es demasiado grande");
   return withTimeout(
     (async () => {
-      const decoded = await decodeImage(file);
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.decoding = "async";
+      const releaseImg = () => {
+        img.onload = null;
+        img.onerror = null;
+        img.src = "";
+        URL.revokeObjectURL(url);
+      };
       try {
-        const scale = Math.min(1, maxDimension / Math.max(decoded.width, decoded.height));
-        const width = Math.max(1, Math.round(decoded.width * scale));
-        const height = Math.max(1, Math.round(decoded.height * scale));
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () =>
+            reject(
+              new Error(
+                "El formato de la imagen no es compatible. Prueba con un JPG o PNG."
+              ),
+            );
+          img.src = url;
+        });
+
+        const scale = Math.min(1, maxDimension / Math.max(img.naturalWidth, img.naturalHeight));
+        const width = Math.max(1, Math.round(img.naturalWidth * scale));
+        const height = Math.max(1, Math.round(img.naturalHeight * scale));
 
         const canvas = document.createElement("canvas");
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext("2d");
         if (!ctx) throw new Error("El navegador no permite procesar imágenes");
-        ctx.drawImage(decoded.source, 0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Soltamos la foto original ANTES de serializar el JPEG para aplanar
+        // el pico de memoria: solo conviven el canvas pequeño y el resultado.
+        releaseImg();
 
         const blob = await new Promise<Blob | null>((resolve) =>
           canvas.toBlob((result) => resolve(result), "image/jpeg", quality),
         );
         if (!blob) throw new Error("No se pudo comprimir la imagen");
         return blob;
-      } finally {
-        decoded.release();
+      } catch (err) {
+        releaseImg();
+        throw err;
       }
     })(),
     COMPRESSION_TIMEOUT_MS,

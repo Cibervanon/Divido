@@ -212,7 +212,10 @@ export function PaymentModal({
               <Button variant="secondary" className="!px-3 !py-1.5 text-xs" disabled={busy} onClick={() => fileRef.current?.click()}>
                 Subir foto del comprobante
               </Button>
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" disabled={busy} onChange={(e) => readProofFile(e.target.files?.[0])} />
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" disabled={busy} onChange={(e) => {
+                readProofFile(e.target.files?.[0]);
+                e.target.value = "";
+              }} />
             </>
           )}
           {proofError ? <p className="mt-1 text-[11px] font-medium text-rose-400">{proofError}</p> : null}

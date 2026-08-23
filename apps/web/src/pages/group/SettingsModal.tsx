@@ -75,6 +75,8 @@ export function SettingsModal({
 
   async function onPickFile(e: ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
+    // Soltamos ya la referencia del picker para ayudar al recolector de basura.
+    e.target.value = "";
     if (!f) return;
     // Comprimir en memoria antes de convertir a data-URL.
     try {
