@@ -9,9 +9,11 @@ import { markPushAsked, shouldAskPush, subscribeToPush } from "../lib/push";
 import { Avatar, Button, DropdownMenu, EmptyState, Input, Modal, Money, Select, SmartImage, Spinner } from "../components/ui";
 import { NotificationBell } from "../components/NotificationBell";
 import { NotificationDrawer } from "../components/NotificationDrawer";
+import { AnalyticsConsentBanner } from "../components/AnalyticsConsentBanner";
 import { Logo } from "../components/Logo";
 import { ProfileModal } from "../components/ProfileModal";
 import { blobToDataUrl, compressImageToJpeg, dataUrlToBlob, isHeavyDataUrl } from "../lib/compressImage";
+import { track } from "../lib/analytics";
 import type { GroupDetail, GroupSummary } from "../lib/types";
 
 type GroupSort = "activity" | "name" | "amount";
@@ -123,6 +125,7 @@ export default function DashboardPage() {
     setCreating(true);
     try {
       const res = await api.post<{ group: GroupDetail }>("/groups", { name, currency, type });
+      track("grupo_creado", { currency, type });
       setCreateOpen(false);
       setName("");
       navigate(`/groups/${res.group.group.id}`);
@@ -246,6 +249,8 @@ export default function DashboardPage() {
             </div>
           </div>
         ) : null}
+
+        <AnalyticsConsentBanner onClose={() => {}} />
 
         {groups.length > 0 ? (
           <div

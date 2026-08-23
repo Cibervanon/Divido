@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { track } from "../lib/analytics";
 import { blobToDataUrl, compressImageToJpeg, dataUrlToBlob, isHeavyDataUrl } from "../lib/compressImage";
 import { Avatar, Button, GhostBadge, Modal, Money, Spinner, Tabs, Toast, VerifiedBadge } from "../components/ui";
 import { ExpenseModal } from "../components/ExpenseModal";
@@ -395,6 +396,7 @@ export default function GroupPage() {
     } catch {
       window.prompt("Copia este enlace de invitación:", g.inviteUrl);
     }
+    track("invitacion_copiada", { groupId });
     showToast("Enlace de invitación copiado");
   }
 

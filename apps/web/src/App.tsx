@@ -1,8 +1,9 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAuth } from "./lib/auth";
 import { Spinner } from "./components/ui";
+import { analyticsEnabled, track } from "./lib/analytics";
 
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
@@ -37,9 +38,20 @@ function Protected({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+function PageviewTracker() {
+  const location = useLocation();
+  useEffect(() => {
+    if (analyticsEnabled) {
+      track("$pageview", { path: location.pathname });
+    }
+  }, [location.pathname]);
+  return null;
+}
+
 export default function App() {
   return (
     <Suspense fallback={<FullScreenSpinner />}>
+      <PageviewTracker />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

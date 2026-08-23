@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { api } from "../../../lib/api";
+import { track } from "../../../lib/analytics";
 import type { GroupDetail, ExpenseDto, PaymentDto } from "../../../lib/types";
 import type { SettlementTransfer } from "@divido/shared";
 
@@ -89,6 +90,9 @@ export function useCreateExpense(groupId: string) {
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.previous) qc.setQueryData(["expenses", groupId], ctx.previous);
+    },
+    onSuccess: (_data, variables) => {
+      track("gasto_creado", { category: variables.category, groupId });
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["expenses", groupId] });

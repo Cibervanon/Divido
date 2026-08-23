@@ -46,7 +46,13 @@ export function Button({
 }
 
 /** Botón "Copiar enlace" con estado de éxito transitorio */
-export function CopyLinkButton({ url }: { url: string }) {
+export function CopyLinkButton({
+  url,
+  onCopy,
+}: {
+  url: string;
+  onCopy?: () => void;
+}) {
   const [state, setState] = useState<"idle" | "copied">("idle");
   return (
     <Button
@@ -55,6 +61,7 @@ export function CopyLinkButton({ url }: { url: string }) {
       onClick={async () => {
         await navigator.clipboard.writeText(url);
         setState("copied");
+        onCopy?.();
         setTimeout(() => setState("idle"), 1800);
       }}
     >

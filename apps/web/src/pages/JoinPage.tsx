@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { track } from "../lib/analytics";
 import { Button, Spinner } from "../components/ui";
 import { Logo } from "../components/Logo";
 import type { InvitePreview } from "@divido/shared";
@@ -32,6 +33,7 @@ export default function JoinPage() {
     setJoining(true);
     try {
       const res = await api.post<{ groupId: string }>(`/join/${token}`);
+      track("invitacion_aceptada", { groupId: res.groupId });
       navigate(`/groups/${res.groupId}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al unirse");

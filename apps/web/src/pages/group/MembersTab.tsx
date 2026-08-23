@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../../lib/api";
+import { track } from "../../lib/analytics";
 import { Avatar, Button, CopyLinkButton, Input, Modal, VerifiedBadge } from "../../components/ui";
 import type { GroupDetail, MemberInfo } from "../../lib/types";
 import { similarNames } from "./utils";
@@ -100,7 +101,10 @@ export function MembersTab({
 
       {isAdmin ? (
         <div className="space-y-2">
-          <CopyLinkButton url={detail.inviteUrl ?? ""} />
+          <CopyLinkButton
+            url={detail.inviteUrl ?? ""}
+            onCopy={() => track("invitacion_copiada", { groupId: detail.group.id })}
+          />
           <button
             onClick={() => setGhostOpen(true)}
             className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-600 bg-slate-800/40 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:bg-slate-800"

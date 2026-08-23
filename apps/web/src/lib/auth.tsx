@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { api, setOnUnauthorized, setToken, ApiError } from "./api";
+import { identifyUser, resetAnalytics } from "./analytics";
 
 export interface Me {
   id: string;
@@ -54,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { user } = await api.get<{ user: Me }>("/auth/me");
         setUser(user);
+        identifyUser(user.id);
       } catch {
         setToken(null);
       } finally {
@@ -66,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function afterAuth(token: string, user: Me) {
     setToken(token);
     setUser(user);
+    identifyUser(user.id);
   }
 
   async function login(email: string, password: string) {
@@ -85,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function logout() {
     setToken(null);
     setUser(null);
+    resetAnalytics();
   }
 
   async function refreshUser() {
