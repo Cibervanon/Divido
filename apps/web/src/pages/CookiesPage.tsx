@@ -47,10 +47,10 @@ export default function CookiesPage() {
               <li>Identificador: un <code>distinct_id</code> anónimo generado por PostHog y guardado en <code>localStorage</code> (nunca en cookies HTTP).</li>
               <li>No se activa hasta que pulsas "Aceptar". Si pulsas "Ahora no", no se envía ningún evento a PostHog.</li>
             </ul>
-            <p className="mt-2">Puedes cambiar de opinión en cualquier momento:</p>
+            <p className="mt-2">Puedes cambiar de opinión en cualquier momento desde la propia app, sin recargar:</p>
             <ul className="mt-2 ml-4 list-disc space-y-1 text-sm">
-              <li>Para <strong>retirar el consentimiento</strong>: borra la clave <code>divido.analytics_consent</code> del localStorage (herramientas de desarrollador → Aplicación → Almacenamiento local) y recarga la página; el banner volverá a aparecer.</li>
-              <li>Para <strong>dar el consentimiento</strong> si antes lo rechazaste: haz lo mismo (borra la clave y recarga).</li>
+              <li>Abre tu <strong>perfil</strong> (tu avatar arriba a la derecha) y baja hasta la sección <strong>"Legal"</strong>: ahí tienes el bloque <strong>"Analítica anónima"</strong> con un botón <strong>Activar / Desactivar</strong>. El cambio se aplica al instante.</li>
+              <li>También puedes borrar la clave <code>divido.analytics_consent</code> del <code>localStorage</code>; si lo haces, el banner volverá a preguntarte.</li>
             </ul>
           </section>
 

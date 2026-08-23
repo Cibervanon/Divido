@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { Link } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
 import { compressImageToJpeg } from "../lib/compressImage";
 import { useAuth } from "../lib/auth";
+import { analyticsEnabled, acceptAnalyticsConsent, declineAnalyticsConsent, getAnalyticsConsent } from "../lib/analytics";
 import { getStoredTheme, setStoredTheme, THEMES, type ThemeId } from "../lib/theme";
-import { Link } from "react-router-dom";
 import { Avatar, Button, Input, Modal, Spinner, VerifiedBadge } from "./ui";
 import type { NotificationPreferences } from "../lib/types";
 
@@ -68,6 +69,7 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
   const [autoConfirmError, setAutoConfirmError] = useState("");
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [analyticsChoice, setAnalyticsChoice] = useState<"yes" | "no" | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -82,9 +84,17 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
       setError("");
       setVerificationUrl("");
       setSent(false);
+      setAnalyticsChoice(getAnalyticsConsent());
       loadPreferences();
     }
   }, [open, user]);
+
+  function toggleAnalytics() {
+    const next = analyticsChoice === "yes" ? "no" : "yes";
+    if (next === "yes") acceptAnalyticsConsent();
+    else declineAnalyticsConsent();
+    setAnalyticsChoice(next);
+  }
 
   function selectTheme(id: ThemeId) {
     setTheme(id);
@@ -510,14 +520,35 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
 </div>
          </div>
 
-         <div className="border-t border-slate-800 pt-4">
-           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Legal</p>
-           <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-400">
-             <Link to="/privacy" className="hover:text-indigo-400 underline">Política de privacidad</Link>
-             <Link to="/terms" className="hover:text-indigo-400 underline">Términos de uso</Link>
-             <Link to="/cookies" className="hover:text-indigo-400 underline">Política de cookies</Link>
-           </div>
-         </div>
+<div className="border-t border-slate-800 pt-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Legal</p>
+            <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-400">
+              <Link to="/privacy" className="hover:text-indigo-400 underline">Política de privacidad</Link>
+              <Link to="/terms" className="hover:text-indigo-400 underline">Términos de uso</Link>
+              <Link to="/cookies" className="hover:text-indigo-400 underline">Política de cookies</Link>
+            </div>
+            {analyticsEnabled ? (
+              <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950 p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-slate-200">Analítica anónima</p>
+                  <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
+                    {analyticsChoice === "yes"
+                      ? "Activada: nos ayudas a entender cómo se usa Divido. Puedes desactivarla cuando quieras."
+                      : analyticsChoice === "no"
+                        ? "Desactivada: no se envía ningún dato de uso."
+                        : "Todavía no has decidido."}
+                  </p>
+                </div>
+                <Button
+                  variant={analyticsChoice === "yes" ? "secondary" : "primary"}
+                  className="shrink-0 !px-3 !py-1.5 text-xs"
+                  onClick={toggleAnalytics}
+                >
+                  {analyticsChoice === "yes" ? "Desactivar" : "Activar"}
+                </Button>
+              </div>
+            ) : null}
+          </div>
 
          {error ? <p className="text-xs text-rose-400">{error}</p> : null}
       </div>
