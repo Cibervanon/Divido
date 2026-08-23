@@ -250,7 +250,7 @@ export default function DashboardPage() {
           </div>
         ) : null}
 
-        <AnalyticsConsentBanner onClose={() => {}} />
+        <AnalyticsConsentBanner />
 
         {groups.length > 0 ? (
           <div
