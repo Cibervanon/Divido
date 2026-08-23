@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../lib/api";
 import { supabaseEnabled } from "../lib/supabase";
-import { compressImageToJpeg, type ImageUploadPhase } from "../lib/compressImage";
+import {
+  compressImageToJpeg,
+  type ImageUploadPhase,
+  RECEIPT_MAX_BYTES,
+  RECEIPT_MAX_DIMENSION,
+  RECEIPT_JPEG_QUALITY,
+} from "../lib/compressImage";
 import { Button, Input, Modal, Select } from "./ui";
 import { CATEGORY_LIST, detectCategory, getCategoryColor, getIconComponent } from "../constants/categories";
 import type { ExpenseDto, MemberInfo } from "../lib/types";
@@ -368,7 +374,12 @@ export function ExpenseModal({
         setPhaseBoth("compressing");
         let blob: Blob;
         try {
-          blob = await compressImageToJpeg(file, 1280, 0.8);
+          blob = await compressImageToJpeg(
+            file,
+            RECEIPT_MAX_DIMENSION,
+            RECEIPT_JPEG_QUALITY,
+            RECEIPT_MAX_BYTES,
+          );
         } catch (err) {
           console.error("No se pudo procesar la imagen del tique", err);
           throw new Error(
@@ -382,10 +393,11 @@ export function ExpenseModal({
         if (supabaseEnabled) {
           // Fase 2: subida binaria directa a Storage (tras comprimir siempre es JPEG)
           setPhaseBoth("uploading");
-          const { path, signedUrl } = await api.post<{ path: string; signedUrl: string }>(
-            `/groups/${groupId}/receipt-upload-url`,
-            { ext: "jpg" },
-          );
+          const { path, signedUrl, verifyUrl } = await api.post<{
+            path: string;
+            signedUrl: string;
+            verifyUrl?: string | null;
+          }>(`/groups/${groupId}/receipt-upload-url`, { ext: "jpg" });
           const put = await fetch(signedUrl, {
             method: "PUT",
             headers: { "Content-Type": "image/jpeg" },
@@ -407,8 +419,19 @@ export function ExpenseModal({
                   : `el almacén respondió ${put.status}`
             );
           }
+          // Verificación: no guardamos la referencia hasta confirmar con una
+          // lectura firmada que el objeto existe de verdad en el bucket.
+          let previewUrl: string | null = null;
+          if (verifyUrl) {
+            const check = await fetch(verifyUrl);
+            if (!check.ok) {
+              console.error(`La verificación del tique subido falló (${check.status})`);
+              throw new Error("la verificación del archivo subido falló");
+            }
+            previewUrl = verifyUrl;
+          }
           setReceiptUrl(`supabase:${path}`);
-          setReceiptPreview(signedUrl);
+          setReceiptPreview(previewUrl);
           return;
         }
 
@@ -706,7 +729,6 @@ export function ExpenseModal({
               <input
                 type="file"
                 accept="image/*"
-                capture="environment"
                 className="hidden"
                 disabled={busy}
                 onChange={(e) => {

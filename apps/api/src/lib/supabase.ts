@@ -75,19 +75,26 @@ function buildReceiptPath(groupId: string, userId: string, ext: string): string 
 /**
  * Crea una URL de subida firmada y de un solo uso (válida 10 min).
  * El navegador hace PUT directo contra Storage sin pasar por esta API.
+ * Devuelve también `verifyUrl`: una URL de lectura firmada para el mismo
+ * objeto, pensada para que el cliente VERIFIQUE que la subida exista de
+ * verdad antes de guardar la referencia en base de datos.
  */
 export async function issueReceiptUploadUrl(
   groupId: string,
   userId: string,
   ext = "jpg"
-): Promise<{ path: string; signedUrl: string }> {
+): Promise<{ path: string; signedUrl: string; verifyUrl: string | null }> {
   await ensureReceiptsBucket();
   const path = buildReceiptPath(groupId, userId, ext);
-  const { data, error } = await getClient()
-    .storage.from(RECEIPTS_BUCKET)
+  const client = getClient();
+  const { data, error } = await client.storage
+    .from(RECEIPTS_BUCKET)
     .createSignedUploadUrl(path);
   if (error) throw error;
-  return { path, signedUrl: data.signedUrl };
+  const { data: readData } = await client.storage
+    .from(RECEIPTS_BUCKET)
+    .createSignedUrl(path, RECEIPT_TTL_SECONDS);
+  return { path, signedUrl: data.signedUrl, verifyUrl: readData?.signedUrl ?? null };
 }
 
 /**

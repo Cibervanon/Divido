@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { api, ApiError } from "../lib/api";
-import { compressImageToJpeg, type ImageUploadPhase } from "../lib/compressImage";
+import {
+  compressImageToJpeg,
+  type ImageUploadPhase,
+  RECEIPT_MAX_BYTES,
+  RECEIPT_MAX_DIMENSION,
+  RECEIPT_JPEG_QUALITY,
+} from "../lib/compressImage";
 import { Button, Input, Modal, Select } from "./ui";
 import type { MemberInfo } from "../lib/types";
 
@@ -77,7 +83,12 @@ export function PaymentModal({
         setPhaseBoth("compressing");
         let blob: Blob;
         try {
-          blob = await compressImageToJpeg(file, 1280, 0.8);
+          blob = await compressImageToJpeg(
+            file,
+            RECEIPT_MAX_DIMENSION,
+            RECEIPT_JPEG_QUALITY,
+            RECEIPT_MAX_BYTES,
+          );
         } catch (err) {
           console.error("No se pudo procesar la imagen del comprobante", err);
           throw new Error(
