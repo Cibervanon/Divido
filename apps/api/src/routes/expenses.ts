@@ -30,6 +30,7 @@ import { EDIT_WINDOW_MS } from "../config.js";
 import { createExpenseSchema, updateExpenseSchema, type CreateExpenseInput, type UpdateExpenseInput } from "../schemas/index.js";
 import { parseBody } from "../validate.js";
 import { invalidateBalanceCache } from "../balanceCache.js";
+import { getCached, invalidateAllCache } from "../cache.js";
 import { logAudit } from "../audit.js";
 import {
   issueReceiptUploadUrl,
@@ -69,34 +70,41 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
         : undefined;
     const offset = Math.max(Number(query.offset ?? 0) || 0, 0);
 
-    let rows;
-    let total: number;
-    if (hasFilters) {
-      const filters = {
-        category: query.category,
-        payerId: query.payerId,
-        from: query.from,
-        to: query.to,
-        q: query.q,
-      };
-      rows = await listExpensesFiltered(request.db, groupId, filters, includeDeleted, { limit, offset });
-      total = await countExpensesFiltered(request.db, groupId, filters, includeDeleted);
-    } else {
-      rows = await listExpensesWithDetails(request.db, groupId, includeDeleted, { limit, offset });
-      total = await countExpensesInGroup(request.db, groupId, includeDeleted);
-    }
-    const expenses = await Promise.all(
-      rows.map(async (e) => ({
-        ...expenseRowToDto(e),
-        editable: isEditable(e.created_at),
-        receiptUrl: await resolveReceiptUrl(e.receipt_url),
-      }))
-    );
-    return {
-      expenses,
-      total,
-      hasMore: limit != null ? offset + expenses.length < total : false,
+    const cacheKey = `${groupId}:${includeDeleted ? "admin" : "member"}:${limit ?? "all"}:${offset}`;
+
+    const compute = async () => {
+      let rows;
+      let total: number;
+      if (hasFilters) {
+        const filters = {
+          category: query.category,
+          payerId: query.payerId,
+          from: query.from,
+          to: query.to,
+          q: query.q,
+        };
+        rows = await listExpensesFiltered(request.db, groupId, filters, includeDeleted, { limit, offset });
+        total = await countExpensesFiltered(request.db, groupId, filters, includeDeleted);
+      } else {
+        rows = await listExpensesWithDetails(request.db, groupId, includeDeleted, { limit, offset });
+        total = await countExpensesInGroup(request.db, groupId, includeDeleted);
+      }
+      const expenses = await Promise.all(
+        rows.map(async (e) => ({
+          ...expenseRowToDto(e),
+          editable: isEditable(e.created_at),
+          receiptUrl: await resolveReceiptUrl(e.receipt_url),
+        }))
+      );
+      return { expenses, total, hasMore: limit != null ? offset + expenses.length < total : false };
     };
+
+    // Solo cachear sin filtros (caso común); con filtros va directo a BD
+    const data = hasFilters
+      ? await compute()
+      : await getCached("expenses", cacheKey, compute, 30_000);
+
+    return data;
   });
 
   app.get("/api/expenses/:expenseId", async (request) => {
@@ -193,6 +201,7 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
       }
     }
     invalidateBalanceCache(groupId);
+    invalidateAllCache("expenses", groupId);
     await logAudit(request.db, {
       groupId,
       entityType: "expense",
@@ -297,6 +306,7 @@ if (expense.payer_id !== user.id && member.role !== "admin") {
       await deletePotExpenseWithdrawal(request.db, expenseId);
     }
     invalidateBalanceCache(expense.group_id);
+    invalidateAllCache("expenses", expense.group_id);
     await logAudit(request.db, {
       groupId: expense.group_id,
       entityType: "expense",
@@ -333,6 +343,7 @@ if (expense.payer_id !== user.id && member.role !== "admin") {
     }
     await deleteExpense(request.db, expenseId);
     invalidateBalanceCache(expense.group_id);
+    invalidateAllCache("expenses", expense.group_id);
     await logAudit(request.db, {
       groupId: expense.group_id,
       entityType: "expense",
