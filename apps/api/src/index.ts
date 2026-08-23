@@ -68,6 +68,15 @@ export async function buildApp(
     return { ok: true, time: new Date().toISOString() };
   });
 
+  app.get("/api/debug/cache-metrics", async () => {
+    const { getCacheMetrics } = await import("./cache.js");
+    const { getBalanceCacheMetrics } = await import("./balanceCache.js");
+    return {
+      expenses: getCacheMetrics(),
+      balances: getBalanceCacheMetrics(),
+    };
+  });
+
   app.register(authRoutes);
   app.register(joinRoutes);
   app.register(claimRoutes);
