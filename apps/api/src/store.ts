@@ -1451,20 +1451,15 @@ const sql = `
      SELECT
        e.*,
        COALESCE(u.name, 'Bote común') AS payer_name,
-       COALESCE(
-         json_agg(
-           json_build_object('userId', ep.user_id, 'share', ep.share_amount)
-         ) FILTER (WHERE ep.user_id IS NOT NULL), '[]'
-       )::text AS participants_json,
-       COUNT(DISTINCT c.id) AS comment_count
+       (SELECT COALESCE(json_agg(json_build_object('userId', ep.user_id, 'share', ep.share_amount)), '[]')
+        FROM expense_participants ep
+        WHERE ep.expense_id = e.id)::text AS participants_json,
+       (SELECT COUNT(*) FROM expense_comments c WHERE c.expense_id = e.id) AS comment_count
      FROM expenses e
      LEFT JOIN users u ON u.id = e.payer_id
-     LEFT JOIN expense_participants ep ON ep.expense_id = e.id
-     LEFT JOIN expense_comments c ON c.expense_id = e.id
      WHERE ${conditions.join(" AND ")}
-    GROUP BY e.id, u.name
-    ORDER BY e.created_at DESC
-    ${opts.limit != null ? "LIMIT ? OFFSET ?" : ""}
+     ORDER BY e.created_at DESC
+     ${opts.limit != null ? "LIMIT ? OFFSET ?" : ""}
   `;
   if (opts.limit != null) params.push(opts.limit, opts.offset ?? 0);
   return (await db.prepare(sql).all(...params)) as unknown as ExpenseDetailRow[];
@@ -1489,18 +1484,13 @@ export async function listExpensesWithDetails(
      SELECT
        e.*,
        COALESCE(u.name, 'Bote común') AS payer_name,
-       COALESCE(
-         json_agg(
-           json_build_object('userId', ep.user_id, 'share', ep.share_amount)
-         ) FILTER (WHERE ep.user_id IS NOT NULL), '[]'
-       )::text AS participants_json,
-       COUNT(DISTINCT c.id) AS comment_count
+       (SELECT COALESCE(json_agg(json_build_object('userId', ep.user_id, 'share', ep.share_amount)), '[]')
+        FROM expense_participants ep
+        WHERE ep.expense_id = e.id)::text AS participants_json,
+       (SELECT COUNT(*) FROM expense_comments c WHERE c.expense_id = e.id) AS comment_count
      FROM expenses e
      LEFT JOIN users u ON u.id = e.payer_id
-     LEFT JOIN expense_participants ep ON ep.expense_id = e.id
-     LEFT JOIN expense_comments c ON c.expense_id = e.id
      WHERE e.group_id = ? ${includeDeleted ? "" : "AND e.deleted = 0"}
-     GROUP BY e.id, u.name
      ORDER BY e.created_at DESC
      ${opts.limit != null ? "LIMIT ? OFFSET ?" : ""}
    `;
