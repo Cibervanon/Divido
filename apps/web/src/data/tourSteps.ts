@@ -1,13 +1,13 @@
 import type { TourStep } from "../hooks/useGuidedTour";
 
-// Helper: targets that exist in current DashboardPage.tsx and GroupPage.tsx
+// 6 pasos principales + Help (7 total) alineados con la referencia
 export const tourSteps: TourStep[] = [
-  // PASO 0: Dashboard - Lista de grupos
+  // 1. Dashboard - Groups → Highlights anchored groups, explains balance colors
   {
     id: "dashboard-groups",
     target: ".group:first-of-type",
     title: "🏠 Tus grupos",
-    content: "Aquí ves todos tus grupos. <strong>Verde = te deben</strong>, <strong>rojo = debes</strong>. El neto total está en la tarjeta superior. Pulsa un grupo para entrar.",
+    content: "Aquí ves todos tus grupos. Los <strong>anclados (📌)</sub> están arriba. <strong style='color:#3fb950'>Verde = te deben</strong>, <strong style='color:#f85149'>Rojo = debes</strong>. El neto total está en la tarjeta superior.",
     position: "right",
     skipIf: () => {
       const cards = document.querySelectorAll(".group");
@@ -15,44 +15,55 @@ export const tourSteps: TourStep[] = [
     },
   },
 
-  // PASO 1: Dashboard - Crear grupo (EmptyState o header)
+  // 2. Create Group → FAB button walkthrough (only shows if no groups exist)
   {
     id: "create-group",
     target: "[data-tour='create-group']",
     title: "➕ Crear tu primer grupo",
-    content: "Pulsa <strong>+</strong> para crear un grupo. Elige nombre, <strong>moneda</strong> (no se puede cambiar después) y tipo: <strong>Abierto</strong> (todos invitan) o <strong>Cerrado</strong> (solo admins).",
+    content: "Pulsa el botón <strong>+</strong> para crear un grupo. Elige nombre, <strong>moneda</strong> (no se puede cambiar después) y tipo: <strong>Abierto</strong> (todos invitan) o <strong>Cerrado</strong> (solo admins).",
     position: "top",
     skipIf: () => {
-      // Skip if user already has groups (they'll see step 0 instead)
       const cards = document.querySelectorAll(".group");
-      if (cards.length > 0) return true;
-      // Skip if button doesn't exist yet (dashboard still loading)
+      if (cards.length > 0) return true; // Solo si NO hay grupos
       const btn = document.querySelector("[data-tour='create-group']");
-      return !btn;
+      return !btn; // Skip si el botón no existe aún
     },
   },
 
-  // PASO 2: Dentro del grupo - Pestaña Gastos / Nuevo gasto
+  // 3. Add Expense → FAB in group, explains fields & split types
   {
     id: "add-expense",
     target: "[data-tour='add-expense']",
     title: "🧾 Añadir un gasto",
-    content: "En el grupo, pulsa <strong>Nuevo gasto</strong>. Rellena: descripción, importe, <strong>quién pagó</strong> y cómo repartir: <strong>Iguales</strong> (a partes iguales), <strong>%</strong> (porcentajes), <strong>€</strong> (importes exactos) o <strong>Bote</strong> (desde el bote común). Puedes adjuntar foto del tique.",
+    content: "En el grupo, pulsa <strong>Nuevo gasto</strong> (FAB). Rellena: descripción, importe, <strong>quién pagó</strong> y elige cómo repartir: <strong>Iguales</strong>, <strong>%</strong>, <strong>€</strong> o <strong>Bote</strong>. Puedes adjuntar foto del tique.",
     position: "top",
     skipIf: () => {
-      // Only show if we're on a group page (URL contains /groups/)
       if (!window.location.pathname.includes("/groups/")) return true;
       const btn = document.querySelector("[data-tour='add-expense']");
       return !btn;
     },
   },
 
-  // PASO 3: Dentro del grupo - Pestaña Saldos
+  // 4. Split Modes → Chips for Equal/Percent/Amount with explanations
+  {
+    id: "split-modes",
+    target: "[data-tour='split-modes']",
+    title: "⚖️ Modos de reparto",
+    content: "Al crear gasto, elige el reparto:\n• <strong>Iguales</strong> → a partes iguales\n• <strong>%</strong> → porcentajes (ej. 60/40)\n• <strong>€</strong> → importes exactos por persona\n• <strong>Bote</strong> → se paga desde el bote común\n\nPuedes combinar: algunos en iguales, otros personalizados.",
+    position: "right",
+    skipIf: () => {
+      if (!window.location.pathname.includes("/groups/")) return true;
+      const chips = document.querySelector("[data-tour='split-modes']");
+      return !chips;
+    },
+  },
+
+  // 5. Balances Tab → Shows debt colors & simplification explanation
   {
     id: "balances-tab",
     target: "[data-tour='balances-tab']",
-    title: "💰 Ver saldos y simplificación",
-    content: "Pestaña <strong>Saldos</strong> → ves <strong>quién debe a quién</strong>. <span style='color:#3fb950'>Verde</span> = te deben, <span style='color:#f85149'>Rojo</span> = debes. La <strong>Simplificación</strong> reduce pagos cruzados al mínimo (máx. n−1 transferencias). Pulsa <strong>Ver desglose</strong> para ver pagos exactos.",
+    title: "💰 Saldos y simplificación",
+    content: "Pestaña <strong>Saldos</strong> → ves <strong>quién debe a quién</strong>. <span style='color:#3fb950'>Verde</span> = te deben, <span style='color:#f85149'>Rojo</span> = debes. La <strong>Simplificación</strong> reduce pagos al mínimo (máx. n−1 transferencias). Pulsa <strong>Ver desglose</strong> para ver pagos exactos.",
     position: "left",
     skipIf: () => {
       if (!window.location.pathname.includes("/groups/")) return true;
@@ -61,39 +72,25 @@ export const tourSteps: TourStep[] = [
     },
   },
 
-  // PASO 4: Dentro del grupo - Bote común
+  // 6. Help → Before PWA install CTA
   {
-    id: "common-pot",
-    target: "[data-tour='common-pot']",
-    title: "🐷 Bote común",
-    content: "El <strong>Bote</strong> es una caja compartida: <strong>Aportas</strong> dinero (se te debe) y <strong>Pagas gastos desde el bote</strong> (reparto \"Bote\") sin tocar saldos individuales. Ideal para viajes: metéis dinero al inicio y pagáis todo desde ahí. Ver <strong>Extracto</strong> para auditoría completa.",
+    id: "help-section",
+    target: "[data-tour='help-button']",
+    title: "❓ Ayuda y Soporte",
+    content: "¿Tienes dudas? Pulsa el icono <strong>❓</strong> en la cabecera para acceder a:\n• <strong>Temas</strong> guías paso a paso\n• <strong>Atajos</strong> de teclado\n• <strong>Iconos</strong> y su significado\n• <strong>Categorías</strong> de gasto con palabras clave\n• <strong>FAQ</strong> preguntas frecuentes\n\nBusca con <strong>?</strong> o <strong>Ctrl+K</strong>.",
     position: "bottom",
     skipIf: () => {
-      if (!window.location.pathname.includes("/groups/")) return true;
-      const tab = document.querySelector("[data-tour='common-pot']");
-      return !tab;
+      const btn = document.querySelector("[data-tour='help-button']");
+      return !btn;
     },
   },
 
-  // PASO 5: Notificaciones
-  {
-    id: "notifications",
-    target: "[data-tour='notifications']",
-    title: "🔔 Notificaciones en tiempo real",
-    content: "La <strong>campana</strong> muestra avisos al instante: nuevos gastos, pagos, piques, invitaciones. <strong>Número exacto 1-9</strong>, <strong>+9</strong> si hay más. Click en aviso → navega directo. <strong>Marcar todas como leídas</strong> limpia el contador. En Perfil → Ajustes eliges qué avisos recibes.",
-    position: "bottom",
-    skipIf: () => {
-      const bell = document.querySelector("[data-tour='notifications']");
-      return !bell;
-    },
-  },
-
-  // PASO 6: Instalar PWA
+  // 7. PWA Install → Only shows if not installed & not dismissed
   {
     id: "pwa-install",
     target: "body",
     title: "📱 Instala Divido como app nativa",
-    content: "Funciona <strong>offline</strong>, recibe <strong>push nativas</strong> y tiene icono en pantalla de inicio.\n\n<strong>iOS:</strong> Safari → <strong>Compartir → Añadir a pantalla de inicio</strong>\n<strong>Android / Escritorio:</strong> botón <strong>Instalar</strong> en barra de direcciones o menú ⋮",
+    content: "Funciona <strong>offline</strong>, recibe <strong>push nativas</strong> y tiene icono en pantalla de inicio.\n\n<strong>iOS:</strong> Safari → <strong>Compartir → Añadir a pantalla de inicio</strong>\n<strong>Android / Escritorio:</strong> botón <strong>Instalar</strong> en barra de direcciones o menú ⋮\n\n¿Ya lo sabes todo? ¡Instala y llévalo a todas partes!",
     position: "bottom",
     skipIf: () => {
       const isPWA = window.matchMedia("(display-mode: standalone)").matches;
