@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowUpDown, Check, MoreVertical, Pin } from "lucide-react";
 import { api, ApiError } from "../lib/api";
@@ -6,7 +6,7 @@ import { useAuth } from "../lib/auth";
 import { useNotifications } from "../lib/useNotifications";
 import { useUserChannel } from "../hooks/useRealtime";
 import { markPushAsked, shouldAskPush, subscribeToPush } from "../lib/push";
-import { Avatar, Button, DropdownMenu, EmptyState, Input, Modal, Money, Select, SmartImage, Spinner } from "../components/ui";
+import { Avatar, Button, DropdownMenu, EmptyState, Input, Modal, Money, Select, SmartImage, Spinner, Toast } from "../components/ui";
 import { NotificationBell } from "../components/NotificationBell";
 import { NotificationDrawer } from "../components/NotificationDrawer";
 import { AnalyticsConsentBanner } from "../components/AnalyticsConsentBanner";
@@ -48,8 +48,16 @@ export default function DashboardPage() {
   const [showPushBanner, setShowPushBanner] = useState(shouldAskPush());
   const [enablingPush, setEnablingPush] = useState(false);
   const [pushError, setPushError] = useState("");
+  const [toast, setToast] = useState("");
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { notifications, unreadCount, initialized, markRead, markAllRead, refresh } = useNotifications();
   useUserChannel(user?.id ?? null, refresh);
+
+  function showToast(msg: string) {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(""), 2200);
+  }
 
   useEffect(() => {
     if (user) setPinnedIds(user.pinnedGroupIds ?? []);
@@ -70,6 +78,7 @@ export default function DashboardPage() {
         const optimized = await blobToDataUrl(blob);
         await api.patch("/users/me", { avatarUrl: optimized });
         updateUser({ avatarUrl: optimized });
+        showToast("Tu avatar se ha optimizado automáticamente");
       } catch {
         migratedAvatars.delete(key);
       }
@@ -575,6 +584,7 @@ export default function DashboardPage() {
           if (url) navigate(url);
         }}
       />
+    <Toast show={Boolean(toast)}>{toast}</Toast>
     </div>
   );
 }

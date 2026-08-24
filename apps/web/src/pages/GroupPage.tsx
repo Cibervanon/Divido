@@ -295,6 +295,7 @@ export default function GroupPage() {
                 detail: { ...cachedNow.detail, group: { ...cachedNow.detail.group, logoUrl: optimized } },
               });
             }
+            showToast("Logo del grupo optimizado automáticamente");
           });
         }
       } catch (err) {
