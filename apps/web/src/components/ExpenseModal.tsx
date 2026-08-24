@@ -221,7 +221,7 @@ export function ExpenseModal({
         detectedFor.current = null;
       }
     }
-  }, [open, groupId, expense, defaultDescription, activeMembers]);
+  }, [open, groupId, expense, defaultDescription, defaultAmount, defaultPayerId, activeMembers]);
 
   const debouncedDescription = useDebouncedValue(description, 300);
 
