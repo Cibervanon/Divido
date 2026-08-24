@@ -12,6 +12,8 @@ export interface AuthUser {
   phone: string | null;
   revolut: string | null;
   paypal: string | null;
+  pinnedGroupIds: string[];
+  autoConfirmPayments: boolean;
 }
 
 export function signToken(user: AuthUser): string {

@@ -24,7 +24,7 @@ const USERS = {
 let app: FastifyInstance;
 
 function authHeader(userId: string) {
-  const user = { id: userId, email: "", name: userId, avatarUrl: null, emailVerified: true, phone: null, revolut: null, paypal: null };
+  const user = { id: userId, email: "", name: userId, avatarUrl: null, emailVerified: true, phone: null, revolut: null, paypal: null, pinnedGroupIds: [], autoConfirmPayments: false };
   return { authorization: `Bearer ${signToken(user)}` };
 }
 

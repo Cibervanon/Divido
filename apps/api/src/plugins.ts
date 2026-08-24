@@ -3,7 +3,7 @@ import fp from "fastify-plugin";
 import type { Db } from "./db.js";
 import type { AuthUser } from "./auth.js";
 import { verifyToken } from "./auth.js";
-import { findUserById, getGroup, getMemberRow, type MemberRow } from "./store.js";
+import { findUserById, getGroup, getMemberRow, type MemberRow, parseStringArray } from "./store.js";
 import { forbidden, notFound, unauthorized } from "./errors.js";
 import type { Group } from "@divido/shared";
 
@@ -33,6 +33,8 @@ export const authPlugin = fp(async (app: FastifyInstance) => {
           phone: row.phone,
           revolut: row.revolut,
           paypal: row.paypal,
+          pinnedGroupIds: parseStringArray(row.pinned_group_ids),
+          autoConfirmPayments: Boolean(row.auto_confirm_payments),
         };
       }
     } catch {

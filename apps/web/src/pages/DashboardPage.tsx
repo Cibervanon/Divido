@@ -327,7 +327,7 @@ export default function DashboardPage() {
                 ) : null}
                 {hasDebt ? (
                   <span className="rounded-lg bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-400">
-                    Debes <Money amount={owedByMe} currency={summaryCurrency} />
+                    Debes <Money amount={-owedByMe} currency={summaryCurrency} />
                   </span>
                 ) : null}
                 <span className="flex items-center gap-1 font-medium text-slate-500">

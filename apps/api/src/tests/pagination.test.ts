@@ -11,7 +11,7 @@ const G = "g-page-1";
 let app: FastifyInstance;
 let db: ReturnType<typeof createTestDb>;
 const token = (userId: string) => ({
-  authorization: `Bearer ${signToken({ id: userId, email: "", name: userId, avatarUrl: null, emailVerified: true, phone: null, revolut: null, paypal: null })}`,
+  authorization: `Bearer ${signToken({ id: userId, email: "", name: userId, avatarUrl: null, emailVerified: true, phone: null, revolut: null, paypal: null, pinnedGroupIds: [], autoConfirmPayments: false })}`,
 });
 
 beforeAll(async () => {

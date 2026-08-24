@@ -223,9 +223,10 @@ export function ExpenseModal({
     }
   }, [open, groupId, expense, defaultDescription, defaultAmount, defaultPayerId, activeMembers]);
 
-  // Efecto separado para prefill cuando el modal ya está abierto (duplicar gasto)
+  // Efecto para prefill cuando cambian los props de prefill (duplicar gasto)
+  // Se ejecuta independientemente de `open` para evitar race conditions
   useEffect(() => {
-    if (!open || expense) return;
+    if (expense) return; // solo para nuevos gastos
     setDescription(defaultDescription);
     setAmount(defaultAmount);
     setCurrency(groupCurrency);
@@ -243,7 +244,7 @@ export function ExpenseModal({
     setIconName(detected.iconName);
     setIsCustomIcon(false);
     detectedFor.current = null;
-  }, [open, expense, defaultDescription, defaultAmount, defaultPayerId, groupCurrency, activeMembers]);
+  }, [defaultDescription, defaultAmount, defaultPayerId, groupCurrency, activeMembers]);
 
   const debouncedDescription = useDebouncedValue(description, 300);
 

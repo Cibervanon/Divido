@@ -13,7 +13,7 @@ const TOTAL_EXPENSES = 1500; // > 1000 para forzar más de un lote de streaming
 let app: FastifyInstance;
 let db: ReturnType<typeof createTestDb>;
 const token = (userId: string) => ({
-  authorization: `Bearer ${signToken({ id: userId, email: "", name: userId, avatarUrl: null, emailVerified: true, phone: null, revolut: null, paypal: null })}`,
+  authorization: `Bearer ${signToken({ id: userId, email: "", name: userId, avatarUrl: null, emailVerified: true, phone: null, revolut: null, paypal: null, pinnedGroupIds: [], autoConfirmPayments: false })}`,
 });
 
 beforeAll(async () => {
