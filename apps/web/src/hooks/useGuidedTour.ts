@@ -21,18 +21,19 @@ interface StepInfo {
 }
 
 export function useGuidedTour() {
-  // Core state
+  // Core state - simplified
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [steps, setSteps] = useState<StepInfo[]>([]);
   const [hasEvaluated, setHasEvaluated] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string>("Starting...");
 
-  // Refs for cleanup
-  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Refs
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const observerRef = useRef<MutationObserver | null>(null);
   const mountedRef = useRef(true);
 
-  // Simple step evaluator - runs synchronously, no complex memo
+  // Simple step evaluator
   const evaluateAllSteps = useCallback(() => {
     if (!mountedRef.current) return;
     
@@ -61,12 +62,11 @@ export function useGuidedTour() {
     setHasEvaluated(true);
     
     // Debug logging
-    console.log('[Tour] Evaluated steps:', newSteps.map(s => ({
-      id: s.step.id,
-      target: s.step.target,
-      skipped: s.skipped,
-      hasElement: !!s.element
-    })));
+    const debugMsg = newSteps.map(s => 
+      `${s.step.id}: target="${s.step.target}" skipped=${s.skipped} element=${!!s.element}`
+    ).join(" | ");
+    console.log('[Tour] EVAL:', debugMsg);
+    setDebugInfo(debugMsg);
   }, []);
 
   // Get active (non-skipped) steps with existing elements
@@ -80,14 +80,16 @@ export function useGuidedTour() {
 
   // Check if tour should be shown (respects done/dismissed)
   const shouldShowTour = useMemo(() => {
-    if (localStorage.getItem(TOUR_DONE_KEY) === "true") return false;
-    if (localStorage.getItem(TOUR_DISMISSED_KEY) === "true") return false;
+    const done = localStorage.getItem(TOUR_DONE_KEY) === "true";
+    const dismissed = localStorage.getItem(TOUR_DISMISSED_KEY) === "true";
+    if (done || dismissed) return false;
     return activeSteps.length > 0;
   }, [activeSteps.length]);
 
-  // Initialize: evaluate steps continuously until we have targets
+  // Initialize: evaluate steps continuously
   useEffect(() => {
     mountedRef.current = true;
+    console.log('[Tour] INIT - starting polling');
     
     // Initial evaluation
     evaluateAllSteps();
@@ -110,6 +112,7 @@ export function useGuidedTour() {
         attributes: true,
         attributeFilter: ["class", "data-tour", "style"],
       });
+      console.log('[Tour] MutationObserver attached');
     } catch (e) {
       console.warn('[Tour] MutationObserver failed:', e);
     }
@@ -121,25 +124,78 @@ export function useGuidedTour() {
     };
   }, [evaluateAllSteps]);
 
-  // Auto-open logic: simple and direct
+  // Auto-open logic: FOR TESTING - open immediately if shouldShowTour and has target
   useEffect(() => {
     if (!hasEvaluated) return;
     if (isOpen) return;
-    if (!shouldShowTour) return;
+    if (!shouldShowTour) {
+      console.log('[Tour] shouldShowTour=false, not opening');
+      return;
+    }
 
-    // Wait for first active step to have an element
-    if (activeSteps.length > 0 && activeSteps[0]) {
-      const firstStepInfo = steps.find(s => s.step === activeSteps[0]);
+    console.log('[Tour] Checking auto-open conditions:', {
+      activeStepsCount: activeSteps.length,
+      firstStep: activeSteps[0]?.id,
+      firstStepElement: steps.find(s => s.step === activeSteps[0])?.element,
+      shouldShowTour
+    });
+
+    // FOR TESTING: Open immediately if we have any active step with element
+    if (activeSteps.length > 0) {
+      const firstActive = activeSteps[0];
+      const firstStepInfo = steps.find(s => s.step === firstActive);
       if (firstStepInfo?.element) {
-        console.log('[Tour] Auto-opening at step:', activeSteps[0].id);
+        console.log('[Tour] AUTO-OPENING at step:', firstActive.id);
         setCurrentStepIndex(0);
         setIsOpen(true);
         localStorage.setItem(TOUR_STEP_KEY, "0");
+      } else {
+        console.log('[Tour] First active step has no element yet:', firstActive.id);
       }
+    } else {
+      console.log('[Tour] No active steps available');
     }
   }, [hasEvaluated, activeSteps, steps, shouldShowTour, isOpen]);
 
-  // Advance to next valid step
+  // Keyboard shortcut to manually trigger tour (T key)
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 't' || e.key === 'T') {
+        if (e.ctrlKey || e.metaKey) return; // Don't interfere with shortcuts
+        console.log('[Tour] Manual trigger via T key');
+        if (activeSteps.length > 0) {
+          setCurrentStepIndex(0);
+          setIsOpen(true);
+        } else {
+          console.log('[Tour] Manual trigger failed - no active steps');
+        }
+      }
+      if (e.key === 'r' || e.key === 'R') {
+        if (e.ctrlKey || e.metaKey) return;
+        console.log('[Tour] Manual reset via R key');
+        localStorage.removeItem(TOUR_DONE_KEY);
+        localStorage.removeItem(TOUR_DISMISSED_KEY);
+        localStorage.removeItem(TOUR_STEP_KEY);
+        evaluateAllSteps();
+        setTimeout(() => {
+          if (activeSteps.length > 0) {
+            setCurrentStepIndex(0);
+            setIsOpen(true);
+          }
+        }, 100);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [activeSteps, evaluateAllSteps]);
+
+  // Persist step changes
+  useEffect(() => {
+    if (isOpen) {
+      localStorage.setItem(TOUR_STEP_KEY, String(currentStepIndex));
+    }
+  }, [currentStepIndex, isOpen]);
+
   const nextStep = useCallback(() => {
     const nextIndex = currentStepIndex + 1;
     if (nextIndex < activeSteps.length) {
@@ -173,18 +229,33 @@ export function useGuidedTour() {
 
   const resetTour = useCallback(() => {
     localStorage.removeItem(TOUR_DONE_KEY);
-    localStorage.removeItem(TOUR_STEP_KEY);
     localStorage.removeItem(TOUR_DISMISSED_KEY);
+    localStorage.removeItem(TOUR_STEP_KEY);
     setCurrentStepIndex(0);
     setIsOpen(true);
     evaluateAllSteps();
     console.log('[Tour] Reset');
   }, [evaluateAllSteps]);
 
-  // Expose simple API
+  // Debug: expose state for visual debug panel
+  const debugState = useMemo(() => ({
+    isOpen,
+    currentStepIndex,
+    activeStepsCount: activeSteps.length,
+    activeStepsIds: activeSteps.map(s => s.id),
+    allSteps: steps.map(s => ({
+      id: s.step.id,
+      target: s.step.target,
+      skipped: s.skipped,
+      hasElement: !!s.element
+    })),
+    shouldShowTour,
+    hasEvaluated
+  }), [isOpen, currentStepIndex, activeSteps, steps, shouldShowTour, hasEvaluated]);
+
   return {
     isOpen,
-    currentStep,
+    currentStep: activeSteps[currentStepIndex] ?? null,
     currentStepIndex,
     activeSteps,
     totalSteps: activeSteps.length,
@@ -193,7 +264,11 @@ export function useGuidedTour() {
     skipTour,
     completeTour,
     resetTour,
-    // Debug
-    debugSteps: steps,
+    debugState,
   };
 }
+
+// Make pollTimerRef available
+const pollTimerRef = { current: null as ReturnType<typeof setInterval> | null };
+const observerRef = { current: null as MutationObserver | null };
+const mountedRef = { current: true };
