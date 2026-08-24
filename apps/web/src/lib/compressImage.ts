@@ -70,6 +70,32 @@ async function encodeImageToJpeg(
   maxDimension: number,
   quality: number,
 ): Promise<Blob> {
+  // Intento 1: createImageBitmap con resize (moderno, evita OOM decodificando directo al tamaño destino)
+  if ("createImageBitmap" in self) {
+    try {
+      const bitmap = await createImageBitmap(file, {
+        resizeWidth: maxDimension,
+        resizeHeight: maxDimension,
+        resizeQuality: "high",
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("El navegador no permite procesar imágenes");
+      ctx.drawImage(bitmap, 0, 0);
+      bitmap.close();
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob((result) => resolve(result), "image/jpeg", quality),
+      );
+      if (!blob) throw new Error("No se pudo comprimir la imagen");
+      return blob;
+    } catch {
+      // Si falla (formato no soportado, etc.), caemos al fallback clásico
+    }
+  }
+
+  // Fallback: método clásico con <img> + canvas (compatible con navegadores antiguos)
   const url = URL.createObjectURL(file);
   const img = new Image();
   img.decoding = "async";
@@ -98,8 +124,6 @@ async function encodeImageToJpeg(
     if (!ctx) throw new Error("El navegador no permite procesar imágenes");
     ctx.drawImage(img, 0, 0, width, height);
 
-    // Soltamos la foto original ANTES de serializar el JPEG para aplanar
-    // el pico de memoria: solo conviven el canvas pequeño y el resultado.
     releaseImg();
 
     const blob = await new Promise<Blob | null>((resolve) =>
