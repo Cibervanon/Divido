@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useAuth } from "./lib/auth";
 import { Spinner } from "./components/ui";
 import { analyticsEnabled, track } from "./lib/analytics";
+import { OnboardingModal } from "./components/OnboardingModal";
 
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
@@ -27,7 +28,7 @@ function FullScreenSpinner() {
 }
 
 function Protected({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, showOnboarding } = useAuth();
   const location = useLocation();
   if (loading) {
     return <FullScreenSpinner />;
@@ -35,7 +36,12 @@ function Protected({ children }: { children: ReactNode }) {
   if (!user) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      {showOnboarding && <OnboardingModal />}
+    </>
+  );
 }
 
 function PageviewTracker() {

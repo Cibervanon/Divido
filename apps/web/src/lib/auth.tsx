@@ -31,13 +31,18 @@ interface AuthContextValue {
   exchangeGoogleCode: (code: string, redirectUri: string) => Promise<void>;
   refreshUser: () => Promise<void>;
   updateUser: (patch: Partial<Me>) => void;
+  showOnboarding: boolean;
+  dismissOnboarding: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const ONBOARDING_KEY = "divido.onboarding_done";
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     setOnUnauthorized(() => {
@@ -64,6 +69,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     bootstrap();
   }, []);
+
+  // Check onboarding status after auth
+  useEffect(() => {
+    if (user && !localStorage.getItem(ONBOARDING_KEY)) {
+      setShowOnboarding(true);
+    }
+  }, [user]);
+
+  const dismissOnboarding = () => {
+    localStorage.setItem(ONBOARDING_KEY, "1");
+    setShowOnboarding(false);
+  };
 
   async function afterAuth(token: string, user: Me) {
     setToken(token);
@@ -118,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, register, logout, googleLogin, exchangeGoogleCode, refreshUser, updateUser }}
+      value={{ user, loading, login, register, logout, googleLogin, exchangeGoogleCode, refreshUser, updateUser, showOnboarding, dismissOnboarding }}
     >
       {children}
     </AuthContext.Provider>
