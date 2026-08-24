@@ -4,7 +4,7 @@ dist/
 .env
 .env.local
 .env.*.local
-data/
+# data/  <-- Comentado para permitir archivos en apps/web/src/data/
 .DS_Store
 # Credenciales de Google OAuth (NUNCA subir este archivo)
 *googleusercontent.com.json

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import "./guidedTour.css";
+import "../styles/guidedTour.css";
 
 interface SpotlightOverlayProps {
   targetRect: DOMRect | null;

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { TourStep } from "../hooks/useGuidedTour";
-import "./guidedTour.css";
+import "../styles/guidedTour.css";
 
 interface GuidedTourTooltipProps {
   step: TourStep;
