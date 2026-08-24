@@ -23,6 +23,7 @@ export function useGuidedTour() {
   const [hasEvaluated, setHasEvaluated] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
   const [completedThisSession, setCompletedThisSession] = useState(false);
+  const [hasAttemptedOpen, setHasAttemptedOpen] = useState(false);
 
   const observerRef = useRef<MutationObserver | null>(null);
   const mountedRef = useRef(true);
@@ -76,23 +77,26 @@ export function useGuidedTour() {
     return () => { mountedRef.current = false; observerRef.current?.disconnect(); };
   }, []);
 
-  // Auto-open
+  // Auto-open - runs whenever activeSteps or hasEvaluated changes, but only once per session
   useEffect(() => {
-    if (!hasEvaluated || isOpen || completedThisSession) return;
+    if (!hasEvaluated || isOpen || hasAttemptedOpen) return;
+    
     const done = localStorage.getItem("divido.tour_done") === "true";
     const dismissed = localStorage.getItem("divido.tour_dismissed") === "true";
     if (done || dismissed) return;
+    
     if (activeSteps.length > 0) {
       const firstActive = activeSteps[0];
       const firstStepInfo = steps.find(s => s.step === firstActive);
       if (firstStepInfo?.element) {
         console.log('[Tour] AUTO-OPENING at step:', firstActive.id);
+        setHasAttemptedOpen(true);
         setCurrentStepIndex(0);
         setIsOpen(true);
         localStorage.setItem("divido.tour_step", "0");
       }
     }
-  }, [hasEvaluated, activeSteps, isOpen]);
+  }, [hasEvaluated, activeSteps]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -119,11 +123,66 @@ export function useGuidedTour() {
   const debugState = useMemo(() => ({ isOpen, currentStepIndex, activeStepsCount: activeSteps.length, activeStepsIds: activeSteps.map(s => s.id), allSteps: steps.map(s => ({ id: s.step.id, target: s.step.target, skipped: s.skipped, hasElement: !!s.element })), hasEvaluated, shouldShowTour }), [isOpen, currentStepIndex, activeSteps, shouldShowTour]);
 
   // Actions
-  const nextStep = useCallback(() => { const next = currentStepIndex + 1; if (next < activeSteps.length) { setCurrentStepIndex(next); localStorage.setItem("divido.tour_step", String(next)); } else completeTour(); }, [activeSteps.length]);
-  const prevStep = useCallback(() => { setCurrentStepIndex(Math.max(0, currentStepIndex - 1)); localStorage.setItem("divido.tour_step", String(Math.max(0, currentStepIndex - 1))); }, []);
-  const completeTour = useCallback(() => { setCompletedThisSession(true); setIsOpen(false); localStorage.setItem("divido.tour_done", "true"); localStorage.removeItem("divido.tour_step"); localStorage.removeItem("divido.tour_dismissed"); }, []);
-  const skipTour = useCallback(() => { setIsOpen(false); localStorage.setItem("divido.tour_dismissed", "true"); localStorage.removeItem("divido.tour_step"); }, []);
-  const resetTour = useCallback(() => { localStorage.removeItem("divido.tour_done"); localStorage.removeItem("divido.tour_dismissed"); localStorage.removeItem("divido.tour_step"); setCurrentStepIndex(0); setIsOpen(true); setCompletedThisSession(false); evaluateAllSteps(); }, [evaluateAllSteps]);
+  const nextStep = useCallback(() => {
+    const next = currentStepIndex + 1;
+    if (next < activeSteps.length) { 
+      setCurrentStepIndex(next); 
+      localStorage.setItem("divido.tour_step", String(next)); 
+    } else {
+      completeTour();
+    }
+  }, [activeSteps.length]);
+
+  const prevStep = useCallback(() => { 
+    setCurrentStepIndex(Math.max(0, currentStepIndex - 1)); 
+    localStorage.setItem("divido.tour_step", String(Math.max(0, currentStepIndex - 1))); 
+  }, []);
+
+  const completeTour = useCallback(() => { 
+    setCompletedThisSession(true);
+    setIsOpen(false);
+    localStorage.setItem("divido.tour_done", "true");
+    localStorage.removeItem("divido.tour_step");
+    localStorage.removeItem("divido.tour_dismissed");
+  }, []);
+
+  const skipTour = useCallback(() => { 
+    setIsOpen(false);
+    localStorage.setItem("divido.tour_dismissed", "true");
+    localStorage.removeItem("divido.tour_step");
+  }, []);
+
+  const resetTour = useCallback(() => { 
+    localStorage.removeItem("divido.tour_done");
+    localStorage.removeItem("divido.tour_dismissed");
+    localStorage.removeItem("divido.tour_step");
+    setCurrentStepIndex(0);
+    setIsOpen(true);
+    setCompletedThisSession(false);
+    setHasAttemptedOpen(false);
+    evaluateAllSteps();
+  }, [evaluateAllSteps]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === 'd' || e.key === 'D') setShowDebug(d => !d);
+      if ((e.key === 't' || e.key === 'T') && activeSteps.length > 0) { setCurrentStepIndex(0); setIsOpen(true); }
+      if (e.key === 'r' || e.key === 'R') {
+        localStorage.removeItem("divido.tour_done");
+        localStorage.removeItem("divido.tour_dismissed");
+        localStorage.removeItem("divido.tour_step");
+        evaluateAllSteps();
+        setTimeout(() => { if (activeSteps.length > 0) { setCurrentStepIndex(0); setIsOpen(true); } }, 100);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [activeSteps]);
+
+  // Persist step
+  useEffect(() => { if (isOpen) localStorage.setItem("divido.tour_step", String(currentStepIndex)); }, [currentStepIndex, isOpen]);
 
   // Return API
   return { isOpen, currentStep: activeSteps[currentStepIndex] ?? null, currentStepIndex, activeSteps, totalSteps: activeSteps.length, nextStep, prevStep, skipTour, completeTour, resetTour, debugState, showDebug, setShowDebug };

@@ -1,13 +1,13 @@
 import type { TourStep } from "../hooks/useGuidedTour";
 
-// 6 pasos principales + Help (7 total) alineados con la referencia
+// 6 pasos alineados con la referencia
 export const tourSteps: TourStep[] = [
   // 1. Dashboard - Groups → Highlights anchored groups, explains balance colors
   {
     id: "dashboard-groups",
     target: ".group:first-of-type",
     title: "🏠 Tus grupos",
-    content: "Aquí ves todos tus grupos. Los <strong>anclados (📌)</sub> están arriba. <strong style='color:#3fb950'>Verde = te deben</strong>, <strong style='color:#f85149'>Rojo = debes</strong>. El neto total está en la tarjeta superior.",
+    content: "Aquí ves todos tus grupos. Los <strong>anclados (📌)</strong> están arriba. <strong style='color:#3fb950'>Verde = te deben</strong>, <strong style='color:#f85149'>Rojo = debes</strong>. El neto total está en la tarjeta superior.",
     position: "right",
     skipIf: () => {
       const cards = document.querySelectorAll(".group");
@@ -26,7 +26,7 @@ export const tourSteps: TourStep[] = [
       const cards = document.querySelectorAll(".group");
       if (cards.length > 0) return true; // Solo si NO hay grupos
       const btn = document.querySelector("[data-tour='create-group']");
-      return !btn; // Skip si el botón no existe aún
+      return !btn;
     },
   },
 

@@ -14,11 +14,12 @@ export function GuidedTour() {
     skipTour,
     completeTour,
     debugState,
+    showDebug,
+    setShowDebug,
   } = useGuidedTour();
 
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const targetRef = useRef<HTMLElement | null>(null);
-  const [showDebug, setShowDebug] = useState(false);
 
   // Find target element for current step
   useEffect(() => {
@@ -55,7 +56,15 @@ export function GuidedTour() {
     };
   }, []);
 
-  const handleNext = useCallback(() => nextStep(), [nextStep]);
+  // Handle next: on last step, call completeTour
+  const handleNext = useCallback(() => {
+    if (currentStepIndex === activeSteps.length - 1) {
+      completeTour();
+    } else {
+      nextStep();
+    }
+  }, [currentStepIndex, activeSteps.length, nextStep, completeTour]);
+
   const handlePrev = useCallback(() => prevStep(), [prevStep]);
   const handleSkip = useCallback(() => skipTour(), [skipTour]);
   const handleClose = useCallback(() => skipTour(), [skipTour]);
@@ -99,7 +108,6 @@ export function GuidedTour() {
       <div>currentStepIndex: {debugState.currentStepIndex}</div>
       <div>activeStepsCount: {debugState.activeStepsCount}</div>
       <div>activeSteps: {debugState.activeStepsIds.join(', ') || 'none'}</div>
-      <div>shouldShowTour: {String(debugState.shouldShowTour)}</div>
       <div>hasEvaluated: {String(debugState.hasEvaluated)}</div>
       <div style={{marginTop:'8px',borderTop:'1px solid #0f0',paddingTop:'8px'}}>
         <strong>All Steps:</strong>
