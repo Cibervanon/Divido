@@ -150,6 +150,7 @@ export default function GroupPage() {
   const [showNewRecurring, setShowNewRecurring] = useState(false);
   const [editTarget, setEditTarget] = useState<ExpenseDto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ExpenseDto | null>(null);
+  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
   const [breakdownTarget, setBreakdownTarget] = useState<MemberInfo | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [memberDetail, setMemberDetail] = useState<{ member: MemberInfo; data: BreakdownItem[] } | null>(null);
@@ -451,6 +452,7 @@ export default function GroupPage() {
   }
 
   async function requestDelete(expense: ExpenseDto) {
+    setDeletingExpenseId(expense.id);
     try {
       if (expense.editable) {
         await api.delete(`/expenses/${expense.id}`);
@@ -461,6 +463,8 @@ export default function GroupPage() {
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error");
+    } finally {
+      setDeletingExpenseId(null);
     }
   }
 
@@ -749,8 +753,8 @@ export default function GroupPage() {
             <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
               Cancelar
             </Button>
-            <Button variant="danger" onClick={() => deleteTarget && requestDelete(deleteTarget)}>
-              {deleteTarget?.editable ? "Eliminar" : "Enviar solicitud"}
+            <Button variant="danger" onClick={() => deleteTarget && requestDelete(deleteTarget)} loading={deletingExpenseId === deleteTarget?.id}>
+              {deletingExpenseId === deleteTarget?.id ? "Eliminando…" : (deleteTarget?.editable ? "Eliminar" : "Enviar solicitud")}
             </Button>
           </>
         }

@@ -223,6 +223,28 @@ export function ExpenseModal({
     }
   }, [open, groupId, expense, defaultDescription, defaultAmount, defaultPayerId, activeMembers]);
 
+  // Efecto separado para prefill cuando el modal ya está abierto (duplicar gasto)
+  useEffect(() => {
+    if (!open || expense) return;
+    setDescription(defaultDescription);
+    setAmount(defaultAmount);
+    setCurrency(groupCurrency);
+    setExchangeRate("1");
+    setPayerId(defaultPayerId);
+    const all = activeMembers.map((m) => m.userId);
+    setParticipants(all);
+    setSplitMode("equal");
+    setPercents({});
+    setAmounts({});
+    setPaidFromPot(false);
+    setReceiptUrl(null);
+    const detected = detectCategory(defaultDescription);
+    setCategory(detected.category);
+    setIconName(detected.iconName);
+    setIsCustomIcon(false);
+    detectedFor.current = null;
+  }, [open, expense, defaultDescription, defaultAmount, defaultPayerId, groupCurrency, activeMembers]);
+
   const debouncedDescription = useDebouncedValue(description, 300);
 
   useEffect(() => {
