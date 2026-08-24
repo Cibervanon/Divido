@@ -78,7 +78,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
               { id: "icons", label: "Iconos" },
               { id: "categories", label: "Categorías" },
               { id: "faq", label: "FAQ" },
-            ].map(tab => (
+            ].map((tab: { id: string; label: string }) => (
               <button
                 key={tab.id}
                 role="tab"
@@ -101,7 +101,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
           <div className="p-4 border-b border-slate-800">
             <p className="text-xs text-slate-500 mb-2">{filteredResults.length} resultado(s) para "{search}"</p>
             <div className="space-y-2 max-h-40 overflow-y-auto">
-              {filteredResults.map(item => (
+              {filteredResults.map((item: { id: string; title: string; category: string; categoryId: string; content: string }) => (
                 <button
                   key={item.id}
                   onClick={() => {
@@ -126,7 +126,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
         <div className="flex-1 overflow-y-auto p-4">
           {activeTab === "categories" && (
             <div className="space-y-4">
-              {helpCategories.map(category => {
+              {helpCategories.map((category: { id: string; title: string; articles: Array<{ id: string; title: string; content: string }> }) => {
                 const isExpanded = expandedCategories.includes(category.id);
                 return (
                   <div key={category.id} className="rounded-xl border border-slate-800 bg-slate-900/50 overflow-hidden">
@@ -148,7 +148,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
                     {isExpanded && (
                       <div className="border-t border-slate-800 p-4 animate-in slide-in-from-top-2 duration-200">
                         <div className="space-y-2">
-                          {helpCategories.find(c => c.id === category.id)?.articles.map(article => (
+                          {helpCategories.find(c => c.id === category.id)?.articles.map((article: { id: string; title: string; content: string }) => (
                             <button
                               key={article.id}
                               onClick={() => {
@@ -171,7 +171,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
 
           {activeTab === "shortcuts" && (
             <div className="space-y-2">
-              {keyboardShortcuts.map(shortcut => (
+              {keyboardShortcuts.map((shortcut: { key: string; description: string }) => (
                 <div key={shortcut.key} className="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800">
                   <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-800 text-indigo-400">{shortcut.key}</span>
                   <span className="text-sm text-slate-300 ml-3">{shortcut.description}</span>
@@ -182,7 +182,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
 
           {activeTab === "icons" && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {iconMeanings.map(icon => (
+              {iconMeanings.map((icon: { icon: string; meaning: string }) => (
                 <div key={icon.icon} className="p-3 rounded-xl bg-slate-900 border border-slate-800">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-lg">{icon.icon}</span>
@@ -195,7 +195,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
 
           {activeTab === "categories" && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {expenseCategories.map(cat => (
+              {expenseCategories.map((cat: { name: string; icon: string; keywords: string }) => (
                 <div key={cat.name} className="p-3 rounded-xl bg-slate-900 border border-slate-800">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-lg">{cat.icon}</span>
@@ -209,7 +209,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
 
           {activeTab === "faq" && (
             <div className="space-y-2">
-              {helpCategories.flatMap(c => c.articles.flatMap(a => a.faqs || []).map((faq, i) => (
+              {helpCategories.flatMap((c: { id: string; articles: Array<{ faqs?: Array<{ question: string; answer: string }> }> }) => c.articles.flatMap((a: { faqs?: Array<{ question: string; answer: string }> }) => a.faqs || []).map((faq: { question: string; answer: string }, i: number) => (
                 <details key={`${c.id}-faq-${i}`} className="rounded-xl bg-slate-900 border border-slate-800">
                   <summary className="p-3 font-medium text-slate-100 cursor-pointer">{faq.question}</summary>
                   <div className="px-4 pb-3 text-slate-300 text-sm">{faq.answer}</div>
