@@ -38,7 +38,25 @@ export default {
           600: "rgb(var(--info-600) / <alpha-value>)",
         },
       },
+      typography: {
+        DEFAULT: {
+          css: {
+            maxWidth: 'none',
+            color: 'rgb(203 213 225)', // slate-300
+            strong: { color: 'rgb(255 255 255)' }, // white
+            h1: { color: 'rgb(255 255 255)' },
+            h2: { color: 'rgb(255 255 255)' },
+            h3: { color: 'rgb(255 255 255)' },
+            h4: { color: 'rgb(255 255 255)' },
+            code: { color: 'rgb(165 180 252)', backgroundColor: 'rgb(30 41 59)', padding: '0.125rem 0.375rem', borderRadius: '0.25rem' },
+            'code::before': { content: '""' },
+            'code::after': { content: '""' },
+            a: { color: 'rgb(165 180 252)', textDecoration: 'underline' },
+            blockquote: { borderLeftColor: 'rgb(99 102 241)', color: 'rgb(148 163 184)' },
+          },
+        },
+      },
     },
   },
-  plugins: [],
+  plugins: [require('@tailwindcss/typography')],
 };

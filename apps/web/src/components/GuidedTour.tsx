@@ -13,23 +13,28 @@ export function GuidedTour() {
     skipTour,
     completeTour,
     isLoading,
+    isReady,
     activeSteps,
+    stepStatuses,
   } = useGuidedTour();
 
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const targetRef = useRef<HTMLElement | null>(null);
 
-  // Find target element
+  // Update target rect when current step status changes
   useEffect(() => {
     if (!currentStep) return;
-    const el = document.querySelector(currentStep.target) as HTMLElement | null;
+
+    const currentStatus = stepStatuses[currentStepIndex];
+    const el = currentStatus?.targetElement ?? null;
     targetRef.current = el;
+
     if (el) {
       setTargetRect(el.getBoundingClientRect());
     } else {
       setTargetRect(null);
     }
-  }, [currentStep]);
+  }, [currentStep, currentStepIndex, stepStatuses]);
 
   // Update target rect on scroll/resize
   useEffect(() => {
@@ -63,7 +68,8 @@ export function GuidedTour() {
     skipTour();
   }, [skipTour]);
 
-  if (!isActive || isLoading || !currentStep) return null;
+  // Wait for: not loading, system ready, tour active, current step exists, target rect available
+  if (isLoading || !isReady || !isActive || !currentStep || !targetRect) return null;
 
   return (
     <>
@@ -73,18 +79,16 @@ export function GuidedTour() {
           radius={10}
         />
 
-        {targetRect && (
-          <GuidedTourTooltip
-            step={currentStep}
-            targetRect={targetRect}
-            onNext={handleNext}
-            onPrev={handlePrev}
-            onSkip={handleSkip}
-            currentIndex={currentStepIndex}
-            totalSteps={activeSteps.length}
-            onClose={handleClose}
-          />
-        )}
+        <GuidedTourTooltip
+          step={currentStep}
+          targetRect={targetRect}
+          onNext={handleNext}
+          onPrev={handlePrev}
+          onSkip={handleSkip}
+          currentIndex={currentStepIndex}
+          totalSteps={activeSteps.length}
+          onClose={handleClose}
+        />
       </div>
     </>
   );
