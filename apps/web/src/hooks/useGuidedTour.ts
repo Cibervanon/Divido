@@ -14,6 +14,8 @@ const TOUR_DONE_KEY = "divido.tour_done";
 const TOUR_STEP_KEY = "divido.tour_step";
 const TOUR_DISMISSED_KEY = "divido.tour_dismissed";
 
+type TourStatus = "idle" | "evaluating" | "ready" | "active" | "completed" | "dismissed";
+
 interface StepStatus {
   step: TourStep;
   isSkipped: boolean;
@@ -22,17 +24,19 @@ interface StepStatus {
 }
 
 export function useGuidedTour() {
-  const [isActive, setIsActive] = useState(false);
+  const [status, setStatus] = useState<TourStatus>("idle");
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isReady, setIsReady] = useState(false);
   const [stepStatuses, setStepStatuses] = useState<StepStatus[]>([]);
+  const [hasGroups, setHasGroups] = useState(false);
+  const [dashboardReady, setDashboardReady] = useState(false);
 
   const observerRef = useRef<MutationObserver | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const evaluationCountRef = useRef(0);
 
   // Evaluate all skipIf functions and find target elements
   const evaluateSteps = useCallback((): StepStatus[] => {
+    evaluationCountRef.current += 1;
     return tourSteps.map((step) => {
       const targetEl = document.querySelector(step.target) as HTMLElement | null;
       const targetExists = !!targetEl;
@@ -62,25 +66,43 @@ export function useGuidedTour() {
       .map((s) => s.step);
   }, [stepStatuses]);
 
-  // Check if user has any groups - directly query DOM each render for reactivity
-  const hasGroups = useMemo(() => {
-    const cards = document.querySelectorAll(".group-card");
-    return cards.length > 0;
-  }, [stepStatuses.length]); // Re-evaluate when stepStatuses updates
-
   // Get the current step status
   const currentStepStatus = stepStatuses[currentStepIndex];
   const currentStep = currentStepStatus?.step ?? null;
+  const isActive = status === "active";
+  const isLoading = status === "idle" || status === "evaluating";
+  const isReady = status === "ready" || status === "active";
 
-  // Initialize tour system (evaluate steps, setup observer)
+  // Check if user has groups - directly query DOM for reactivity
+  const checkHasGroups = useCallback(() => {
+    const cards = document.querySelectorAll(".group");
+    const has = cards.length > 0;
+    setHasGroups(has);
+    return has;
+  }, []);
+
+  // Check if dashboard is ready (not loading, not error)
+  const checkDashboardReady = useCallback(() => {
+    const loading = document.querySelector(".animate-spin") !== null;
+    const error = document.querySelector("[class*='bg-rose-500']") !== null;
+    const ready = !loading && !error;
+    setDashboardReady(ready);
+    return ready;
+  }, []);
+
+  // Initialize tour system - evaluate steps continuously
   useEffect(() => {
-    // Initial evaluation
-    setStepStatuses(evaluateSteps());
-    setIsReady(true);
+    const initialEval = evaluateSteps();
+    setStepStatuses(initialEval);
+    checkHasGroups();
+    checkDashboardReady();
+    setStatus("evaluating");
 
     // Setup MutationObserver to re-evaluate when DOM changes
     observerRef.current = new MutationObserver(() => {
       setStepStatuses(evaluateSteps());
+      checkHasGroups();
+      checkDashboardReady();
     });
     observerRef.current.observe(document.body, {
       childList: true,
@@ -92,6 +114,8 @@ export function useGuidedTour() {
     // Also poll periodically as fallback
     const poll = () => {
       setStepStatuses(evaluateSteps());
+      checkHasGroups();
+      checkDashboardReady();
       pollTimeoutRef.current = setTimeout(poll, 1000);
     };
     pollTimeoutRef.current = setTimeout(poll, 1000);
@@ -100,36 +124,36 @@ export function useGuidedTour() {
       observerRef.current?.disconnect();
       if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
     };
-  }, [evaluateSteps]);
+  }, [evaluateSteps, checkHasGroups, checkDashboardReady]);
 
-  // Auto-start logic - runs when isReady, activeSteps.length, or hasGroups changes
+  // State machine: transition from evaluating -> ready when conditions met
   useEffect(() => {
-    if (!isReady || isActive) return;
+    if (status !== "evaluating") return;
 
     const done = localStorage.getItem(TOUR_DONE_KEY) === "true";
     const dismissed = localStorage.getItem(TOUR_DISMISSED_KEY) === "true";
 
     if (done || dismissed) {
-      setIsActive(false);
-      setIsLoading(false);
+      setStatus(done ? "completed" : "dismissed");
       return;
     }
 
-    if (activeSteps.length === 0) {
-      // No steps available yet - wait for targets to appear
-      return;
+    // Wait for: dashboard ready + at least one active step with existing target
+    if (dashboardReady && activeSteps.length > 0 && activeSteps[0] && stepStatuses[0]?.targetExists) {
+      setStatus("ready");
     }
+  }, [status, dashboardReady, activeSteps.length, stepStatuses]);
 
-    // Determine if we should auto-start:
-    // - User has NO groups → auto-start (shows "Crear grupo")
-    // - User HAS groups AND first run → auto-start (shows "Tus grupos")
-    // - User HAS groups AND returning → NO auto-start
+  // Auto-start when ready
+  useEffect(() => {
+    if (status !== "ready") return;
+
     const firstRun = localStorage.getItem("divido.tour_first_run") !== "false";
     const shouldAutoStart = !hasGroups || firstRun;
 
     if (!shouldAutoStart) {
-      // User has groups and not first run → don't auto-start
-      setIsLoading(false);
+      // User has groups and not first run -> don't auto-start
+      setStatus("dismissed");
       return;
     }
 
@@ -137,17 +161,14 @@ export function useGuidedTour() {
     if (firstRun) {
       localStorage.setItem("divido.tour_first_run", "false");
     }
-
-    // Start at first active step (index 0)
     setCurrentStepIndex(0);
-    setIsActive(true);
+    setStatus("active");
     localStorage.setItem(TOUR_STEP_KEY, "0");
-    setIsLoading(false);
-  }, [isReady, activeSteps.length, hasGroups, isActive]);
+  }, [status, hasGroups, activeSteps]);
 
-  // Auto-advance if current step becomes skipped or target disappears
+  // Auto-advance when current step becomes skipped or target disappears
   useEffect(() => {
-    if (!isActive || !isReady || activeSteps.length === 0) return;
+    if (!isActive || activeSteps.length === 0) return;
 
     const currentStatus = stepStatuses[currentStepIndex];
     if (!currentStatus) return;
@@ -161,13 +182,20 @@ export function useGuidedTour() {
         completeTour();
       }
     }
-  }, [activeSteps, currentStepIndex, isActive, isReady, stepStatuses]);
+  }, [activeSteps, currentStepIndex, isActive, stepStatuses]);
+
+  // Persist step changes
+  useEffect(() => {
+    if (isActive) {
+      localStorage.setItem(TOUR_STEP_KEY, String(currentStepIndex));
+    }
+  }, [currentStepIndex, isActive]);
 
   const startTour = useCallback(() => {
     const steps = evaluateSteps().filter((s) => !s.isSkipped).map((s) => s.step);
     if (steps.length === 0) return;
     setCurrentStepIndex(0);
-    setIsActive(true);
+    setStatus("active");
     localStorage.removeItem(TOUR_DONE_KEY);
     localStorage.removeItem(TOUR_DISMISSED_KEY);
     localStorage.setItem(TOUR_STEP_KEY, "0");
@@ -191,13 +219,13 @@ export function useGuidedTour() {
   }, []);
 
   const skipTour = useCallback(() => {
-    setIsActive(false);
+    setStatus("dismissed");
     localStorage.setItem(TOUR_DISMISSED_KEY, "true");
     localStorage.removeItem(TOUR_STEP_KEY);
   }, []);
 
   const completeTour = useCallback(() => {
-    setIsActive(false);
+    setStatus("completed");
     localStorage.setItem(TOUR_DONE_KEY, "true");
     localStorage.removeItem(TOUR_STEP_KEY);
     localStorage.removeItem(TOUR_DISMISSED_KEY);
@@ -209,22 +237,25 @@ export function useGuidedTour() {
     localStorage.removeItem(TOUR_DISMISSED_KEY);
     localStorage.setItem("divido.tour_first_run", "true");
     setCurrentStepIndex(0);
-    setIsActive(true);
-    setIsLoading(true);
-    setIsReady(false);
     setStepStatuses(evaluateSteps());
-    setIsReady(true);
+    checkHasGroups();
+    checkDashboardReady();
+    setStatus("evaluating");
   }, [evaluateSteps]);
 
   return {
+    // State
+    status,
     isActive,
-    currentStep,
-    currentStepIndex,
     isLoading,
     isReady,
+    currentStep,
+    currentStepIndex,
     activeSteps,
     stepStatuses,
     hasGroups,
+    dashboardReady,
+    // Actions
     startTour,
     nextStep,
     prevStep,

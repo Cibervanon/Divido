@@ -23,7 +23,11 @@ export function GuidedTour() {
 
   // Update target rect when current step status changes
   useEffect(() => {
-    if (!currentStep) return;
+    if (!currentStep) {
+      setTargetRect(null);
+      targetRef.current = null;
+      return;
+    }
 
     const currentStatus = stepStatuses[currentStepIndex];
     const el = currentStatus?.targetElement ?? null;

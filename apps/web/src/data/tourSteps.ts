@@ -3,12 +3,12 @@ import type { TourStep } from "../hooks/useGuidedTour";
 export const tourSteps: TourStep[] = [
   {
     id: "dashboard-groups",
-    target: ".group-card:first-of-type",
+    target: ".group:first-of-type",
     title: "Tus grupos",
     content: "Aquí ves tus grupos anclados. <strong>Verde = te deben</strong>, <strong>rojo = debes</strong>. El neto está arriba a la derecha.",
     position: "right",
     skipIf: () => {
-      const cards = document.querySelectorAll(".group-card");
+      const cards = document.querySelectorAll(".group");
       return cards.length === 0;
     },
   },
@@ -19,8 +19,12 @@ export const tourSteps: TourStep[] = [
     content: "Pulsa <strong>+</strong> para crear tu primer grupo. Elige nombre, moneda (no se puede cambiar después) y tipo: <strong>Abierto</strong> (todos invitan) o <strong>Cerrado</strong> (solo admins).",
     position: "top",
     skipIf: () => {
-      const cards = document.querySelectorAll(".group-card");
-      return cards.length > 0;
+      // Skip if user already has groups (they'll see step 0 instead)
+      const cards = document.querySelectorAll(".group");
+      if (cards.length > 0) return true;
+      // Skip if EmptyState create button doesn't exist yet (dashboard still loading)
+      const emptyStateBtn = document.querySelector("[data-tour='create-group']");
+      return !emptyStateBtn;
     },
   },
   {

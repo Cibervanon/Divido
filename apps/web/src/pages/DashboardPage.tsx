@@ -426,7 +426,7 @@ export default function DashboardPage() {
               </DropdownMenu>
             ) : null}
             {user?.emailVerified ? (
-              <Button onClick={() => setCreateOpen(true)} className="!py-2">
+              <Button onClick={() => setCreateOpen(true)} className="!py-2" data-tour="create-group">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
@@ -457,7 +457,7 @@ export default function DashboardPage() {
             }
             action={
               <div className="flex flex-col sm:flex-row gap-3">
-                <Button onClick={() => setCreateOpen(true)}>
+                <Button onClick={() => setCreateOpen(true)} data-tour="create-group">
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                   </svg>
