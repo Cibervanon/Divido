@@ -17,6 +17,7 @@ import { SettingsModal } from "./group/SettingsModal";
 import { DebtsTab, NewDebtModal } from "./group/DebtsTab";
 import { useExpenseFilters } from "./group/hooks/useExpenseFilters";
 import { useGroupChannel } from "../hooks/useRealtime";
+import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import type {
   BreakdownItem,
   ExpenseDto,
@@ -161,6 +162,20 @@ export default function GroupPage() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(""), 2200);
   }
+
+  useKeyboardShortcuts([
+    { key: "n", handler: () => openAddExpense(), description: "Nuevo gasto" },
+    { key: "/", handler: () => setFilter("q", ""), description: "Buscar gastos" },
+    { key: "Escape", handler: () => {
+      setShowAddExpense(false);
+      setShowPayment(false);
+      setShowNewDebt(false);
+      setShowNewContribution(false);
+      setShowNewRecurring(false);
+      setEditTarget(null);
+      setDeleteTarget(null);
+    }, description: "Cerrar modales" },
+  ], !detail);
 
   const isAdmin = detail?.myRole === "admin";
 
