@@ -144,27 +144,16 @@ export function useGuidedTour() {
     }
   }, [status, dashboardReady, activeSteps.length, stepStatuses]);
 
-  // Auto-start when ready
+  // Auto-start when ready - FOR TESTING: auto-start for ALL accounts
   useEffect(() => {
     if (status !== "ready") return;
 
-    const firstRun = localStorage.getItem("divido.tour_first_run") !== "false";
-    const shouldAutoStart = !hasGroups || firstRun;
-
-    if (!shouldAutoStart) {
-      // User has groups and not first run -> don't auto-start
-      setStatus("dismissed");
-      return;
-    }
-
-    // Auto-start
-    if (firstRun) {
-      localStorage.setItem("divido.tour_first_run", "false");
-    }
+    // FOR TESTING: auto-start for everyone, but respect done/dismissed
+    // (done/dismissed already checked in evaluating->ready transition)
     setCurrentStepIndex(0);
     setStatus("active");
     localStorage.setItem(TOUR_STEP_KEY, "0");
-  }, [status, hasGroups, activeSteps]);
+  }, [status, activeSteps]);
 
   // Auto-advance when current step becomes skipped or target disappears
   useEffect(() => {
