@@ -594,6 +594,7 @@ export default function GroupPage() {
               onLoadMore={() => void loadMoreHistory()}
               onViewProof={(url) => setViewProof(url)}
               onOpenExpense={(expenseId) => setEditTarget(expenses.find((e) => e.id === expenseId) ?? null)}
+              onAdd={openAddExpense}
             />
           ) : null}
           {tab === "debts" && hasDebts ? (

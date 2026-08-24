@@ -43,6 +43,8 @@ export default function DashboardPage() {
   const [type, setType] = useState<"open" | "closed">("open");
   const [creating, setCreating] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [joinToken, setJoinToken] = useState("");
   const [showPushBanner, setShowPushBanner] = useState(shouldAskPush());
   const [enablingPush, setEnablingPush] = useState(false);
   const [pushError, setPushError] = useState("");
@@ -134,6 +136,18 @@ export default function DashboardPage() {
     } finally {
       setCreating(false);
     }
+  }
+
+  function handleJoinSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const token = joinToken.trim();
+    if (!token) return;
+    // Extraer token de URL completa si pegaron el enlace
+    const match = token.match(/\/join\/([A-Za-z0-9]+)/);
+    const cleanToken = match ? match[1] : token;
+    setJoinToken("");
+    setShowJoinModal(false);
+    navigate(`/join/${cleanToken}`);
   }
 
   async function enablePush() {
@@ -430,6 +444,22 @@ export default function DashboardPage() {
                 />
               </svg>
             }
+            action={
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button onClick={() => setCreateOpen(true)}>
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Crear grupo
+                </Button>
+                <Button variant="secondary" onClick={() => setShowDetail(true)}>
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                  </svg>
+                  Unirse con enlace
+                </Button>
+              </div>
+            }
           />
         ) : (
           <div className="space-y-3">
@@ -493,6 +523,35 @@ export default function DashboardPage() {
             </Select>
           </div>
         </div>
+      </Modal>
+
+      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
+
+      <Modal
+        open={showJoinModal}
+        onClose={() => setShowJoinModal(false)}
+        title="Unirse a un grupo"
+      >
+        <p className="mb-4 text-sm text-slate-400">
+          Pega el enlace de invitación o el código del grupo para unirte.
+        </p>
+        <form onSubmit={handleJoinSubmit}>
+          <Input
+            label="Enlace o código de invitación"
+            placeholder="https://divido.app/join/abc123  o  abc123"
+            value={joinToken}
+            onChange={(e) => setJoinToken(e.target.value)}
+            autoFocus
+          />
+          <div className="mt-4 flex gap-2">
+            <Button variant="ghost" onClick={() => setShowJoinModal(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" className="flex-1">
+              Unirse
+            </Button>
+          </div>
+        </form>
       </Modal>
 
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
