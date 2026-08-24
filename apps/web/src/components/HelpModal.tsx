@@ -1,18 +1,20 @@
 import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "../lib/auth";
 import { helpCategories, keyboardShortcuts, iconMeanings, expenseCategories, helpSearchIndex } from "../data/helpContent.ts";
-import { Button, Input, Modal, Avatar, VerifiedBadge } from "./ui";
+import { Button, Input, Modal } from "./ui";
 
 interface HelpModalProps {
   open: boolean;
   onClose: () => void;
 }
 
+type HelpTab = "topics" | "shortcuts" | "icons" | "expense-categories" | "faq";
+
 export function HelpModal({ open, onClose }: HelpModalProps) {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<"categories" | "shortcuts" | "icons" | "categories" | "faq">("categories");
+  const [activeTab, setActiveTab] = useState<HelpTab>("topics");
 
   const filteredResults = useMemo(() => {
     if (!search.trim()) return [];
@@ -32,8 +34,10 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
       if (e.key === "Escape") onClose();
-      if (e.key === "?" && !e.metaKey && !e.ctrlKey) onClose();
+      if (e.key === "?" && !isTyping && !e.metaKey && !e.ctrlKey) onClose();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -72,18 +76,18 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
             }
           />
           <div className="flex gap-1 overflow-x-auto pb-2" role="tablist">
-            {[
-              { id: "categories", label: "Temas" },
+            {([
+              { id: "topics", label: "Temas" },
               { id: "shortcuts", label: "Atajos" },
               { id: "icons", label: "Iconos" },
-              { id: "categories", label: "Categorías" },
+              { id: "expense-categories", label: "Categorías" },
               { id: "faq", label: "FAQ" },
-            ].map((tab: { id: string; label: string }) => (
+            ] as const).map((tab) => (
               <button
                 key={tab.id}
                 role="tab"
                 aria-selected={activeTab === tab.id}
-                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                onClick={() => setActiveTab(tab.id)}
                 className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-medium transition ${
                   activeTab === tab.id
                     ? "bg-indigo-600 text-white"
@@ -108,7 +112,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
                     if (item.categoryId === "faq") {
                       setActiveTab("faq");
                     } else {
-                      setActiveTab("categories");
+                      setActiveTab("topics");
                     }
                     setSearch("");
                   }}
@@ -124,7 +128,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
-          {activeTab === "categories" && (
+          {activeTab === "topics" && (
             <div className="space-y-4">
               {helpCategories.map((category: { id: string; title: string; articles: Array<{ id: string; title: string; content: string }> }) => {
                 const isExpanded = expandedCategories.includes(category.id);
@@ -149,16 +153,13 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
                       <div className="border-t border-slate-800 p-4 animate-in slide-in-from-top-2 duration-200">
                         <div className="space-y-2">
                           {helpCategories.find(c => c.id === category.id)?.articles.map((article: { id: string; title: string; content: string }) => (
-                            <button
+                            <div
                               key={article.id}
-                              onClick={() => {
-                                // Could navigate to article detail
-                              }}
-                              className="w-full px-3 py-2 rounded-lg text-left hover:bg-slate-800 transition text-sm"
+                              className="px-3 py-2 rounded-lg text-sm text-slate-100"
                             >
-                              <p className="font-medium text-slate-100">{article.title}</p>
+                              <p className="font-medium">{article.title}</p>
                               <p className="text-xs text-slate-500 line-clamp-2 mt-1">{article.content}</p>
-                            </button>
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -193,7 +194,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
             </div>
           )}
 
-          {activeTab === "categories" && (
+          {activeTab === "expense-categories" && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {expenseCategories.map((cat: { name: string; icon: string; keywords: string }) => (
                 <div key={cat.name} className="p-3 rounded-xl bg-slate-900 border border-slate-800">
