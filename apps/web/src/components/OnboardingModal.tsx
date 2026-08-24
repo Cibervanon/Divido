@@ -68,7 +68,6 @@ export function OnboardingModal() {
           <Button
             onClick={next}
             className="flex-1 justify-center"
-            loading={step === STEPS.length - 1}
           >
             {step === STEPS.length - 1 ? "Empezar" : "Siguiente"}
           </Button>
