@@ -116,7 +116,7 @@ export function useGuidedTour() {
   useEffect(() => { if (isOpen) localStorage.setItem("divido.tour_step", String(currentStepIndex)); }, [currentStepIndex, isOpen]);
 
   // Debug state
-  const debugState = useMemo(() => ({ isOpen, currentStepIndex, activeStepsCount: activeSteps.length, activeStepsIds: activeSteps.map(s => s.id), allSteps: steps.map(s => ({ id: s.step.id, target: s.step.target, skipped: s.skipped, hasElement: !!s.element })), hasEvaluated }), [isOpen, currentStepIndex, activeSteps]);
+  const debugState = useMemo(() => ({ isOpen, currentStepIndex, activeStepsCount: activeSteps.length, activeStepsIds: activeSteps.map(s => s.id), allSteps: steps.map(s => ({ id: s.step.id, target: s.step.target, skipped: s.skipped, hasElement: !!s.element })), hasEvaluated, shouldShowTour }), [isOpen, currentStepIndex, activeSteps, shouldShowTour]);
 
   // Actions
   const nextStep = useCallback(() => { const next = currentStepIndex + 1; if (next < activeSteps.length) { setCurrentStepIndex(next); localStorage.setItem("divido.tour_step", String(next)); } else completeTour(); }, [activeSteps.length]);
