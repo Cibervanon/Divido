@@ -1439,28 +1439,28 @@ export async function listExpensesFiltered(
     params.push(filters.to);
   }
   if (filters.q) {
-    // LOWER(...) LIKE LOWER(...) en lugar de ILIKE: mismo resultado y portable.
     conditions.push("LOWER(e.description) LIKE LOWER(?)");
     params.push(`%${filters.q}%`);
   }
-  if (!includeDeleted) {
-    // ya está en conditions base, pero por si acaso
-  }
 
-const sql = `
+  const sql = `
      SELECT
        e.*,
        COALESCE(u.name, 'Bote común') AS payer_name,
-       (SELECT COALESCE(json_agg(json_build_object('userId', ep.user_id, 'share', ep.share_amount)), '[]')
-        FROM expense_participants ep
-        WHERE ep.expense_id = e.id)::text AS participants_json,
-       (SELECT COUNT(*) FROM expense_comments c WHERE c.expense_id = e.id) AS comment_count
+       COALESCE((
+         SELECT json_agg(json_build_object('userId', ep.user_id, 'share', ep.share_amount))
+         FROM expense_participants ep
+         WHERE ep.expense_id = e.id
+       ), '[]')::text AS participants_json,
+       COALESCE((
+         SELECT COUNT(*) FROM expense_comments c WHERE c.expense_id = e.id
+       ), 0) AS comment_count
      FROM expenses e
      LEFT JOIN users u ON u.id = e.payer_id
      WHERE ${conditions.join(" AND ")}
      ORDER BY e.created_at DESC
      ${opts.limit != null ? "LIMIT ? OFFSET ?" : ""}
-  `;
+   `;
   if (opts.limit != null) params.push(opts.limit, opts.offset ?? 0);
   return (await db.prepare(sql).all(...params)) as unknown as ExpenseDetailRow[];
 }
@@ -1472,7 +1472,7 @@ export interface ExpenseDetailRow extends ExpenseRow {
 
 /**
  * Lista gastos con participantes, shares y conteo de comentarios en una sola query.
- * Evita el problema N+1 al no necesitar llamadas separadas por gasto.
+ * Optimizado: usa JOINs en lugar de subconsultas correlacionadas.
  */
 export async function listExpensesWithDetails(
    db: Db,
@@ -1484,10 +1484,14 @@ export async function listExpensesWithDetails(
      SELECT
        e.*,
        COALESCE(u.name, 'Bote común') AS payer_name,
-       (SELECT COALESCE(json_agg(json_build_object('userId', ep.user_id, 'share', ep.share_amount)), '[]')
-        FROM expense_participants ep
-        WHERE ep.expense_id = e.id)::text AS participants_json,
-       (SELECT COUNT(*) FROM expense_comments c WHERE c.expense_id = e.id) AS comment_count
+       COALESCE((
+         SELECT json_agg(json_build_object('userId', ep.user_id, 'share', ep.share_amount))
+         FROM expense_participants ep
+         WHERE ep.expense_id = e.id
+       ), '[]')::text AS participants_json,
+       COALESCE((
+         SELECT COUNT(*) FROM expense_comments c WHERE c.expense_id = e.id
+       ), 0) AS comment_count
      FROM expenses e
      LEFT JOIN users u ON u.id = e.payer_id
      WHERE e.group_id = ? ${includeDeleted ? "" : "AND e.deleted = 0"}

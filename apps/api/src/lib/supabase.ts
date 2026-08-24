@@ -97,12 +97,27 @@ export async function issueReceiptUploadUrl(
   return { path, signedUrl: data.signedUrl, verifyUrl: readData?.signedUrl ?? null };
 }
 
+// Cache de URLs firmadas (TTL 50 min para renovar antes de expirar)
+const signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
+
+function getCachedSignedUrl(path: string): string | null {
+  const entry = signedUrlCache.get(path);
+  if (entry && Date.now() < entry.expiresAt) return entry.url;
+  signedUrlCache.delete(path);
+  return null;
+}
+
+function setCachedSignedUrl(path: string, url: string): void {
+  signedUrlCache.set(path, { url, expiresAt: Date.now() + 50 * 60 * 1000 });
+}
+
 /**
  * Resuelve el valor almacenado en receipt_url a una URL consumible:
  * - null → null
  * - "supabase:<ruta>" → URL firmada con TTL de 1 h (si Supabase está configurado);
  *   si la firma falla devuelve null para no entregar nunca un enlace roto
  * - cualquier otro valor (p. ej. data-URL legacy) → se devuelve tal cual
+ * Cachea la URL firmada para evitar round-trips repetidos a Supabase.
  */
 export async function resolveReceiptUrl(
   value: string | null | undefined
@@ -111,6 +126,8 @@ export async function resolveReceiptUrl(
   if (!value.startsWith(RECEIPT_SCHEME)) return value;
   if (!isSupabaseEnabled()) return value;
   const path = value.slice(RECEIPT_SCHEME.length);
+  const cached = getCachedSignedUrl(path);
+  if (cached) return cached;
   const { data, error } = await getClient()
     .storage.from(RECEIPTS_BUCKET)
     .createSignedUrl(path, RECEIPT_TTL_SECONDS);
@@ -118,7 +135,50 @@ export async function resolveReceiptUrl(
     console.warn({ err: error, path }, "No se pudo firmar la URL del tique");
     return null;
   }
+  setCachedSignedUrl(path, data.signedUrl);
   return data.signedUrl;
+}
+
+/**
+ * Resuelve múltiples receipt_urls en paralelo con deduplicación y caché.
+ * Útil para listas de gastos donde hay muchos tiques.
+ */
+export async function resolveReceiptUrls(
+  values: (string | null | undefined)[]
+): Promise<(string | null)[]> {
+  const paths = values
+    .map((v, i) => {
+      if (!v || !v.startsWith(RECEIPT_SCHEME)) return { i, url: v ?? null };
+      const cached = getCachedSignedUrl(v.slice(RECEIPT_SCHEME.length));
+      if (cached) return { i, url: cached };
+      return { i, path: v.slice(RECEIPT_SCHEME.length) };
+    })
+    .filter((x): x is { i: number; path: string } => x.path !== undefined);
+
+  const uniquePaths = [...new Set(paths.map((p) => p.path))];
+  const results = await Promise.all(
+    uniquePaths.map(async (path) => {
+      const cached = getCachedSignedUrl(path);
+      if (cached) return { path, url: cached };
+      if (!isSupabaseEnabled()) return { path, url: RECEIPT_SCHEME + path };
+      const { data, error } = await getClient()
+        .storage.from(RECEIPTS_BUCKET)
+        .createSignedUrl(path, RECEIPT_TTL_SECONDS);
+      if (error || !data?.signedUrl) {
+        console.warn({ err: error, path }, "No se pudo firmar la URL del tique");
+        return { path, url: null };
+      }
+      setCachedSignedUrl(path, data.signedUrl);
+      return { path, url: data.signedUrl };
+    })
+  );
+
+  const pathToUrl = new Map(results.map((r) => [r.path, r.url]));
+  return values.map((v) => {
+    if (!v) return null;
+    if (!v.startsWith(RECEIPT_SCHEME)) return v;
+    return pathToUrl.get(v.slice(RECEIPT_SCHEME.length)) ?? null;
+  });
 }
 
 // ---- Realtime: publicación broadcast hacia los clientes ----

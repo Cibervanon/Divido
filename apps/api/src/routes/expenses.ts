@@ -37,6 +37,7 @@ import {
   isSupabaseEnabled,
   publishGroupEvent,
   resolveReceiptUrl,
+  resolveReceiptUrls,
 } from "../lib/supabase.js";
 
 const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
@@ -89,13 +90,13 @@ export const expenseRoutes: FastifyPluginAsync = async (app) => {
         rows = await listExpensesWithDetails(request.db, groupId, includeDeleted, { limit, offset });
         total = await countExpensesInGroup(request.db, groupId, includeDeleted);
       }
-      const expenses = await Promise.all(
-        rows.map(async (e) => ({
-          ...expenseRowToDto(e),
-          editable: isEditable(e.created_at),
-          receiptUrl: await resolveReceiptUrl(e.receipt_url),
-        }))
-      );
+      const dtos = rows.map((e) => expenseRowToDto(e));
+      const receiptUrls = await resolveReceiptUrls(dtos.map((d) => d.receiptUrl));
+      const expenses = dtos.map((d, i) => ({
+        ...d,
+        editable: isEditable(rows[i].created_at),
+        receiptUrl: receiptUrls[i],
+      }));
       return { expenses, total, hasMore: limit != null ? offset + expenses.length < total : false };
     };
 
