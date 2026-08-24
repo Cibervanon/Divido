@@ -252,6 +252,56 @@ export function ExpenseModal({
     };
   }, [categoryPopoverOpen]);
 
+  // Draft auto-save to localStorage (solo para nuevos gastos, no editando)
+  const draftKey = `draft_expense_${groupId}`;
+
+  useEffect(() => {
+    if (!open || expense) return;
+    const draft = {
+      description,
+      amount,
+      currency,
+      exchangeRate,
+      payerId,
+      participants,
+      splitMode,
+      percents,
+      amounts,
+      paidFromPot,
+      receiptUrl,
+      category,
+      iconName,
+      isCustomIcon,
+    };
+    localStorage.setItem(draftKey, JSON.stringify(draft));
+  }, [open, expense, groupId, description, amount, currency, exchangeRate, payerId, participants, splitMode, percents, amounts, paidFromPot, receiptUrl, category, iconName, isCustomIcon]);
+
+  useEffect(() => {
+    if (!open || expense) return;
+    const saved = localStorage.getItem(draftKey);
+    if (saved) {
+      try {
+        const draft = JSON.parse(saved);
+        setDescription(draft.description ?? "");
+        setAmount(draft.amount ?? "");
+        setCurrency(draft.currency ?? groupCurrency);
+        setExchangeRate(draft.exchangeRate ?? "1");
+        setPayerId(draft.payerId ?? defaultPayerId);
+        setParticipants(draft.participants ?? activeMembers.map((m) => m.userId));
+        setSplitMode(draft.splitMode ?? "equal");
+        setPercents(draft.percents ?? {});
+        setAmounts(draft.amounts ?? {});
+        setPaidFromPot(draft.paidFromPot ?? false);
+        setReceiptUrl(draft.receiptUrl ?? null);
+        setCategory(draft.category ?? "general");
+        setIconName(draft.iconName ?? "wallet");
+        setIsCustomIcon(draft.isCustomIcon ?? false);
+      } catch {
+        // Ignorar draft corrupto
+      }
+    }
+  }, [open, expense, groupId, activeMembers, defaultPayerId]);
+
   function initCustomFromShares(ids: string[], shares: Record<string, number> | null) {
     setPercents({});
     setAmounts({});
@@ -514,8 +564,10 @@ export function ExpenseModal({
       } else {
         await api.post(`/groups/${groupId}/expenses`, body);
       }
-      onCreated();
-      onClose();
+onCreated();
+        onClose();
+        // Limpiar draft al crear exitosamente
+        if (!expense) localStorage.removeItem(draftKey);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error inesperado");
     } finally {
