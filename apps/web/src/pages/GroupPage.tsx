@@ -530,8 +530,7 @@ export default function GroupPage() {
         <div className="mb-5 rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-900/50 p-5">
           <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Tu balance</p>
           <p className={`mt-1 text-3xl font-extrabold ${balanceColor}`}>
-            {negative ? "-" : ""}
-            <Money amount={Math.abs(myBalance)} currency={group.currency} />
+            <Money amount={myBalance} currency={group.currency} />
           </p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             {positive ? (
@@ -541,7 +540,7 @@ export default function GroupPage() {
             ) : null}
             {negative ? (
               <span className="rounded-lg bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-400">
-                Debes <Money amount={-myBalance} currency={group.currency} />
+                Debes <Money amount={myBalance} currency={group.currency} />
               </span>
             ) : null}
             {!positive && !negative ? (

@@ -61,7 +61,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (user) setPinnedIds(user.pinnedGroupIds ?? []);
-  }, [user]);
+  }, [user?.pinnedGroupIds]);
 
   // Auto-migración del avatar propio si llegó como data-URL gigante legacy:
   // lo recomprimimos una vez y guardamos la versión ligera en el servidor,
