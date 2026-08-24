@@ -120,8 +120,6 @@ export function GuidedTourTooltip({
     return () => document.removeEventListener("keydown", handleKey);
   }, [onNext, onPrev, onClose]);
 
-  if (!window.document.body.contains(document.activeElement)) return null; // Prevent flash
-
   return (
     <div
       ref={tooltipRef}
@@ -137,18 +135,12 @@ export function GuidedTourTooltip({
       </div>
 
       <div className="guided-tour-footer">
-        <div className="guided-tour-dots" role="tablist" aria-label="Progreso del tutorial">
+        <div className="guided-tour-dots" aria-label="Progreso del tutorial">
           {Array.from({ length: totalSteps }, (_, i) => (
-            <button
+            <span
               key={i}
-              role="tab"
-              aria-selected={i === currentIndex}
               aria-label={`Paso ${i + 1}`}
               className={`guided-tour-dot ${i === currentIndex ? "active" : ""}`}
-              onClick={() => {
-                // Could implement jump-to-step, but for now just visual
-              }}
-              disabled
             />
           ))}
         </div>

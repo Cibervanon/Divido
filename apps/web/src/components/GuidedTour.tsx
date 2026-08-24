@@ -2,15 +2,12 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useGuidedTour } from "../hooks/useGuidedTour";
 import { SpotlightOverlay } from "./SpotlightOverlay";
 import { GuidedTourTooltip } from "./GuidedTourTooltip";
-import { GuidedTourDots } from "./GuidedTourDots";
 import { getActiveSteps } from "../data/tourSteps.ts";
-import { TourStep } from "../hooks/useGuidedTour";
 
 export function GuidedTour() {
   const {
     isActive,
     currentStep,
-    startTour,
     nextStep,
     prevStep,
     skipTour,
@@ -51,7 +48,6 @@ export function GuidedTour() {
     };
   }, []);
 
-  // All hooks must be called before any early return
   const handleNext = useCallback(() => {
     const activeSteps = getActiveSteps();
     if (currentStep < activeSteps.length - 1) {
@@ -59,7 +55,7 @@ export function GuidedTour() {
     } else {
       completeTour();
     }
-  }, [nextStep, completeTour]);
+  }, [currentStep, nextStep, completeTour]);
 
   const handlePrev = useCallback(() => {
     prevStep();
@@ -79,45 +75,22 @@ export function GuidedTour() {
     <>
       <div className="guided-tour-portal" role="dialog" aria-modal="true" aria-label="Tutorial guiado">
         <SpotlightOverlay
-          targetRect={targetRef.current?.getBoundingClientRect() ?? null}
+          targetRect={targetRect}
           radius={10}
         />
 
-        {targetRef.current && (
-          <React.Fragment>
-            <div
-              className="guided-tour-target"
-              style={{
-                position: "relative",
-                zIndex: 9998,
-              }}
-            >
-              {targetRef.current ? <div dangerouslySetInnerHTML={{ __html: targetRef.current.outerHTML }} /> : null}
-            </div>
-
-            <GuidedTourTooltip
-              step={currentStepData}
-              targetRect={targetRef.current.getBoundingClientRect()}
-              onNext={() => {
-                const activeSteps = getActiveSteps();
-                if (currentStep < activeSteps.length - 1) nextStep();
-                else completeTour();
-              }}
-              onPrev={() => prevStep()}
-              onSkip={() => skipTour()}
-              currentIndex={currentStep}
-              totalSteps={getActiveSteps().length}
-              onClose={() => skipTour()}
-            />
-          </React.Fragment>
+        {targetRect && (
+          <GuidedTourTooltip
+            step={currentStepData}
+            targetRect={targetRect}
+            onNext={handleNext}
+            onPrev={handlePrev}
+            onSkip={handleSkip}
+            currentIndex={currentStep}
+            totalSteps={activeSteps.length}
+            onClose={handleClose}
+          />
         )}
-
-        <div className="guided-tour-skip-banner" role="status" aria-live="polite">
-          <span>Tutorial en progreso</span>
-          <button className="guided-tour-btn ghost" onClick={() => skipTour()}>
-            Cerrar tutorial
-          </button>
-        </div>
       </div>
     </>
   );
