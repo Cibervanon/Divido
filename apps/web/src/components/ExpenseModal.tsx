@@ -815,6 +815,7 @@ const submitLabel = locked ? "Solicitar modificación" : expense ? "Guardar camb
               <input
                 type="file"
                 accept="image/*"
+                capture="environment"
                 className="hidden"
                 disabled={busy}
                 onChange={(e) => {
