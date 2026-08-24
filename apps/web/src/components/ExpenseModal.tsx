@@ -117,6 +117,7 @@ export function ExpenseModal({
   onCreated,
   expense,
   locked = false,
+  adminOverride = false,
   hasPot = false,
   potBalance = 0,
 }: {
@@ -131,6 +132,7 @@ export function ExpenseModal({
   onCreated: () => void;
   expense?: ExpenseDto;
   locked?: boolean;
+  adminOverride?: boolean;
   hasPot?: boolean;
   potBalance?: number;
 }) {
@@ -577,7 +579,7 @@ export function ExpenseModal({
       if (!paidFromPot) body.payerId = payerId;
       if (isForeign) body.exchangeRate = Number(exchangeRate);
       if (splitMode !== "equal") body.shares = shares;
-      if (expense && !locked) {
+      if (expense && (!locked || adminOverride)) {
         await api.patch(`/expenses/${expense.id}`, body);
       } else if (expense && locked) {
         await api.post(`/expenses/${expense.id}/modification-request`, {
@@ -598,7 +600,7 @@ onCreated();
     }
   }
 
-const submitLabel = locked ? "Solicitar modificación" : expense ? "Guardar cambios" : "Añadir gasto";
+const submitLabel = (locked && !adminOverride) ? "Solicitar modificación" : expense ? "Guardar cambios" : "Añadir gasto";
 
   const handleDuplicate = () => {
     if (!expense) return;
@@ -615,7 +617,7 @@ const submitLabel = locked ? "Solicitar modificación" : expense ? "Guardar camb
     <Modal
       open={open}
       onClose={requestClose}
-      title={expense ? (locked ? "Solicitar modificación" : "Editar gasto") : "Nuevo gasto"}
+      title={expense ? ((locked && !adminOverride) ? "Solicitar modificación" : "Editar gasto") : "Nuevo gasto"}
       footer={
         <>
           <Button variant="ghost" onClick={requestClose} disabled={busy}>
@@ -815,7 +817,6 @@ const submitLabel = locked ? "Solicitar modificación" : expense ? "Guardar camb
               <input
                 type="file"
                 accept="image/*"
-                capture="environment"
                 className="hidden"
                 disabled={busy}
                 onChange={(e) => {

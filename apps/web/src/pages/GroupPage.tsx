@@ -151,6 +151,7 @@ export default function GroupPage() {
   const [editTarget, setEditTarget] = useState<ExpenseDto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ExpenseDto | null>(null);
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
+  const [adminConfirm, setAdminConfirm] = useState<{ type: "edit" | "delete"; expense: ExpenseDto } | null>(null);
   const [breakdownTarget, setBreakdownTarget] = useState<MemberInfo | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [memberDetail, setMemberDetail] = useState<{ member: MemberInfo; data: BreakdownItem[] } | null>(null);
@@ -454,6 +455,38 @@ export default function GroupPage() {
     }
   }
 
+  // Admin confirmation handlers
+  function confirmAdminEdit(expense: ExpenseDto) {
+    setAdminConfirm({ type: "edit", expense });
+  }
+
+  function confirmAdminDelete(expense: ExpenseDto) {
+    setAdminConfirm({ type: "delete", expense });
+  }
+
+  async function handleAdminConfirm() {
+    if (!adminConfirm) return;
+    const { type, expense } = adminConfirm;
+    try {
+      if (type === "edit") {
+        // Open ExpenseModal with adminOverride to allow direct editing
+        setAdminConfirm(null);
+        setEditTarget(expense);
+      } else if (type === "delete") {
+        await api.delete(`/expenses/${expense.id}`);
+        showToast("Gasto eliminado");
+        setAdminConfirm(null);
+        await load();
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Error");
+    }
+  }
+
+  function cancelAdminConfirm() {
+    setAdminConfirm(null);
+  }
+
   async function decideRequest(requestId: string, decision: "approve" | "reject") {
     try {
       await api.post(`/requests/${requestId}/${decision}`);
@@ -564,8 +597,8 @@ export default function GroupPage() {
               myUserId={user.id}
               groupId={group.id}
               groupCurrency={group.currency}
-              onEdit={(e) => setEditTarget(e)}
-              onDelete={(e) => setDeleteTarget(e)}
+              onEdit={(e) => isAdmin && !e.editable ? confirmAdminEdit(e) : setEditTarget(e)}
+              onDelete={(e) => isAdmin && !e.editable ? confirmAdminDelete(e) : setDeleteTarget(e)}
               onAdd={() => openAddExpense()}
               requests={requests}
               onDecide={decideRequest}
@@ -720,6 +753,7 @@ export default function GroupPage() {
           onCreated={handleExpenseCreated}
           expense={editTarget}
           locked={!editTarget.editable}
+          adminOverride={isAdmin && !editTarget.editable}
         />
       ) : null}
 
@@ -744,6 +778,30 @@ export default function GroupPage() {
             : `"${deleteTarget?.description}" supera las 24 horas. Envía la solicitud y un administrador la revisará.`}
         </p>
       </Modal>
+
+      {adminConfirm && (
+        <Modal
+          open
+          onClose={cancelAdminConfirm}
+          title={adminConfirm.type === "edit" ? "Editar gasto (admin)" : "Eliminar gasto (admin)"}
+          footer={
+            <>
+              <Button variant="ghost" onClick={cancelAdminConfirm}>
+                Cancelar
+              </Button>
+              <Button variant="danger" onClick={handleAdminConfirm} loading={deletingExpenseId === adminConfirm.expense.id}>
+                {deletingExpenseId === adminConfirm.expense.id ? "Procesando…" : (adminConfirm.type === "edit" ? "Confirmar edición" : "Confirmar eliminación")}
+              </Button>
+            </>
+          }
+        >
+          <p className="text-sm text-slate-300">
+            {adminConfirm.type === "edit"
+              ? `¿Confirmas editar "${adminConfirm.expense.description}"? Como administrador, la edición se aplicará directamente sin solicitud.`
+              : `¿Confirmas eliminar "${adminConfirm.expense.description}"? Como administrador, se eliminará directamente.`}
+          </p>
+        </Modal>
+      )}
 
       <SettingsModal
         open={settingsOpen}
