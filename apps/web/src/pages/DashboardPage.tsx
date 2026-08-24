@@ -375,7 +375,7 @@ export default function DashboardPage() {
                           Debes en <span className="font-semibold text-slate-100">{group.name}</span>
                         </span>
                         <span className="shrink-0 text-sm font-bold text-rose-400">
-                          -<Money amount={amount} currency={group.currency} />
+                          <Money amount={-amount} currency={group.currency} />
                         </span>
                       </Link>
                     ))}
