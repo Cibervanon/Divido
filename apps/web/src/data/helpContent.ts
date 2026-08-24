@@ -40,7 +40,7 @@ export const helpCategories: HelpCategory[] = [
       {
         "id": "crear-tu-primer-grupo",
         "title": "Crear tu primer grupo",
-        "content": "1. Pulsa el botón **+** en el Dashboard\n2. Elige un nombre y una moneda (no se puede cambiar después)\n3. Selecciona el tipo: **Abierto** (cualquiera invita) o **Cerrado** (solo admins)\n4. ¡Listo! Comparte el enlace de invitación o el código QR",
+        "content": "1. Pulsa el botón <strong>+</strong> en el Dashboard\n2. Elige un nombre y una moneda (no se puede cambiar después)\n3. Selecciona el tipo: <strong>Abierto</strong> (cualquiera invita) o <strong>Cerrado</strong> (solo admins)\n4. ¡Listo! Comparte el enlace de invitación o el código QR",
         "category": "sec-1",
         "faqs": [
           { "question": "¿Puedo cambiar la moneda después?", "answer": "No, la moneda se fija al crear el grupo para mantener la integridad de los saldos." },
@@ -50,7 +50,7 @@ export const helpCategories: HelpCategory[] = [
       {
         "id": "anadir-tu-primer-gasto",
         "title": "Añadir tu primer gasto",
-        "content": "1. Entra en tu grupo y pulsa **Nuevo gasto**\n2. Escribe descripción e importe\n3. Elige **quién pagó**\n4. Selecciona el reparto: **Iguales** (a partes iguales), **%** (porcentajes), **€** (importes exactos) o **Bote** (desde el bote común)\n5. Añade foto del tique si quieres (opcional)\n6. Guarda",
+        "content": "1. Entra en tu grupo y pulsa <strong>Nuevo gasto</strong>\n2. Escribe descripción e importe\n3. Elige <strong>quién pagó</strong>\n4. Selecciona el reparto: <strong>Iguales</strong> (a partes iguales), <strong>%</strong> (porcentajes), <strong>€</strong> (importes exactos) o <strong>Bote</strong> (desde el bote común)\n5. Añade foto del tique si quieres (opcional)\n6. Guarda",
         "category": "sec-1",
         "faqs": [
           { "question": "¿Qué significa cada tipo de reparto?", "answer": "Iguales = todos pagan lo mismo. % = porcentajes personalizados (ej. 60/40). € = cantidades exactas por persona. Bote = se descuenta del bote común." }
@@ -59,7 +59,7 @@ export const helpCategories: HelpCategory[] = [
       {
         "id": "entender-los-saldos",
         "title": "Entender los saldos (verde/rojo)",
-        "content": "En la lista de grupos y en la pestaña **Saldos**:\n- **Verde (+)** = te deben dinero\n- **Rojo (−)** = debes dinero\n- El **neto** (arriba a la derecha) resume tu posición global en ese grupo\n\nLa **Simplificación** reduce los pagos cruzados al mínimo (máx. n−1 transferencias).",
+        "content": "En la lista de grupos y en la pestaña <strong>Saldos</strong>:\n- <strong>Verde (+)</strong> = te deben dinero\n- <strong>Rojo (−)</strong> = debes dinero\n- El <strong>neto</strong> (arriba a la derecha) resume tu posición global en ese grupo\n\nLa <strong>Simplificación</strong> reduce los pagos cruzados al mínimo (máx. n−1 transferencias).",
         "category": "sec-1",
         "faqs": [
           { "question": "¿Cómo sé a quién pagar?", "answer": "Ve a la pestaña Saldos → Ver desglose. Te saldrá la lista exacta de transferencias necesarias." }
@@ -68,10 +68,10 @@ export const helpCategories: HelpCategory[] = [
       {
         "id": "pagar-y-cobrar",
         "title": "Pagar y cobrar entre amigos",
-        "content": "1. Pestaña **Saldos** → **Pagar**\n2. Elige a quién pagar (la app sugiere la cantidad exacta)\n3. Opcional: adjunta foto del comprobante\n4. El acreedor recibe notificación y confirma\n5. Al confirmar, los saldos se actualizan al instante",
+        "content": "1. Pestaña <strong>Saldos</strong> → <strong>Pagar</strong>\n2. Elige a quién pagar (la app sugiere la cantidad exacta)\n3. Opcional: adjunta foto del comprobante\n4. El acreedor recibe notificación y confirma\n5. Al confirmar, los saldos se actualizan al instante",
         "category": "sec-1",
         "faqs": [
-          { "question": "¿Qué pasa si el acreedor no confirma?", "answer": "Puedes activar **Autoconfirmar pagos** en Perfil → Ajustes para que se marquen solos." }
+          { "question": "¿Qué pasa si el acreedor no confirma?", "answer": "Puedes activar <strong>Autoconfirmar pagos</strong> en Perfil → Ajustes para que se marquen solos." }
         ]
       }
     ]
@@ -83,7 +83,7 @@ export const helpCategories: HelpCategory[] = [
       {
         "id": "ancla-tus-grupos-con",
         "title": "Ancla tus grupos con 📌",
-        "content": "Los grupos que más uses pueden quedar fijados arriba para tenerlos siempre a mano: pulsa el menú ⋮ del grupo → **Anclar**. Los anclados se mantienen por encima del resto, ordenados por tu criterio (actividad, nombre o saldo).",
+        "content": "Los grupos que más uses pueden quedar fijados arriba para tenerlos siempre a mano: pulsa el menú ⋮ del grupo → <strong>Anclar</strong>. Los anclados se mantienen por encima del resto, ordenados por tu criterio (actividad, nombre o saldo).",
         "category": "sec-2",
         "faqs": []
       },
@@ -97,14 +97,14 @@ export const helpCategories: HelpCategory[] = [
       {
         "id": "estado-del-grupo-abierto-o-cerrado",
         "title": "🟢🔴 Estado del grupo: abierto o cerrado",
-        "content": "Cada grupo tiene un estado que indica si está en marcha o en pausa:\n\n**Abierto 🟢** — funcionamiento normal: gastos, piques, pagos y aportaciones al bote fluyen sin restricciones.\n\n**Cerrado 🔴** — el grupo queda en solo lectura: nadie crea ni modifica movimientos hasta reabrirlo. Ideal al terminar un viaje o una convivencia y querer conservar las cuentas tal cual.\n\nSolo un administrador puede cambiarlo desde Ajustes del grupo, con el botón **Cerrar grupo / Reabrir grupo**. Aparece una pantalla «Cerrando…» mientras se aplica el cambio, y el estado queda visible en la cabecera del grupo para todos los miembros.",
+        "content": "Cada grupo tiene un estado que indica si está en marcha o en pausa:\n\n<strong>Abierto 🟢</strong> — funcionamiento normal: gastos, piques, pagos y aportaciones al bote fluyen sin restricciones.\n\n<strong>Cerrado 🔴</strong> — el grupo queda en solo lectura: nadie crea ni modifica movimientos hasta reabrirlo. Ideal al terminar un viaje o una convivencia y querer conservar las cuentas tal cual.\n\nSolo un administrador puede cambiarlo desde Ajustes del grupo, con el botón <strong>Cerrar grupo / Reabrir grupo</strong>. Aparece una pantalla «Cerrando…» mientras se aplica el cambio, y el estado queda visible en la cabecera del grupo para todos los miembros.",
         "category": "sec-2",
         "faqs": []
       },
       {
         "id": "ajustes-del-grupo",
         "title": "Ajustes del grupo",
-        "content": "Desde el menú ⋮ del grupo → **Ajustes** puedes:\n- Cambiar nombre, logo, tipo (abierto/cerrado)\n- Ver/regenerar enlace de invitación\n- Gestionar miembros (cambiar roles, expulsar)\n- Cerrar/Reabrir grupo\n- Eliminar grupo (solo creador)",
+        "content": "Desde el menú ⋮ del grupo → <strong>Ajustes</strong> puedes:\n- Cambiar nombre, logo, tipo (abierto/cerrado)\n- Ver/regenerar enlace de invitación\n- Gestionar miembros (cambiar roles, expulsar)\n- Cerrar/Reabrir grupo\n- Eliminar grupo (solo creador)",
         "category": "sec-2",
         "faqs": []
       }
@@ -117,7 +117,7 @@ export const helpCategories: HelpCategory[] = [
       {
         "id": "filtros-que-si-ayudan",
         "title": "🔍 Filtros que sí ayudan",
-        "content": "Pulsa el botón único **🔍 Filtros** sobre el historial: dentro conviven la búsqueda por texto y los chips de categoría en español — **Comida 🍕 · Casa 🏠 · Transporte 🚗 · Ocio 🎮 · Salud 💊 · Otros** — en una tira deslizable en horizontal en móvil. Activa también **Mi pagador** para ver solo lo que pagaste tú. Los filtros activos quedan como chips visibles encima de la lista, con un botón **Limpiar** para quitarlos todos de golpe.",
+        "content": "Pulsa el botón único <strong>🔍 Filtros</strong> sobre el historial: dentro conviven la búsqueda por texto y los chips de categoría en español — <strong>Comida 🍕 · Casa 🏠 · Transporte 🚗 · Ocio 🎮 · Salud 💊 · Otros</strong> — en una tira deslizable en horizontal en móvil. Activa también <strong>Mi pagador</strong> para ver solo lo que pagaste tú. Los filtros activos quedan como chips visibles encima de la lista, con un botón <strong>Limpiar</strong> para quitarlos todos de golpe.",
         "category": "sec-3",
         "faqs": []
       },
@@ -131,21 +131,21 @@ export const helpCategories: HelpCategory[] = [
       {
         "id": "cargar-mas-listas-paginadas",
         "title": "Cargar más: listas paginadas",
-        "content": "En grupos con mucha actividad, las pestañas de **Gastos** y **Actividad** cargan por páginas (50 gastos y 100 eventos) para que la app siga siendo rápida. Al final de cada lista verás el botón **«Cargar más»**: púlsalo tantas veces como quieras para ir trayendo el resto del histórico. Los filtros y la búsqueda se aplican a todo el histórico, no solo a la página visible, y los elementos ya cargados permanecen en pantalla al recargar. Si exportas un CSV o PDF, recibirás siempre todas las filas, no solo las visibles.",
+        "content": "En grupos con mucha actividad, las pestañas de <strong>Gastos</strong> y <strong>Actividad</strong> cargan por páginas (50 gastos y 100 eventos) para que la app siga siendo rápida. Al final de cada lista verás el botón <strong>«Cargar más»</strong>: púlsalo tantas veces como quieras para ir trayendo el resto del histórico. Los filtros y la búsqueda se aplican a todo el histórico, no solo a la página visible, y los elementos ya cargados permanecen en pantalla al recargar. Si exportas un CSV o PDF, recibirás siempre todas las filas, no solo las visibles.",
         "category": "sec-3",
         "faqs": []
       },
       {
         "id": "historial-y-auditoria-de-gastos-borrados",
         "title": "Historial y auditoría de gastos borrados",
-        "content": "Un gasto eliminado nunca desaparece del historial: se atenúa visualmente (opacity 50%), se tacha y se etiqueta como **Borrado**. Así el historial es una auditoría completa y siempre puedes reconstruir qué pasó.",
+        "content": "Un gasto eliminado nunca desaparece del historial: se atenúa visualmente (opacity 50%), se tacha y se etiqueta como <strong>Borrado</strong>. Así el historial es una auditoría completa y siempre puedes reconstruir qué pasó.",
         "category": "sec-3",
         "faqs": []
       },
       {
         "id": "editar-o-borrar-un-gasto",
         "title": "Editar o borrar un gasto",
-        "content": "Abre el gasto desde el historial → menú ⋮ → **Editar** o **Eliminar**.\n- **Editar**: cambias descripción, importe, categoría, pagador, reparto. Los saldos se recalculan al guardar.\n- **Eliminar**: el gasto se marca como borrado en el historial (no desaparece) y los saldos se ajustan.",
+        "content": "Abre el gasto desde el historial → menú ⋮ → <strong>Editar</strong> o <strong>Eliminar</strong>.\n- <strong>Editar</strong>: cambias descripción, importe, categoría, pagador, reparto. Los saldos se recalculan al guardar.\n- <strong>Eliminar</strong>: el gasto se marca como borrado en el historial (no desaparece) y los saldos se ajustan.",
         "category": "sec-3",
         "faqs": [
           { "question": "¿Quién puede editar/borrar?", "answer": "El creador del gasto y los administradores del grupo." }
@@ -160,14 +160,14 @@ export const helpCategories: HelpCategory[] = [
       {
         "id": "adjuntar-tique-al-registrar-un-pago",
         "title": "Adjuntar tique al registrar un pago",
-        "content": "Al crear un pago (pestaña Saldos → **Pagar**), aparece un área opcional **«Comprobante (opcional)»**. Puedes:\n- Hacer foto con la cámara del móvil (captura directa)\n- Subir imagen desde la galería (JPG/PNG, máx. 5 MB)\n- Ver miniatura del comprobante en el listado de pagos; click para ampliar a pantalla completa\n\n> **Ejemplo** Pagas tu parte de la cena y subes la foto del ticket del restaurante. El comprobante queda vinculado al pago y visible para el acreedor.",
+        "content": "Al crear un pago (pestaña Saldos → <strong>Pagar</strong>), aparece un área opcional <strong>«Comprobante (opcional)»</strong>. Puedes:\n- Hacer foto con la cámara del móvil (captura directa)\n- Subir imagen desde la galería (JPG/PNG, máx. 5 MB)\n- Ver miniatura del comprobante en el listado de pagos; click para ampliar a pantalla completa\n\n> <strong>Ejemplo</strong> Pagas tu parte de la cena y subes la foto del ticket del restaurante. El comprobante queda vinculado al pago y visible para el acreedor.",
         "category": "sec-3c",
         "faqs": []
       },
       {
         "id": "autoconfirmacion-de-pagos-recibidos",
         "title": "Autoconfirmación de pagos recibidos",
-        "content": "En **Perfil → Ajustes → Autoconfirmar pagos** puedes activar un interruptor que hace que cualquier pago que recibas se marque automáticamente como confirmado sin esperar a que tú lo apruebes manualmente.",
+        "content": "En <strong>Perfil → Ajustes → Autoconfirmar pagos</strong> puedes activar un interruptor que hace que cualquier pago que recibas se marque automáticamente como confirmado sin esperar a que tú lo apruebes manualmente.",
         "category": "sec-3c",
         "faqs": [
           { "question": "¿Es recomendable?", "answer": "Sí, si confías en tu grupo. Ahorra el paso manual de confirmar cada pago recibido." }
@@ -196,21 +196,21 @@ export const helpCategories: HelpCategory[] = [
       {
         "id": "deteccion-automatica",
         "title": "Detección automática",
-        "content": "Al escribir la descripción del gasto, la app compara el texto (normalizado: minúsculas, sin tildes) con las palabras clave de cada categoría. La primera categoría con coincidencias gana. Si no hay coincidencias, se usa **General** (wallet).\n\n> **Ejemplo** Escribes «Cena con los compis en el italiano». Palabras detectadas: cena, italiano → Categoría **Comida**, icono 🍴 naranja.",
+        "content": "Al escribir la descripción del gasto, la app compara el texto (normalizado: minúsculas, sin tildes) con las palabras clave de cada categoría. La primera categoría con coincidencias gana. Si no hay coincidencias, se usa <strong>General</strong> (wallet).\n\n> <strong>Ejemplo</strong> Escribes «Cena con los compis en el italiano». Palabras detectadas: cena, italiano → Categoría <strong>Comida</strong>, icono 🍴 naranja.",
         "category": "sec-3b",
         "faqs": []
       },
       {
         "id": "seleccion-manual",
         "title": "Selección manual",
-        "content": "En el formulario del gasto hay una fila de chips de categoría. Al pulsar uno, la categoría se fija (**modo manual**) y deja de detectarse automáticamente aunque cambies la descripción. Para volver al modo automático, pulsa el chip **Auto**.",
+        "content": "En el formulario del gasto hay una fila de chips de categoría. Al pulsar uno, la categoría se fija (<strong>modo manual</strong>) y deja de detectarse automáticamente aunque cambies la descripción. Para volver al modo automático, pulsa el chip <strong>Auto</strong>.",
         "category": "sec-3b",
         "faqs": []
       },
       {
         "id": "iconos-de-modulo-fallbacks",
         "title": "Iconos de módulo (fallbacks)",
-        "content": "Además de los gastos, los otros módulos tienen su icono fijo:\n- **Piques** → 🤝 (handshake)\n- **Bote común** → 🐷 (piggy-bank)\n- **Gastos fijos** → 🔁 (repeat)\n- **Pagos** → 💸 (currency-exchange)\n- **Miembros** → 👥 (users)",
+        "content": "Además de los gastos, los otros módulos tienen su icono fijo:\n- <strong>Piques</strong> → 🤝 (handshake)\n- <strong>Bote común</strong> → 🐷 (piggy-bank)\n- <strong>Gastos fijos</strong> → 🔁 (repeat)\n- <strong>Pagos</strong> → 💸 (currency-exchange)\n- <strong>Miembros</strong> → 👥 (users)",
         "category": "sec-3b",
         "faqs": []
       }
@@ -223,7 +223,7 @@ export const helpCategories: HelpCategory[] = [
       {
         "id": "el-algoritmo-greedy-net-debt-settlement",
         "title": "El algoritmo: Greedy Net Debt Settlement",
-        "content": "Divido aplica un algoritmo voraz de saldo neto (**Greedy Net Debt Settlement**):\n\n1. Se calcula lo que cada miembro gana o pierde en total (saldo neto)\n2. **Deudores → acreedores**: cada deudor paga a quien más crédito tiene, en orden\n3. **Transferencias mínimas**: el menor número posible de pagos para dejar todo a cero (máx. n−1 pagos)",
+        "content": "Divido aplica un algoritmo voraz de saldo neto (<strong>Greedy Net Debt Settlement</strong>):\n\n1. Se calcula lo que cada miembro gana o pierde en total (saldo neto)\n2. <strong>Deudores → acreedores</strong>: cada deudor paga a quien más crédito tiene, en orden\n3. <strong>Transferencias mínimas</strong>: el menor número posible de pagos para dejar todo a cero (máx. n−1 pagos)",
         "category": "sec-4",
         "faqs": [
           { "question": "¿Por qué no pago a todo el mundo?", "answer": "El algoritmo optimiza para que hagas el mínimo de transferencias. En lugar de pagar a 3 personas, pagas a 1 que ya debe a las otras." }
@@ -232,14 +232,14 @@ export const helpCategories: HelpCategory[] = [
       {
         "id": "panel-de-desglose",
         "title": "Panel de desglose",
-        "content": "En la pestaña **Saldos** pulsa **Ver desglose** de cualquier miembro. Verás exactamente qué transferencias hacer:\n\n```\nAna    +€24.00  → te deben €24.00\nBea     €0.00  → saldado\nCar    −€15.00  → debe €15.00\nDiego   −€9.00  → debe €9.00\n```\n\n**Resultado**: En lugar de 6 pagos cruzados, solo hace falta:\n- Car paga €15.00 a Ana\n- Diego paga €9.00 a Ana",
+        "content": "En la pestaña <strong>Saldos</strong> pulsa <strong>Ver desglose</strong> de cualquier miembro. Verás exactamente qué transferencias hacer:\n\n```\nAna    +€24.00  → te deben €24.00\nBea     €0.00  → saldado\nCar    −€15.00  → debe €15.00\nDiego   −€9.00  → debe €9.00\n```\n\n<strong>Resultado</strong>: En lugar de 6 pagos cruzados, solo hace falta:\n- Car paga €15.00 a Ana\n- Diego paga €9.00 a Ana",
         "category": "sec-4",
         "faqs": []
       },
       {
         "id": "simplificacion-activada-por-defecto",
         "title": "Simplificación activada por defecto",
-        "content": "La simplificación está **activada por defecto** en todos los grupos. Puedes desactivarla en Ajustes del grupo → **Simplificar deudas** (pero no se recomienda: multiplica los pagos necesarios).",
+        "content": "La simplificación está <strong>activada por defecto</strong> en todos los grupos. Puedes desactivarla en Ajustes del grupo → <strong>Simplificar deudas</strong> (pero no se recomienda: multiplica los pagos necesarios).",
         "category": "sec-4",
         "faqs": []
       }
@@ -252,21 +252,21 @@ export const helpCategories: HelpCategory[] = [
       {
         "id": "extracto-contable-del-bote",
         "title": "📒 Extracto contable del bote",
-        "content": "El bote funciona como una mini cuenta bancaria: su pantalla muestra un extracto con cada movimiento — **aportación (+)** o **pago realizado desde el bote (−)** — junto al saldo acumulado tras cada operación, la fecha y el concepto. Los movimientos ligados a un gasto actúan como enlaces: tócalos y saltas directo al gasto correspondiente del historial.",
+        "content": "El bote funciona como una mini cuenta bancaria: su pantalla muestra un extracto con cada movimiento — <strong>aportación (+)</strong> o <strong>pago realizado desde el bote (−)</strong> — junto al saldo acumulado tras cada operación, la fecha y el concepto. Los movimientos ligados a un gasto actúan como enlaces: tócalos y saltas directo al gasto correspondiente del historial.",
         "category": "sec-5",
         "faqs": []
       },
       {
         "id": "aportar-al-bote",
         "title": "Aportar al bote",
-        "content": "Pestaña **Bote** → **Aportar**. Elige importe y concepto (ej. «Fondo viaje»). La aportación suma al saldo del bote y al balance del miembro (se le debe ese dinero).",
+        "content": "Pestaña <strong>Bote</strong> → <strong>Aportar</strong>. Elige importe y concepto (ej. «Fondo viaje»). La aportación suma al saldo del bote y al balance del miembro (se le debe ese dinero).",
         "category": "sec-5",
         "faqs": []
       },
       {
         "id": "pagar-desde-el-bote",
         "title": "Pagar un gasto desde el bote",
-        "content": "Al crear un gasto, elige reparto **Bote**. El importe se descuenta del saldo del bote (no de los miembros). Útil para gastos compartidos del día a día (super, café, peajes) sin tener que cuadrar después.",
+        "content": "Al crear un gasto, elige reparto <strong>Bote</strong>. El importe se descuenta del saldo del bote (no de los miembros). Útil para gastos compartidos del día a día (super, café, peajes) sin tener que cuadrar después.",
         "category": "sec-5",
         "faqs": [
           { "question": "¿Qué pasa si el bote no tiene suficiente?", "answer": "La app te avisa y no deja crear el gasto. Aporta primero o elige otro reparto." }
@@ -275,7 +275,7 @@ export const helpCategories: HelpCategory[] = [
       {
         "id": "piques-informales",
         "title": "Piques informales (entre dos)",
-        "content": "Fuera de grupos, puedes crear **piques 1-a-1** desde el Dashboard → **Nuevo pique**. Funcionan igual que un grupo de dos: añades gastos, ves saldos, pagas. Ideales para cosas puntuales (una cena, un regalo compartido) sin montar un grupo entero.",
+        "content": "Fuera de grupos, puedes crear <strong>piques 1-a-1</strong> desde el Dashboard → <strong>Nuevo pique</strong>. Funcionan igual que un grupo de dos: añades gastos, ves saldos, pagas. Ideales para cosas puntuales (una cena, un regalo compartido) sin montar un grupo entero.",
         "category": "sec-5",
         "faqs": []
       }
@@ -288,21 +288,21 @@ export const helpCategories: HelpCategory[] = [
       {
         "id": "motor-de-automatizacion",
         "title": "Motor de automatización",
-        "content": "Un proceso que se ejecuta en el servidor (vía cron, periódicamente) revisa todos los gastos fijos activos con **autoregistro** y genera automáticamente el gasto cuando vence su fecha. Tú solo eliges:\n- Frecuencia: semanal, quincenal, mensual, anual\n- Día de la semana / día del mes\n- Importe, categoría, pagador, reparto\n- Participantes (por defecto: todos los miembros activos)",
+        "content": "Un proceso que se ejecuta en el servidor (vía cron, periódicamente) revisa todos los gastos fijos activos con <strong>autoregistro</strong> y genera automáticamente el gasto cuando vence su fecha. Tú solo eliges:\n- Frecuencia: semanal, quincenal, mensual, anual\n- Día de la semana / día del mes\n- Importe, categoría, pagador, reparto\n- Participantes (por defecto: todos los miembros activos)",
         "category": "sec-6",
         "faqs": []
       },
       {
         "id": "pausa-y-gestion",
         "title": "Pausa y gestión",
-        "content": "**Pausar**: detiene la generación futura sin borrar la configuración. Ideal para vacaciones.\n\n**Reanudar**: vuelve a activar la cuota; el motor la retoma.\n\n**Eliminar**: borra la cuota de forma definitiva. Los gastos ya generados se mantienen en el historial.\n\n> **Truco** Si una cuota se genera por error (por ejemplo, un importe mal configurado), elimina el gasto como cualquier otro: aparecerá atenuado en el historial para auditoría (ver Sección 3).",
+        "content": "<strong>Pausar</strong>: detiene la generación futura sin borrar la configuración. Ideal para vacaciones.\n\n<strong>Reanudar</strong>: vuelve a activar la cuota; el motor la retoma.\n\n<strong>Eliminar</strong>: borra la cuota de forma definitiva. Los gastos ya generados se mantienen en el historial.\n\n> <strong>Truco</strong> Si una cuota se genera por error (por ejemplo, un importe mal configurado), elimina el gasto como cualquier otro: aparecerá atenuado en el historial para auditoría (ver Sección 3).",
         "category": "sec-6",
         "faqs": []
       },
       {
         "id": "crear-gasto-fijo",
         "title": "Crear un gasto fijo",
-        "content": "En el grupo → pestaña **Gastos fijos** → **Nuevo gasto fijo**. Rellena: nombre, importe, frecuencia, día, categoría, pagador, reparto, participantes. Activa **Autoregistro** para que se cree solo.",
+        "content": "En el grupo → pestaña <strong>Gastos fijos</strong> → <strong>Nuevo gasto fijo</strong>. Rellena: nombre, importe, frecuencia, día, categoría, pagador, reparto, participantes. Activa <strong>Autoregistro</strong> para que se cree solo.",
         "category": "sec-6",
         "faqs": []
       }
@@ -315,21 +315,21 @@ export const helpCategories: HelpCategory[] = [
       {
         "id": "panel-in-app",
         "title": "Panel in-app (campana 🔔)",
-        "content": "La campana muestra el número de avisos sin leer: del 1 al 9 se ve el número exacto y a partir de 10 se muestra **+9**. Al pulsar una notificación, navegas al instante (al grupo, gasto o pago relacionado) y la lectura se marca en segundo plano: experiencia optimista, sin esperas. En el panel puedes marcar como leída una notificación individual con el botón de la derecha, o usar **«Marcar todas como leídas»** para limpiar el contador de golpe. El icono de ajustes de la cabecera te lleva directo al perfil, donde puedes elegir qué avisos recibes. Cuando no hay avisos, el panel muestra un mensaje vacío: todo está al día.",
+        "content": "La campana muestra el número de avisos sin leer: del 1 al 9 se ve el número exacto y a partir de 10 se muestra <strong>+9</strong>. Al pulsar una notificación, navegas al instante (al grupo, gasto o pago relacionado) y la lectura se marca en segundo plano: experiencia optimista, sin esperas. En el panel puedes marcar como leída una notificación individual con el botón de la derecha, o usar <strong>«Marcar todas como leídas»</strong> para limpiar el contador de golpe. El icono de ajustes de la cabecera te lleva directo al perfil, donde puedes elegir qué avisos recibes. Cuando no hay avisos, el panel muestra un mensaje vacío: todo está al día.",
         "category": "sec-7",
         "faqs": []
       },
       {
         "id": "notificaciones-nativas-web-push",
         "title": "Notificaciones nativas (Web Push)",
-        "content": "Cuando activas el push, las notificaciones llegan al sistema operativo: verás el aviso en la pantalla del móvil o del escritorio, aunque la app esté cerrada.\n\n1. Toca **«Activar»** (Banner del dashboard o Ajustes)\n2. Acepta el permiso (Diálogo del sistema)\n3. ¡Listo! Recibes avisos nativos\n\n> **Consejo** Para no perderte nada, **instala la app**: en iOS usa «Compartir → Añadir a pantalla de inicio»; en Android y escritorio usa el botón **Instalar** del navegador. Así Divido se abre a pantalla completa como una app nativa.\n\n> **Nota** Si deniegas el permiso, el navegador no podrá volver a preguntártelo automáticamente. Puedes reactivarlo desde los ajustes del navegador (sección de notificaciones del sitio).",
+        "content": "Cuando activas el push, las notificaciones llegan al sistema operativo: verás el aviso en la pantalla del móvil o del escritorio, aunque la app esté cerrada.\n\n1. Toca <strong>«Activar»</strong> (Banner del dashboard o Ajustes)\n2. Acepta el permiso (Diálogo del sistema)\n3. ¡Listo! Recibes avisos nativos\n\n> <strong>Consejo</strong> Para no perderte nada, <strong>instala la app</strong>: en iOS usa «Compartir → Añadir a pantalla de inicio»; en Android y escritorio usa el botón <strong>Instalar</strong> del navegador. Así Divido se abre a pantalla completa como una app nativa.\n\n> <strong>Nota</strong> Si deniegas el permiso, el navegador no podrá volver a preguntártelo automáticamente. Puedes reactivarlo desde los ajustes del navegador (sección de notificaciones del sitio).",
         "category": "sec-7",
         "faqs": []
       },
       {
         "id": "ajusta-que-avisos-recibes",
         "title": "Ajusta qué avisos recibes",
-        "content": "No todo el mundo quiere enterarse de todo. Abre **Perfil → Ajustes** y, en la sección **Notificaciones**, activa o desactiva cada tipo de aviso con un interruptor. Los cambios se guardan al instante y se aplican al panel in-app y al push.\n\nTipos: nuevo gasto, gasto editado/borrado, pago recibido, pago confirmado, pique, invitación, gasto fijo generado, mención, etc.",
+        "content": "No todo el mundo quiere enterarse de todo. Abre <strong>Perfil → Ajustes</strong> y, en la sección <strong>Notificaciones</strong>, activa o desactiva cada tipo de aviso con un interruptor. Los cambios se guardan al instante y se aplican al panel in-app y al push.\n\nTipos: nuevo gasto, gasto editado/borrado, pago recibido, pago confirmado, pique, invitación, gasto fijo generado, mención, etc.",
         "category": "sec-7",
         "faqs": []
       }
@@ -346,7 +346,7 @@ export const helpCategories: HelpCategory[] = [
         "category": "sec-8",
         "faqs": [
           { "question": "¿Puedo usar Divido sin crear cuenta?", "answer": "No. Necesitas cuenta para que tus saldos y grupos se guarden en la nube y sincronicen entre dispositivos." },
-          { "question": "¿Cómo recupero mi contraseña?", "answer": "En la pantalla de login pulsa **¿Olvidaste la contraseña?**, introduce tu email y recibirás un enlace para restablecerla." },
+          { "question": "¿Cómo recupero mi contraseña?", "answer": "En la pantalla de login pulsa <strong>¿Olvidaste la contraseña?</strong>, introduce tu email y recibirás un enlace para restablecerla." },
           { "question": "¿Puedo usar mi cuenta de Google/Apple?", "answer": "Sí, Divido soporta login con Google y Apple (Sign in with Apple) además de email/contraseña." },
           { "question": "¿Mis datos están seguros?", "answer": "Sí. Usamos Supabase (PostgreSQL) con Row Level Security: solo tú y los miembros de tus grupos veis vuestros datos. Las contraseñas se hascean con bcrypt." }
         ]
@@ -371,7 +371,7 @@ export const helpCategories: HelpCategory[] = [
         "faqs": [
           { "question": "¿Por qué mi saldo no cuadra?", "answer": "Revisa: 1) ¿Todos los gastos están en la categoría correcta? 2) ¿Falta algún pago confirmado? 3) ¿Hay gastos borrados que no deberían? Usa el historial para auditar." },
           { "question": "¿Qué es el «neto»?", "answer": "Es la diferencia entre lo que te deben y lo que debes. Positivo (verde) = te deben. Negativo (rojo) = debes. Cero = saldado." },
-          { "question": "¿Puedo dividir un gasto de forma desigual?", "answer": "Sí. En el formulario elige **%** (porcentajes) o **€** (importes exactos) y ajusta por persona." },
+          { "question": "¿Puedo dividir un gasto de forma desigual?", "answer": "Sí. En el formulario elige <strong>%</strong> (porcentajes) o <strong>€</strong> (importes exactos) y ajusta por persona." },
           { "question": "¿Los gastos en otras monedas se convierten?", "answer": "No. Cada grupo tiene UNA moneda fija. No hay conversión automática. Si viajas, crea un grupo en la moneda local." }
         ]
       },
@@ -383,7 +383,7 @@ export const helpCategories: HelpCategory[] = [
         "faqs": [
           { "question": "¿Cómo funciona «Autoconfirmar pagos»?", "answer": "Actívalo en Perfil → Ajustes. Cualquier pago que recibas se marca como confirmado al instante, sin que tengas que pulsar «Confirmar». Útil en grupos de confianza." },
           { "question": "¿Puedo cancelar un pago ya enviado?", "answer": "Solo si el acreedor no lo ha confirmado aún. En Saldos → pagos pendientes → ⋮ → Cancelar." },
-          { "question": "¿Para qué sirve el bote común?", "answer": "Es un fondo compartido del grupo. Aportas dinero y luego pagas gastos **desde el bote** (reparto «Bote»), sin tocar saldos individuales. Ideal para viajes: metéis dinero al inicio y pagáis todo desde ahí." }
+          { "question": "¿Para qué sirve el bote común?", "answer": "Es un fondo compartido del grupo. Aportas dinero y luego pagas gastos <strong>desde el bote</strong> (reparto «Bote»), sin tocar saldos individuales. Ideal para viajes: metéis dinero al inicio y pagáis todo desde ahí." }
         ]
       },
       {
@@ -392,8 +392,8 @@ export const helpCategories: HelpCategory[] = [
         "content": "",
         "category": "sec-8",
         "faqs": [
-          { "question": "¿Cómo instalo Divido como app nativa?", "answer": "**iOS**: Safari → Compartir → Añadir a pantalla de inicio. **Android/Chrome/Edge**: botón **Instalar** en la barra de direcciones o menú ⋮ → Instalar. **Escritorio**: mismo botón Instalar." },
-          { "question": "¿Funciona sin internet?", "answer": "Sí, como PWA instalada funciona **offline** para ver grupos, gastos y saldos ya cargados. Las escrituras (nuevo gasto, pago) se sincronizan al volver la conexión." },
+          { "question": "¿Cómo instalo Divido como app nativa?", "answer": "<strong>iOS</strong>: Safari → Compartir → Añadir a pantalla de inicio. <strong>Android/Chrome/Edge</strong>: botón <strong>Instalar</strong> en la barra de direcciones o menú ⋮ → Instalar. <strong>Escritorio</strong>: mismo botón Instalar." },
+          { "question": "¿Funciona sin internet?", "answer": "Sí, como PWA instalada funciona <strong>offline</strong> para ver grupos, gastos y saldos ya cargados. Las escrituras (nuevo gasto, pago) se sincronizan al volver la conexión." },
           { "question": "No me llegan notificaciones push", "answer": "1. Verifica Perfil → Ajustes → Notificaciones (todas activadas). 2. Ajustes del navegador → Sitios → Notificaciones → Divido → Permitir. 3. Instala la app (requisito en iOS/Android para push nativo)." }
         ]
       },
@@ -404,8 +404,8 @@ export const helpCategories: HelpCategory[] = [
         "category": "sec-8",
         "faqs": [
           { "question": "¿Dónde se guardan mis datos?", "answer": "En Supabase (PostgreSQL) alojado en EU (Frankfurt). Cumple GDPR. No vendemos datos ni hacemos publicidad." },
-          { "question": "¿Puedo exportar mis datos?", "answer": "Sí. En cada grupo → Ajustes → **Exportar** (CSV/PDF). También en Perfil → **Exportar todos mis datos** (JSON completo)." },
-          { "question": "¿Cómo borro mi cuenta?", "answer": "Perfil → Ajustes → **Eliminar cuenta**. Borra todo: usuario, grupos creados, gastos, pagos, notificaciones. Irreversible." },
+          { "question": "¿Puedo exportar mis datos?", "answer": "Sí. En cada grupo → Ajustes → <strong>Exportar</strong> (CSV/PDF). También en Perfil → <strong>Exportar todos mis datos</strong> (JSON completo)." },
+          { "question": "¿Cómo borro mi cuenta?", "answer": "Perfil → Ajustes → <strong>Eliminar cuenta</strong>. Borra todo: usuario, grupos creados, gastos, pagos, notificaciones. Irreversible." },
           { "question": "¿Hay API pública?", "answer": "No por ahora. Si necesitas integración, escríbenos a soporte@divido.app" }
         ]
       }
@@ -418,14 +418,14 @@ export const helpCategories: HelpCategory[] = [
       {
         "id": "tu-tique-guardado-y-privado",
         "title": "Tu tique, guardado y privado",
-        "content": "Cuando adjuntas una foto del tique al crear o editar un gasto, esta se sube a un almacenamiento privado: nunca es pública ni accesible por quien no pertenece al grupo. Al verla (botón tique en la lista de gastos), la app genera un enlace temporal que caduca en 1 hora; si vuelve a pulsarse, se genera uno nuevo automáticamente. Adjunta la foto desde tu galería o archivos: cada imagen se optimiza sola antes de subirse (máximo 1200 px, JPEG comprimido por debajo de ~500 KB), así va ligera y tu móvil no se ahoga. Las fotos de perfil y logos de grupo se aligeran igual (hasta 512 px). Solo se aceptan imágenes JPG o PNG de hasta 5 MB. Los tiques antiguos siguen viéndose igual. Si pierdes conexión durante la subida, te avisamos y puedes reintentarlo; el gasto no se registra sin el tique que pediste.\n\n> **Ejemplo** Añades «Cena italiana» con la foto del ticket: mientras ves la barra «Subiendo tique…», la imagen viaja cifrada a la nube. Tu compañero abre el gasto dos días después y ve la foto nítida, aunque haya cambiado de móvil.",
+        "content": "Cuando adjuntas una foto del tique al crear o editar un gasto, esta se sube a un almacenamiento privado: nunca es pública ni accesible por quien no pertenece al grupo. Al verla (botón tique en la lista de gastos), la app genera un enlace temporal que caduca en 1 hora; si vuelve a pulsarse, se genera uno nuevo automáticamente. Adjunta la foto desde tu galería o archivos: cada imagen se optimiza sola antes de subirse (máximo 1200 px, JPEG comprimido por debajo de ~500 KB), así va ligera y tu móvil no se ahoga. Las fotos de perfil y logos de grupo se aligeran igual (hasta 512 px). Solo se aceptan imágenes JPG o PNG de hasta 5 MB. Los tiques antiguos siguen viéndose igual. Si pierdes conexión durante la subida, te avisamos y puedes reintentarlo; el gasto no se registra sin el tique que pediste.\n\n> <strong>Ejemplo</strong> Añades «Cena italiana» con la foto del ticket: mientras ves la barra «Subiendo tique…», la imagen viaja cifrada a la nube. Tu compañero abre el gasto dos días después y ve la foto nítida, aunque haya cambiado de móvil.",
         "category": "sec-9",
         "faqs": []
       },
       {
         "id": "la-app-se-actualiza-sola",
         "title": "La app se actualiza sola (Tiempo real)",
-        "content": "Gastos, saldos e historial: si alguien del grupo añade, edita o elimina un gasto (o aprueba una solicitud), lo verás al momento sin recargar la página. Pagos entre miembros: cuando te envían o confirman un pago, tu balance se refresca solo. Campana 🔔: los avisos nuevos aparecen al instante, sin esperar al minuto siguiente. Nada cambia en cómo haces las cosas: sigues tocando los mismos botones; simplemente todo llega antes.\n\n> **Nota** Si tu navegador bloquea conexiones en tiempo real, Divido sigue funcionando con normalidad: los datos se refrescan como siempre al entrar en cada pantalla.",
+        "content": "Gastos, saldos e historial: si alguien del grupo añade, edita o elimina un gasto (o aprueba una solicitud), lo verás al momento sin recargar la página. Pagos entre miembros: cuando te envían o confirman un pago, tu balance se refresca solo. Campana 🔔: los avisos nuevos aparecen al instante, sin esperar al minuto siguiente. Nada cambia en cómo haces las cosas: sigues tocando los mismos botones; simplemente todo llega antes.\n\n> <strong>Nota</strong> Si tu navegador bloquea conexiones en tiempo real, Divido sigue funcionando con normalidad: los datos se refrescan como siempre al entrar en cada pantalla.",
         "category": "sec-9",
         "faqs": []
       }

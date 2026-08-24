@@ -30,7 +30,6 @@ export function useGuidedTour() {
 
   const observerRef = useRef<MutationObserver | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasEvaluatedOnceRef = useRef(false);
 
   // Evaluate all skipIf functions and find target elements
   const evaluateSteps = useCallback((): StepStatus[] => {
@@ -63,11 +62,11 @@ export function useGuidedTour() {
       .map((s) => s.step);
   }, [stepStatuses]);
 
-  // Check if user has any groups (for tour trigger logic)
+  // Check if user has any groups - directly query DOM each render for reactivity
   const hasGroups = useMemo(() => {
     const cards = document.querySelectorAll(".group-card");
     return cards.length > 0;
-  }, [stepStatuses]); // Re-evaluate when stepStatuses changes
+  }, [stepStatuses.length]); // Re-evaluate when stepStatuses updates
 
   // Get the current step status
   const currentStepStatus = stepStatuses[currentStepIndex];
@@ -78,7 +77,6 @@ export function useGuidedTour() {
     // Initial evaluation
     setStepStatuses(evaluateSteps());
     setIsReady(true);
-    hasEvaluatedOnceRef.current = true;
 
     // Setup MutationObserver to re-evaluate when DOM changes
     observerRef.current = new MutationObserver(() => {
@@ -104,11 +102,7 @@ export function useGuidedTour() {
     };
   }, [evaluateSteps]);
 
-  // Auto-start logic:
-  // - If tour_done or tour_dismissed → never auto-start
-  // - If user has NO groups → auto-start (shows "Crear grupo")
-  // - If user has groups AND first run → auto-start (shows "Tus grupos")
-  // - If returning user with saved step → restore
+  // Auto-start logic - runs when isReady, activeSteps.length, or hasGroups changes
   useEffect(() => {
     if (!isReady || isActive) return;
 
@@ -126,7 +120,10 @@ export function useGuidedTour() {
       return;
     }
 
-    // Determine if we should auto-start
+    // Determine if we should auto-start:
+    // - User has NO groups → auto-start (shows "Crear grupo")
+    // - User HAS groups AND first run → auto-start (shows "Tus grupos")
+    // - User HAS groups AND returning → NO auto-start
     const firstRun = localStorage.getItem("divido.tour_first_run") !== "false";
     const shouldAutoStart = !hasGroups || firstRun;
 
@@ -141,13 +138,12 @@ export function useGuidedTour() {
       localStorage.setItem("divido.tour_first_run", "false");
     }
 
-    // If user has no groups, step 0 (dashboard-groups) is skipped, so start at step 1
-    // But activeSteps already filters out skipped steps, so index 0 is correct
+    // Start at first active step (index 0)
     setCurrentStepIndex(0);
     setIsActive(true);
     localStorage.setItem(TOUR_STEP_KEY, "0");
     setIsLoading(false);
-  }, [isReady, activeSteps.length, hasGroups]);
+  }, [isReady, activeSteps.length, hasGroups, isActive]);
 
   // Auto-advance if current step becomes skipped or target disappears
   useEffect(() => {
@@ -228,6 +224,7 @@ export function useGuidedTour() {
     isReady,
     activeSteps,
     stepStatuses,
+    hasGroups,
     startTour,
     nextStep,
     prevStep,
