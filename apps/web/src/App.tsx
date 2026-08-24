@@ -7,6 +7,8 @@ import { analyticsEnabled, track } from "./lib/analytics";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { PWAInstallBanner } from "./components/PWAInstallBanner";
 import { GuidedTourPortal } from "./components/GuidedTourPortal";
+import { HelpProvider } from "./components/HelpButton";
+import { HelpModal } from "./components/HelpModal";
 
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
@@ -60,37 +62,39 @@ function PageviewTracker() {
 
 export default function App() {
   return (
-    <Suspense fallback={<FullScreenSpinner />}>
-      <PageviewTracker />
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/terms" element={<TermsPage />} />
-        <Route path="/cookies" element={<CookiesPage />} />
-        <Route path="/join/:token" element={<JoinPage />} />
-        <Route path="/claim/:token" element={<ClaimPage />} />
-        <Route path="/verify-email" element={<VerifyEmailPage />} />
-        <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
-        <Route
-          path="/"
-          element={
-            <Protected>
-              <DashboardPage />
-            </Protected>
-          }
-        />
-        <Route
-          path="/groups/:groupId"
-          element={
-            <Protected>
-              <GroupPage />
-            </Protected>
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Suspense>
+    <HelpProvider>
+      <Suspense fallback={<FullScreenSpinner />}>
+        <PageviewTracker />
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/cookies" element={<CookiesPage />} />
+          <Route path="/join/:token" element={<JoinPage />} />
+          <Route path="/claim/:token" element={<ClaimPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
+          <Route
+            path="/"
+            element={
+              <Protected>
+                <DashboardPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="/groups/:groupId"
+            element={
+              <Protected>
+                <GroupPage />
+              </Protected>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    </HelpProvider>
   );
 }

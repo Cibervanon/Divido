@@ -12,6 +12,7 @@ import { NotificationDrawer } from "../components/NotificationDrawer";
 import { AnalyticsConsentBanner } from "../components/AnalyticsConsentBanner";
 import { Logo } from "../components/Logo";
 import { ProfileModal } from "../components/ProfileModal";
+import { HelpButton } from "../components/HelpButton";
 import { blobToDataUrl, compressImageToJpeg, dataUrlToBlob, isHeavyDataUrl } from "../lib/compressImage";
 import { track } from "../lib/analytics";
 import type { GroupDetail, GroupSummary } from "../lib/types";
@@ -205,6 +206,7 @@ export default function DashboardPage() {
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
           <Logo className="h-9 w-9" />
           <div className="flex items-center gap-1">
+            <HelpButton />
             <NotificationBell unreadCount={unreadCount} onClick={() => setNotifOpen(true)} />
             <button
               type="button"
