@@ -51,8 +51,7 @@ export function GuidedTour() {
     };
   }, []);
 
-  if (!isActive || isLoading || !currentStepData) return null;
-
+  // All hooks must be called before any early return
   const handleNext = useCallback(() => {
     const activeSteps = getActiveSteps();
     if (currentStep < activeSteps.length - 1) {
@@ -73,6 +72,8 @@ export function GuidedTour() {
   const handleClose = useCallback(() => {
     skipTour();
   }, [skipTour]);
+
+  if (!isActive || isLoading || !currentStepData) return null;
 
   return (
     <>
