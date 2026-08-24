@@ -577,6 +577,13 @@ export default function GroupPage() {
               groupCurrency={group.currency}
               onEdit={(e) => setEditTarget(e)}
               onDelete={(e) => setDeleteTarget(e)}
+              onDuplicate={(e) => {
+                openAddExpense({
+                  description: e.description,
+                  amount: String(e.amount),
+                  payerId: e.payerId ?? user.id,
+                });
+              }}
               onAdd={() => openAddExpense()}
               requests={requests}
               onDecide={decideRequest}
