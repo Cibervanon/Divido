@@ -6,6 +6,7 @@ import { Spinner } from "./components/ui";
 import { analyticsEnabled, track } from "./lib/analytics";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { PWAInstallBanner } from "./components/PWAInstallBanner";
+import { GuidedTourPortal } from "./components/GuidedTourPortal";
 
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
@@ -42,6 +43,7 @@ function Protected({ children }: { children: ReactNode }) {
       {children}
       {showOnboarding && <OnboardingModal />}
       <PWAInstallBanner />
+      <GuidedTourPortal />
     </>
   );
 }

@@ -838,7 +838,7 @@ const submitLabel = (locked && !adminOverride) ? "Solicitar modificación" : exp
             <span className="text-xs font-medium text-slate-400">
               Participantes ({participants.length})
             </span>
-            <div className="flex gap-1 rounded-lg bg-slate-800 p-0.5">
+            <div className="flex gap-1 rounded-lg bg-slate-800 p-0.5" data-tour="split-chips">
               {([
                 ["equal", "Iguales"],
                 ["percent", "%"],

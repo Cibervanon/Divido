@@ -577,7 +577,7 @@ export default function GroupPage() {
         <Tabs
           tabs={[
             { key: "expenses", label: "Gastos" },
-            { key: "balances", label: "Saldos" },
+            { key: "balances", label: "Saldos", tourId: "balances-tab" },
             { key: "members", label: "Miembros" },
             { key: "history", label: "Actividad" },
             ...(hasDebts ? [{ key: "debts", label: "Piques" }] : []),
@@ -706,7 +706,8 @@ export default function GroupPage() {
         <button
           onClick={() => openAddExpense()}
           className="flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-xl shadow-indigo-900/40 transition hover:bg-indigo-500 active:scale-95"
-        >
+          data-tour="add-expense"
+>
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>

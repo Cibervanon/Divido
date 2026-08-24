@@ -397,7 +397,7 @@ export function Tabs({
   active,
   onChange,
 }: {
-  tabs: Array<{ key: string; label: string }>;
+  tabs: Array<{ key: string; label: string; tourId?: string }>;
   active: string;
   onChange: (key: string) => void;
 }) {
@@ -412,6 +412,7 @@ export function Tabs({
               ? "bg-indigo-600 text-white shadow"
               : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
           }`}
+          data-tour={t.tourId}
         >
           {t.label}
         </button>
