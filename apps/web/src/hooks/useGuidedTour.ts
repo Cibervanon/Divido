@@ -13,6 +13,7 @@ export interface TourStep {
 const TOUR_DONE_KEY = "divido.tour_done";
 const TOUR_STEP_KEY = "divido.tour_step";
 const TOUR_DISMISSED_KEY = "divido.tour_dismissed";
+const TOUR_FIRST_VISIT_KEY = "divido.tour_first_visit";
 
 interface StepInfo {
   step: TourStep;
@@ -21,17 +22,29 @@ interface StepInfo {
 }
 
 export function useGuidedTour() {
-  // Core state - simplified
+  // Core state
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [steps, setSteps] = useState<StepInfo[]>([]);
   const [hasEvaluated, setHasEvaluated] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string>("Starting...");
+  const [showDebug, setShowDebug] = useState(false);
 
   // Refs
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const observerRef = useRef<MutationObserver | null>(null);
   const mountedRef = useRef(true);
+
+  // Auto-clear localStorage on FIRST VISIT ever (prevents stale done/dismissed blocking)
+  useEffect(() => {
+    const firstVisit = localStorage.getItem(TOUR_FIRST_VISIT_KEY) !== "false";
+    if (firstVisit) {
+      console.log('[Tour] FIRST VISIT - clearing stale tour state');
+      localStorage.removeItem(TOUR_DONE_KEY);
+      localStorage.removeItem(TOUR_DISMISSED_KEY);
+      localStorage.removeItem(TOUR_STEP_KEY);
+      localStorage.setItem(TOUR_FIRST_VISIT_KEY, "false");
+    }
+  }, []);
 
   // Simple step evaluator
   const evaluateAllSteps = useCallback(() => {
@@ -66,7 +79,6 @@ export function useGuidedTour() {
       `${s.step.id}: target="${s.step.target}" skipped=${s.skipped} element=${!!s.element}`
     ).join(" | ");
     console.log('[Tour] EVAL:', debugMsg);
-    setDebugInfo(debugMsg);
   }, []);
 
   // Get active (non-skipped) steps with existing elements
@@ -76,7 +88,6 @@ export function useGuidedTour() {
   );
 
   const currentStep = activeSteps[currentStepIndex] ?? null;
-  const currentStepInfo = steps.find(s => s.step === currentStep) ?? null;
 
   // Check if tour should be shown (respects done/dismissed)
   const shouldShowTour = useMemo(() => {
@@ -124,23 +135,23 @@ export function useGuidedTour() {
     };
   }, [evaluateAllSteps]);
 
-  // Auto-open logic: FOR TESTING - open immediately if shouldShowTour and has target
+  // Auto-open logic: aggressive - open immediately when first active step has element
   useEffect(() => {
     if (!hasEvaluated) return;
     if (isOpen) return;
     if (!shouldShowTour) {
-      console.log('[Tour] shouldShowTour=false, not opening');
+      console.log('[Tour] shouldShowTour=false (done/dismissed or no active steps)');
       return;
     }
 
-    console.log('[Tour] Checking auto-open conditions:', {
+    console.log('[Tour] Checking auto-open:', {
       activeStepsCount: activeSteps.length,
       firstStep: activeSteps[0]?.id,
       firstStepElement: steps.find(s => s.step === activeSteps[0])?.element,
       shouldShowTour
     });
 
-    // FOR TESTING: Open immediately if we have any active step with element
+    // Open immediately if we have any active step with element
     if (activeSteps.length > 0) {
       const firstActive = activeSteps[0];
       const firstStepInfo = steps.find(s => s.step === firstActive);
@@ -148,7 +159,7 @@ export function useGuidedTour() {
         console.log('[Tour] AUTO-OPENING at step:', firstActive.id);
         setCurrentStepIndex(0);
         setIsOpen(true);
-        localStorage.setItem(TOUR_STEP_KEY, "0");
+        localStorage.setItem("divido.tour_step", "0");
       } else {
         console.log('[Tour] First active step has no element yet:', firstActive.id);
       }
@@ -157,11 +168,16 @@ export function useGuidedTour() {
     }
   }, [hasEvaluated, activeSteps, steps, shouldShowTour, isOpen]);
 
-  // Keyboard shortcut to manually trigger tour (T key)
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      // Don't interfere with input fields
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      
+      if (e.key === 'd' || e.key === 'D') {
+        setShowDebug(!showDebug);
+      }
       if (e.key === 't' || e.key === 'T') {
-        if (e.ctrlKey || e.metaKey) return; // Don't interfere with shortcuts
         console.log('[Tour] Manual trigger via T key');
         if (activeSteps.length > 0) {
           setCurrentStepIndex(0);
@@ -171,11 +187,10 @@ export function useGuidedTour() {
         }
       }
       if (e.key === 'r' || e.key === 'R') {
-        if (e.ctrlKey || e.metaKey) return;
         console.log('[Tour] Manual reset via R key');
         localStorage.removeItem(TOUR_DONE_KEY);
         localStorage.removeItem(TOUR_DISMISSED_KEY);
-        localStorage.removeItem(TOUR_STEP_KEY);
+        localStorage.removeItem("divido.tour_step");
         evaluateAllSteps();
         setTimeout(() => {
           if (activeSteps.length > 0) {
@@ -187,57 +202,16 @@ export function useGuidedTour() {
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [activeSteps, evaluateAllSteps]);
+  }, [activeSteps, evaluateAllSteps, showDebug]);
 
   // Persist step changes
   useEffect(() => {
     if (isOpen) {
-      localStorage.setItem(TOUR_STEP_KEY, String(currentStepIndex));
+      localStorage.setItem("divido.tour_step", String(currentStepIndex));
     }
   }, [currentStepIndex, isOpen]);
 
-  const nextStep = useCallback(() => {
-    const nextIndex = currentStepIndex + 1;
-    if (nextIndex < activeSteps.length) {
-      setCurrentStepIndex(nextIndex);
-      localStorage.setItem(TOUR_STEP_KEY, String(nextIndex));
-    } else {
-      completeTour();
-    }
-  }, [currentStepIndex, activeSteps.length]);
-
-  const prevStep = useCallback(() => {
-    const prevIndex = Math.max(0, currentStepIndex - 1);
-    setCurrentStepIndex(prevIndex);
-    localStorage.setItem(TOUR_STEP_KEY, String(prevIndex));
-  }, [currentStepIndex]);
-
-  const completeTour = useCallback(() => {
-    setIsOpen(false);
-    localStorage.setItem(TOUR_DONE_KEY, "true");
-    localStorage.removeItem(TOUR_STEP_KEY);
-    localStorage.removeItem(TOUR_DISMISSED_KEY);
-    console.log('[Tour] Completed');
-  }, []);
-
-  const skipTour = useCallback(() => {
-    setIsOpen(false);
-    localStorage.setItem(TOUR_DISMISSED_KEY, "true");
-    localStorage.removeItem(TOUR_STEP_KEY);
-    console.log('[Tour] Skipped');
-  }, []);
-
-  const resetTour = useCallback(() => {
-    localStorage.removeItem(TOUR_DONE_KEY);
-    localStorage.removeItem(TOUR_DISMISSED_KEY);
-    localStorage.removeItem(TOUR_STEP_KEY);
-    setCurrentStepIndex(0);
-    setIsOpen(true);
-    evaluateAllSteps();
-    console.log('[Tour] Reset');
-  }, [evaluateAllSteps]);
-
-  // Debug: expose state for visual debug panel
+  // Debug panel state
   const debugState = useMemo(() => ({
     isOpen,
     currentStepIndex,
@@ -253,6 +227,48 @@ export function useGuidedTour() {
     hasEvaluated
   }), [isOpen, currentStepIndex, activeSteps, steps, shouldShowTour, hasEvaluated]);
 
+  // Actions
+  const nextStep = useCallback(() => {
+    const nextIndex = currentStepIndex + 1;
+    if (nextIndex < activeSteps.length) {
+      setCurrentStepIndex(nextIndex);
+      localStorage.setItem("divido.tour_step", String(nextIndex));
+    } else {
+      completeTour();
+    }
+  }, [currentStepIndex, activeSteps.length]);
+
+  const prevStep = useCallback(() => {
+    const prevIndex = Math.max(0, currentStepIndex - 1);
+    setCurrentStepIndex(prevIndex);
+    localStorage.setItem("divido.tour_step", String(prevIndex));
+  }, [currentStepIndex]);
+
+  const completeTour = useCallback(() => {
+    setIsOpen(false);
+    localStorage.setItem(TOUR_DONE_KEY, "true");
+    localStorage.removeItem("divido.tour_step");
+    localStorage.removeItem(TOUR_DISMISSED_KEY);
+    console.log('[Tour] Completed');
+  }, []);
+
+  const skipTour = useCallback(() => {
+    setIsOpen(false);
+    localStorage.setItem(TOUR_DISMISSED_KEY, "true");
+    localStorage.removeItem("divido.tour_step");
+    console.log('[Tour] Skipped');
+  }, []);
+
+  const resetTour = useCallback(() => {
+    localStorage.removeItem(TOUR_DONE_KEY);
+    localStorage.removeItem(TOUR_DISMISSED_KEY);
+    localStorage.removeItem("divido.tour_step");
+    setCurrentStepIndex(0);
+    setIsOpen(true);
+    evaluateAllSteps();
+    console.log('[Tour] Reset');
+  }, [evaluateAllSteps]);
+
   return {
     isOpen,
     currentStep: activeSteps[currentStepIndex] ?? null,
@@ -265,10 +281,12 @@ export function useGuidedTour() {
     completeTour,
     resetTour,
     debugState,
+    showDebug,
+    setShowDebug,
   };
 }
 
-// Make pollTimerRef available
+// Refs
 const pollTimerRef = { current: null as ReturnType<typeof setInterval> | null };
 const observerRef = { current: null as MutationObserver | null };
 const mountedRef = { current: true };
