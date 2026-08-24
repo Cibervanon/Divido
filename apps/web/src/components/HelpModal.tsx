@@ -174,7 +174,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
               {helpCategories.find(c => c.id === "sec-1")?.articles.map((article) => (
                 <article key={article.id} className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
                   <h3 className="font-semibold text-slate-100 mb-2">{article.title}</h3>
-                  <div className="prose prose-slate max-w-none text-sm text-slate-300 whitespace-pre-line">{article.content}</div>
+                  <div className="prose prose-slate max-w-none text-sm text-slate-300" dangerouslySetInnerHTML={{ __html: article.content }} />
                   {article.faqs && article.faqs.length > 0 && (
                     <details className="mt-3 border-t border-slate-800 pt-3">
                       <summary className="text-xs font-medium text-slate-400 cursor-pointer">Preguntas frecuentes</summary>
@@ -220,7 +220,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
                             {category.articles.map((article) => (
                               <article key={article.id} className="rounded-lg border border-slate-800 bg-slate-900/30 p-3">
                                 <h4 className="font-medium text-slate-100 mb-1">{article.title}</h4>
-                                <div className="prose prose-slate max-w-none text-sm text-slate-300 whitespace-pre-line">{article.content}</div>
+                                <div className="prose prose-slate max-w-none text-sm text-slate-300" dangerouslySetInnerHTML={{ __html: article.content }} />
                                 {article.faqs && article.faqs.length > 0 && (
                                   <details className="mt-2 border-t border-slate-800 pt-2">
                                     <summary className="text-xs font-medium text-slate-400 cursor-pointer">FAQ relacionadas</summary>
@@ -349,7 +349,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
                       {selectedExpenseCategory.articles.map((article) => (
                         <details key={article.id} className="rounded-lg border border-slate-800 bg-slate-900/50">
                           <summary className="p-3 font-medium text-slate-100 cursor-pointer">{article.title}</summary>
-                          <div className="px-4 pb-3 text-sm text-slate-400 whitespace-pre-line">{article.content}</div>
+                          <div className="prose prose-slate max-w-none text-sm text-slate-300 px-4 pb-3" dangerouslySetInnerHTML={{ __html: article.content }} />
                         </details>
                       ))}
                     </div>
@@ -369,7 +369,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
                     {faqCategory.faqs?.map((faq, i) => (
                       <details key={`${faqCategory.id}-${i}`} className="rounded-xl bg-slate-900 border border-slate-800">
                         <summary className="p-3 font-medium text-slate-100 cursor-pointer">{faq.question}</summary>
-                        <div className="px-4 pb-3 text-slate-300 text-sm">{faq.answer}</div>
+                        <div className="prose prose-slate max-w-none text-sm text-slate-300 px-4 pb-3" dangerouslySetInnerHTML={{ __html: faq.answer }} />
                       </details>
                     ))}
                   </div>
