@@ -156,6 +156,7 @@ export default function GroupPage() {
   const [viewProof, setViewProof] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [duplicatePrefill, setDuplicatePrefill] = useState<ExpenseDto | null>(null);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -176,6 +177,20 @@ export default function GroupPage() {
       setDeleteTarget(null);
     }, description: "Cerrar modales" },
   ], !detail);
+
+  // Listener para duplicar gasto
+  useEffect(() => {
+    const handler = (e: CustomEvent<ExpenseDto>) => {
+      setDuplicatePrefill(e.detail);
+      openAddExpense({
+        description: e.detail.description,
+        amount: String(e.detail.amount),
+        payerId: e.detail.payerId ?? user?.id ?? "",
+      });
+    };
+    window.addEventListener("duplicate-expense", handler as EventListener);
+    return () => window.removeEventListener("duplicate-expense", handler as EventListener);
+  }, [user?.id]);
 
   const isAdmin = detail?.myRole === "admin";
 
