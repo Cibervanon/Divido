@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { tourSteps } from "../data/tourSteps.ts";
 
 export interface TourStep {
@@ -14,242 +14,186 @@ const TOUR_DONE_KEY = "divido.tour_done";
 const TOUR_STEP_KEY = "divido.tour_step";
 const TOUR_DISMISSED_KEY = "divido.tour_dismissed";
 
-type TourStatus = "idle" | "evaluating" | "ready" | "active" | "completed" | "dismissed";
-
-interface StepStatus {
+interface StepInfo {
   step: TourStep;
-  isSkipped: boolean;
-  targetExists: boolean;
-  targetElement: HTMLElement | null;
+  element: HTMLElement | null;
+  skipped: boolean;
 }
 
 export function useGuidedTour() {
-  const [status, setStatus] = useState<TourStatus>("idle");
+  // Core state
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [stepStatuses, setStepStatuses] = useState<StepStatus[]>([]);
-  const [hasGroups, setHasGroups] = useState(false);
-  const [dashboardReady, setDashboardReady] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [steps, setSteps] = useState<StepInfo[]>([]);
+  const [hasEvaluated, setHasEvaluated] = useState(false);
 
+  // Refs for cleanup
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const observerRef = useRef<MutationObserver | null>(null);
-  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const evaluationCountRef = useRef(0);
+  const mountedRef = useRef(true);
 
-  // Evaluate all skipIf functions and find target elements
-  const evaluateSteps = useCallback((): StepStatus[] => {
-    evaluationCountRef.current += 1;
-    return tourSteps.map((step) => {
-      const targetEl = document.querySelector(step.target) as HTMLElement | null;
-      const targetExists = !!targetEl;
-      let isSkipped = false;
+  // Simple step evaluator - runs synchronously, no complex memo
+  const evaluateAllSteps = useCallback(() => {
+    if (!mountedRef.current) return;
+    
+    const newSteps: StepInfo[] = tourSteps.map((step) => {
+      let element: HTMLElement | null = null;
+      let skipped = false;
+
+      try {
+        element = document.querySelector(step.target);
+      } catch (e) {
+        element = null;
+      }
 
       if (step.skipIf) {
         try {
-          isSkipped = step.skipIf();
-        } catch {
-          isSkipped = false;
+          skipped = step.skipIf();
+        } catch (e) {
+          skipped = false;
         }
       }
 
-      return {
-        step,
-        isSkipped,
-        targetExists,
-        targetElement: targetEl,
-      };
+      return { step, element, skipped };
     });
+
+    setSteps(newSteps);
+    setHasEvaluated(true);
+    
+    // Debug logging
+    console.log('[Tour] Evaluated steps:', newSteps.map(s => ({
+      id: s.step.id,
+      target: s.step.target,
+      skipped: s.skipped,
+      hasElement: !!s.element
+    })));
   }, []);
 
-  // Get active (non-skipped) steps in order
-  const activeSteps = useMemo(() => {
-    return stepStatuses
-      .filter((s) => !s.isSkipped)
-      .map((s) => s.step);
-  }, [stepStatuses]);
+  // Get active (non-skipped) steps with existing elements
+  const activeSteps = useMemo(() => 
+    steps.filter(s => !s.skipped && s.element).map(s => s.step),
+    [steps]
+  );
 
-  // Get the current step status
-  const currentStepStatus = stepStatuses[currentStepIndex];
-  const currentStep = currentStepStatus?.step ?? null;
-  const isActive = status === "active";
-  const isLoading = status === "idle" || status === "evaluating";
-  const isReady = status === "ready" || status === "active";
+  const currentStep = activeSteps[currentStepIndex] ?? null;
+  const currentStepInfo = steps.find(s => s.step === currentStep) ?? null;
 
-  // Check if user has groups - directly query DOM for reactivity
-  const checkHasGroups = useCallback(() => {
-    const cards = document.querySelectorAll(".group");
-    const has = cards.length > 0;
-    setHasGroups(has);
-    return has;
-  }, []);
-
-  // Check if dashboard is ready (not loading, not error)
-  const checkDashboardReady = useCallback(() => {
-    const loading = document.querySelector(".animate-spin") !== null;
-    const error = document.querySelector("[class*='bg-rose-500']") !== null;
-    const ready = !loading && !error;
-    setDashboardReady(ready);
-    return ready;
-  }, []);
-
-  // Initialize tour system - evaluate steps continuously
-  useEffect(() => {
-    const initialEval = evaluateSteps();
-    setStepStatuses(initialEval);
-    checkHasGroups();
-    checkDashboardReady();
-    setStatus("evaluating");
-
-    // Setup MutationObserver to re-evaluate when DOM changes
-    observerRef.current = new MutationObserver(() => {
-      setStepStatuses(evaluateSteps());
-      checkHasGroups();
-      checkDashboardReady();
-    });
-    observerRef.current.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["class", "data-tour"],
-    });
-
-    // Also poll periodically as fallback
-    const poll = () => {
-      setStepStatuses(evaluateSteps());
-      checkHasGroups();
-      checkDashboardReady();
-      pollTimeoutRef.current = setTimeout(poll, 1000);
-    };
-    pollTimeoutRef.current = setTimeout(poll, 1000);
-
-    return () => {
-      observerRef.current?.disconnect();
-      if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
-    };
-  }, [evaluateSteps, checkHasGroups, checkDashboardReady]);
-
-  // State machine: transition from evaluating -> ready when conditions met
-  useEffect(() => {
-    if (status !== "evaluating") return;
-
-    const done = localStorage.getItem(TOUR_DONE_KEY) === "true";
-    const dismissed = localStorage.getItem(TOUR_DISMISSED_KEY) === "true";
-
-    if (done || dismissed) {
-      setStatus(done ? "completed" : "dismissed");
-      return;
-    }
-
-    // Wait for: dashboard ready + at least one active step with existing target
-    if (dashboardReady && activeSteps.length > 0 && activeSteps[0] && stepStatuses[0]?.targetExists) {
-      setStatus("ready");
-    }
-  }, [status, dashboardReady, activeSteps.length, stepStatuses]);
-
-  // Auto-start when ready - FOR TESTING: auto-start for ALL accounts
-  useEffect(() => {
-    if (status !== "ready") return;
-
-    // FOR TESTING: auto-start for everyone, but respect done/dismissed
-    // (done/dismissed already checked in evaluating->ready transition)
-    setCurrentStepIndex(0);
-    setStatus("active");
-    localStorage.setItem(TOUR_STEP_KEY, "0");
-  }, [status, activeSteps]);
-
-  // Auto-advance when current step becomes skipped or target disappears
-  useEffect(() => {
-    if (!isActive || activeSteps.length === 0) return;
-
-    const currentStatus = stepStatuses[currentStepIndex];
-    if (!currentStatus) return;
-
-    if (currentStatus.isSkipped || !currentStatus.targetExists) {
-      const nextIndex = Math.min(currentStepIndex + 1, activeSteps.length - 1);
-      if (nextIndex !== currentStepIndex) {
-        setCurrentStepIndex(nextIndex);
-        localStorage.setItem(TOUR_STEP_KEY, String(nextIndex));
-      } else if (nextIndex === currentStepIndex && nextIndex === activeSteps.length - 1) {
-        completeTour();
-      }
-    }
-  }, [activeSteps, currentStepIndex, isActive, stepStatuses]);
-
-  // Persist step changes
-  useEffect(() => {
-    if (isActive) {
-      localStorage.setItem(TOUR_STEP_KEY, String(currentStepIndex));
-    }
-  }, [currentStepIndex, isActive]);
-
-  const startTour = useCallback(() => {
-    const steps = evaluateSteps().filter((s) => !s.isSkipped).map((s) => s.step);
-    if (steps.length === 0) return;
-    setCurrentStepIndex(0);
-    setStatus("active");
-    localStorage.removeItem(TOUR_DONE_KEY);
-    localStorage.removeItem(TOUR_DISMISSED_KEY);
-    localStorage.setItem(TOUR_STEP_KEY, "0");
-    localStorage.setItem("divido.tour_first_run", "false");
-  }, [evaluateSteps]);
-
-  const nextStep = useCallback(() => {
-    setCurrentStepIndex((prev) => {
-      const next = Math.min(prev + 1, activeSteps.length - 1);
-      localStorage.setItem(TOUR_STEP_KEY, String(next));
-      return next;
-    });
+  // Check if tour should be shown (respects done/dismissed)
+  const shouldShowTour = useMemo(() => {
+    if (localStorage.getItem(TOUR_DONE_KEY) === "true") return false;
+    if (localStorage.getItem(TOUR_DISMISSED_KEY) === "true") return false;
+    return activeSteps.length > 0;
   }, [activeSteps.length]);
 
-  const prevStep = useCallback(() => {
-    setCurrentStepIndex((prev) => {
-      const prevStep = Math.max(prev - 1, 0);
-      localStorage.setItem(TOUR_STEP_KEY, String(prevStep));
-      return prevStep;
-    });
-  }, []);
+  // Initialize: evaluate steps continuously until we have targets
+  useEffect(() => {
+    mountedRef.current = true;
+    
+    // Initial evaluation
+    evaluateAllSteps();
 
-  const skipTour = useCallback(() => {
-    setStatus("dismissed");
-    localStorage.setItem(TOUR_DISMISSED_KEY, "true");
-    localStorage.removeItem(TOUR_STEP_KEY);
-  }, []);
+    // Poll every 500ms - simple, reliable
+    pollTimerRef.current = setInterval(() => {
+      if (!mountedRef.current) return;
+      evaluateAllSteps();
+    }, 500);
+
+    // MutationObserver as backup
+    try {
+      observerRef.current = new MutationObserver(() => {
+        if (!mountedRef.current) return;
+        evaluateAllSteps();
+      });
+      observerRef.current.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["class", "data-tour", "style"],
+      });
+    } catch (e) {
+      console.warn('[Tour] MutationObserver failed:', e);
+    }
+
+    return () => {
+      mountedRef.current = false;
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+      observerRef.current?.disconnect();
+    };
+  }, [evaluateAllSteps]);
+
+  // Auto-open logic: simple and direct
+  useEffect(() => {
+    if (!hasEvaluated) return;
+    if (isOpen) return;
+    if (!shouldShowTour) return;
+
+    // Wait for first active step to have an element
+    if (activeSteps.length > 0 && activeSteps[0]) {
+      const firstStepInfo = steps.find(s => s.step === activeSteps[0]);
+      if (firstStepInfo?.element) {
+        console.log('[Tour] Auto-opening at step:', activeSteps[0].id);
+        setCurrentStepIndex(0);
+        setIsOpen(true);
+        localStorage.setItem(TOUR_STEP_KEY, "0");
+      }
+    }
+  }, [hasEvaluated, activeSteps, steps, shouldShowTour, isOpen]);
+
+  // Advance to next valid step
+  const nextStep = useCallback(() => {
+    const nextIndex = currentStepIndex + 1;
+    if (nextIndex < activeSteps.length) {
+      setCurrentStepIndex(nextIndex);
+      localStorage.setItem(TOUR_STEP_KEY, String(nextIndex));
+    } else {
+      completeTour();
+    }
+  }, [currentStepIndex, activeSteps.length]);
+
+  const prevStep = useCallback(() => {
+    const prevIndex = Math.max(0, currentStepIndex - 1);
+    setCurrentStepIndex(prevIndex);
+    localStorage.setItem(TOUR_STEP_KEY, String(prevIndex));
+  }, [currentStepIndex]);
 
   const completeTour = useCallback(() => {
-    setStatus("completed");
+    setIsOpen(false);
     localStorage.setItem(TOUR_DONE_KEY, "true");
     localStorage.removeItem(TOUR_STEP_KEY);
     localStorage.removeItem(TOUR_DISMISSED_KEY);
+    console.log('[Tour] Completed');
+  }, []);
+
+  const skipTour = useCallback(() => {
+    setIsOpen(false);
+    localStorage.setItem(TOUR_DISMISSED_KEY, "true");
+    localStorage.removeItem(TOUR_STEP_KEY);
+    console.log('[Tour] Skipped');
   }, []);
 
   const resetTour = useCallback(() => {
     localStorage.removeItem(TOUR_DONE_KEY);
     localStorage.removeItem(TOUR_STEP_KEY);
     localStorage.removeItem(TOUR_DISMISSED_KEY);
-    localStorage.setItem("divido.tour_first_run", "true");
     setCurrentStepIndex(0);
-    setStepStatuses(evaluateSteps());
-    checkHasGroups();
-    checkDashboardReady();
-    setStatus("evaluating");
-  }, [evaluateSteps]);
+    setIsOpen(true);
+    evaluateAllSteps();
+    console.log('[Tour] Reset');
+  }, [evaluateAllSteps]);
 
+  // Expose simple API
   return {
-    // State
-    status,
-    isActive,
-    isLoading,
-    isReady,
+    isOpen,
     currentStep,
     currentStepIndex,
     activeSteps,
-    stepStatuses,
-    hasGroups,
-    dashboardReady,
-    // Actions
-    startTour,
+    totalSteps: activeSteps.length,
     nextStep,
     prevStep,
     skipTour,
     completeTour,
     resetTour,
+    // Debug
+    debugSteps: steps,
   };
 }

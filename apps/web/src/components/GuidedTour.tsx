@@ -5,23 +5,20 @@ import { GuidedTourTooltip } from "./GuidedTourTooltip";
 
 export function GuidedTour() {
   const {
-    isActive,
+    isOpen,
     currentStep,
     currentStepIndex,
+    activeSteps,
     nextStep,
     prevStep,
     skipTour,
     completeTour,
-    isLoading,
-    isReady,
-    activeSteps,
-    stepStatuses,
   } = useGuidedTour();
 
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const targetRef = useRef<HTMLElement | null>(null);
 
-  // Update target rect when current step status changes
+  // Find target element for current step
   useEffect(() => {
     if (!currentStep) {
       setTargetRect(null);
@@ -29,51 +26,44 @@ export function GuidedTour() {
       return;
     }
 
-    const currentStatus = stepStatuses[currentStepIndex];
-    const el = currentStatus?.targetElement ?? null;
+    const el = document.querySelector(currentStep.target) as HTMLElement | null;
     targetRef.current = el;
 
     if (el) {
+      console.log('[Tour] Found target for step', currentStep.id, ':', currentStep.target, el);
       setTargetRect(el.getBoundingClientRect());
     } else {
+      console.warn('[Tour] Target NOT found for step', currentStep.id, ':', currentStep.target);
       setTargetRect(null);
     }
-  }, [currentStep, currentStepIndex, stepStatuses]);
+  }, [currentStep]);
 
-  // Update target rect on scroll/resize
+  // Update rect on scroll/resize
   useEffect(() => {
     const updateRect = () => {
       if (targetRef.current) {
         setTargetRect(targetRef.current.getBoundingClientRect());
       }
     };
-
-    window.addEventListener("scroll", updateRect, true);
+    window.addEventListener("scroll", updateRect, { passive: true });
     window.addEventListener("resize", updateRect);
     return () => {
-      window.removeEventListener("scroll", updateRect, true);
+      window.removeEventListener("scroll", updateRect);
       window.removeEventListener("resize", updateRect);
     };
   }, []);
 
-  const handleNext = useCallback(() => {
-    nextStep();
-  }, [nextStep]);
+  const handleNext = useCallback(() => nextStep(), [nextStep]);
+  const handlePrev = useCallback(() => prevStep(), [prevStep]);
+  const handleSkip = useCallback(() => skipTour(), [skipTour]);
+  const handleClose = useCallback(() => skipTour(), [skipTour]);
 
-  const handlePrev = useCallback(() => {
-    prevStep();
-  }, [prevStep]);
+  // Render nothing if not ready
+  if (!isOpen) return null;
+  if (!currentStep) return null;
+  if (!targetRect) return null;
 
-  const handleSkip = useCallback(() => {
-    skipTour();
-  }, [skipTour]);
-
-  const handleClose = useCallback(() => {
-    skipTour();
-  }, [skipTour]);
-
-  // Wait for: not loading, system ready, tour active, current step exists, target rect available
-  if (isLoading || !isReady || !isActive || !currentStep || !targetRect) return null;
+  console.log('[Tour] Rendering step:', currentStep.id, 'at', targetRect);
 
   return (
     <>
