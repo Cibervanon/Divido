@@ -37,6 +37,6 @@ export const tourSteps: TourStep[] = [
   },
 ];
 
-export function getActiveSteps(): typeof tourSteps {
+export function getActiveSteps(): TourStep[] {
   return tourSteps.filter((step) => !step.skipIf || !step.skipIf());
 }

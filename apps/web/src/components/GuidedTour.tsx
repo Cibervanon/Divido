@@ -2,35 +2,34 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useGuidedTour } from "../hooks/useGuidedTour";
 import { SpotlightOverlay } from "./SpotlightOverlay";
 import { GuidedTourTooltip } from "./GuidedTourTooltip";
-import { getActiveSteps } from "../data/tourSteps.ts";
 
 export function GuidedTour() {
   const {
     isActive,
     currentStep,
+    currentStepIndex,
     nextStep,
     prevStep,
     skipTour,
     completeTour,
     isLoading,
+    activeSteps,
   } = useGuidedTour();
 
-  const [activeSteps] = useState(getActiveSteps);
-  const currentStepData = activeSteps[currentStep];
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const targetRef = useRef<HTMLElement | null>(null);
 
   // Find target element
   useEffect(() => {
-    if (!currentStepData) return;
-    const el = document.querySelector(currentStepData.target) as HTMLElement | null;
+    if (!currentStep) return;
+    const el = document.querySelector(currentStep.target) as HTMLElement | null;
     targetRef.current = el;
     if (el) {
       setTargetRect(el.getBoundingClientRect());
     } else {
       setTargetRect(null);
     }
-  }, [currentStepData]);
+  }, [currentStep]);
 
   // Update target rect on scroll/resize
   useEffect(() => {
@@ -49,13 +48,8 @@ export function GuidedTour() {
   }, []);
 
   const handleNext = useCallback(() => {
-    const activeSteps = getActiveSteps();
-    if (currentStep < activeSteps.length - 1) {
-      nextStep();
-    } else {
-      completeTour();
-    }
-  }, [currentStep, nextStep, completeTour]);
+    nextStep();
+  }, [nextStep]);
 
   const handlePrev = useCallback(() => {
     prevStep();
@@ -69,7 +63,7 @@ export function GuidedTour() {
     skipTour();
   }, [skipTour]);
 
-  if (!isActive || isLoading || !currentStepData) return null;
+  if (!isActive || isLoading || !currentStep) return null;
 
   return (
     <>
@@ -81,12 +75,12 @@ export function GuidedTour() {
 
         {targetRect && (
           <GuidedTourTooltip
-            step={currentStepData}
+            step={currentStep}
             targetRect={targetRect}
             onNext={handleNext}
             onPrev={handlePrev}
             onSkip={handleSkip}
-            currentIndex={currentStep}
+            currentIndex={currentStepIndex}
             totalSteps={activeSteps.length}
             onClose={handleClose}
           />
