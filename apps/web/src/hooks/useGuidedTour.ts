@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { getActiveSteps } from "../data/tourSteps";
+import { getActiveSteps } from "../data/tourSteps.ts";
 
 export interface TourStep {
   id: string;

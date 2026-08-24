@@ -3,7 +3,7 @@ import { useGuidedTour } from "../hooks/useGuidedTour";
 import { SpotlightOverlay } from "./SpotlightOverlay";
 import { GuidedTourTooltip } from "./GuidedTourTooltip";
 import { GuidedTourDots } from "./GuidedTourDots";
-import { getActiveSteps } from "../data/tourSteps";
+import { getActiveSteps } from "../data/tourSteps.ts";
 import { TourStep } from "../hooks/useGuidedTour";
 
 export function GuidedTour() {

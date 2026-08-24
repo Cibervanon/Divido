@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "../lib/auth";
-import { helpCategories, keyboardShortcuts, iconMeanings, expenseCategories, helpSearchIndex } from "../data/helpContent";
+import { helpCategories, keyboardShortcuts, iconMeanings, expenseCategories, helpSearchIndex } from "../data/helpContent.ts";
 import { Button, Input, Modal, Avatar, VerifiedBadge } from "./ui";
 
 interface HelpModalProps {
