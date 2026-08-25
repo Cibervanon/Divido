@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import { useGuidedTour } from "../hooks/useGuidedTour";
+import React, { useEffect, useRef, useState, useCallback, useContext } from "react";
+import { useGuidedTourContext } from "./GuidedTourPortal";
 import { SpotlightOverlay } from "./SpotlightOverlay";
 import { GuidedTourTooltip } from "./GuidedTourTooltip";
 
@@ -16,7 +16,7 @@ export function GuidedTour() {
     debugState,
     showDebug,
     setShowDebug,
-  } = useGuidedTour();
+  } = useGuidedTourContext();
 
   const currentStep = activeSteps[currentStepIndex];
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);

@@ -6,7 +6,7 @@ import { Spinner } from "./components/ui";
 import { analyticsEnabled, track } from "./lib/analytics";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { PWAInstallBanner } from "./components/PWAInstallBanner";
-import { GuidedTourPortal } from "./components/GuidedTourPortal";
+import { GuidedTourProvider } from "./components/GuidedTourPortal";
 import { HelpProvider } from "./components/HelpButton";
 import { HelpModal } from "./components/HelpModal";
 
@@ -45,7 +45,7 @@ function Protected({ children }: { children: ReactNode }) {
       {children}
       {showOnboarding && <OnboardingModal />}
       <PWAInstallBanner />
-      <GuidedTourPortal />
+      <GuidedTourProvider />
     </>
   );
 }
