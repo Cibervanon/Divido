@@ -32,14 +32,16 @@ import { createContext, useContext, useState, ReactNode } from "react";
 
 interface HelpModalContextValue {
   showHelpModal: () => void;
+  toggleHelpModal: () => void;
 }
 
-const HelpModalContext = createContext<{ showHelpModal: () => void } | null>(null);
+const HelpModalContext = createContext<HelpModalContextValue | null>(null);
 
 export function HelpProvider({ children }: { children: React.ReactNode }) {
   const [showHelp, setShowHelp] = useState(false);
+  const toggleHelp = () => setShowHelp(prev => !prev);
   return (
-    <HelpModalContext.Provider value={{ showHelpModal: () => setShowHelp(true) }}>
+    <HelpModalContext.Provider value={{ showHelpModal: () => setShowHelp(true), toggleHelpModal: toggleHelp }}>
       {children}
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
     </HelpModalContext.Provider>

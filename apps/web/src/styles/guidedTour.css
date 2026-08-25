@@ -61,8 +61,8 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
-  background: rgba(99, 102, 241, 0.2);
+  height: 4px;
+  background: rgba(99, 102, 241, 0.25);
   border-radius: 16px 16px 0 0;
   overflow: hidden;
 }
@@ -267,24 +267,7 @@
   border-color: #484d5a;
 }
 
-/* Skip tour banner */
-.guided-tour-skip-banner {
-  position: absolute;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 9998;
-  background: #161b22;
-  border: 1px solid #30363d;
-  border-radius: 12px;
-  padding: 12px 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  animation: slide-up 300ms cubic-bezier(0.4, 0, 0.2, 1);
-  pointer-events: auto;
-}
+
 
 @keyframes slide-up {
   from {
@@ -344,13 +327,6 @@
     border-radius: 20px 20px 16px 16px;
   }
 
-  .guided-tour-skip-banner {
-    bottom: 16px;
-    left: 16px;
-    right: 16px;
-    transform: none;
-  }
-
   .guided-tour-progress {
     border-radius: 20px 20px 0 0;
   }
@@ -400,20 +376,18 @@
   }
 }
 
-/* Dark mode is default, but ensure light mode works if needed */
-@media (prefers-color-scheme: light) {
-  .guided-tour-tooltip {
-    background: #ffffff;
-    border-color: #e1e4e8;
-    color: #24292e;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(99, 102, 241, 0.15);
-  }
-  .guided-tour-title { color: #24292e; }
-  .guided-tour-body { color: #586069; }
-  .guided-tour-body strong { color: #24292e; }
-  .guided-tour-footer { border-top-color: #e1e4e8; }
-  .guided-tour-btn-ghost { background: #f6f8fa; color: #586069; border-color: #e1e4e8; }
-  .guided-tour-btn-ghost:hover { background: #e1e4e8; }
-  .guided-tour-skip { color: #6a737d; }
-  .guided-tour-skip:hover { background: #f6f8fa; }
+/* Light mode via data-theme (controlled by theme.ts) */
+[data-theme="light"] .guided-tour-tooltip {
+  background: #ffffff;
+  border-color: #e1e4e8;
+  color: #24292e;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(99, 102, 241, 0.15);
 }
+[data-theme="light"] .guided-tour-title { color: #24292e; }
+[data-theme="light"] .guided-tour-body { color: #586069; }
+[data-theme="light"] .guided-tour-body strong { color: #24292e; }
+[data-theme="light"] .guided-tour-footer { border-top-color: #e1e4e8; }
+[data-theme="light"] .guided-tour-btn-ghost { background: #f6f8fa; color: #586069; border-color: #e1e4e8; }
+[data-theme="light"] .guided-tour-btn-ghost:hover { background: #e1e4e8; }
+[data-theme="light"] .guided-tour-skip { color: #6a737d; }
+[data-theme="light"] .guided-tour-skip:hover { background: #f6f8fa; }

@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useAuth } from "../lib/auth";
 import { helpCategories, keyboardShortcuts, iconMeanings, expenseCategories, helpSearchIndex } from "../data/helpContent.ts";
 import { Button, Input, Modal } from "./ui";
+import { useHelpModal } from "./HelpButton";
 
 interface HelpModalProps {
   open: boolean;
@@ -20,6 +21,7 @@ interface ExpenseCategoryDetail {
 
 export function HelpModal({ open, onClose }: HelpModalProps) {
   const { user } = useAuth();
+  const { toggleHelpModal } = useHelpModal();
   const [search, setSearch] = useState("");
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<HelpTab>("getting-started");
@@ -81,7 +83,10 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
         }
       }
       if (e.key === "?" && !isTyping && !e.metaKey && !e.ctrlKey) {
-        onClose();
+        // Toggle help modal: ? opens if closed, closes if open
+        // This matches the tour promise: "pulsar ? en cualquier momento para volver a ver este tutorial"
+        const { toggleHelpModal } = useHelpModal();
+        toggleHelpModal();
       }
     };
     document.addEventListener("keydown", onKey);

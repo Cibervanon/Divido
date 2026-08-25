@@ -32,11 +32,11 @@ export const TOUR_STEPS: TourStep[] = [
     title: "Añade tu primer gasto",
     content: `
       <p>Dentro de un grupo, pulsa <strong>+ Gasto</strong> para registrar un gasto.</p>
-      <ul>
-        <li><strong>Quién pagó</strong>: tú u otro miembro</li>
-        <li><strong>Cuánto</strong>: importe y moneda</li>
-        <li><strong>Reparto</strong>: equitativo, porcentajes o importes exactos</li>
-        <li><strong>Categoría</strong>: se detecta automáticamente o elige manual</li>
+      <ul style="margin-top: 8px;">
+        <li style="margin-bottom: 6px;"><strong>Quién pagó</strong>: tú u otro miembro</li>
+        <li style="margin-bottom: 6px;"><strong>Cuánto</strong>: importe y moneda</li>
+        <li style="margin-bottom: 6px;"><strong>Reparto</strong>: equitativo, porcentajes o importes exactos</li>
+        <li style="margin-bottom: 6px;"><strong>Categoría</strong>: se detecta automáticamente o elige manual</li>
       </ul>
     `,
     target: "[data-tour='add-expense']",
@@ -77,7 +77,7 @@ export const TOUR_STEPS: TourStep[] = [
     title: "Ayuda y tutorial interactivo",
     content: `
       <p>En cualquier momento, pulsa el icono <strong>❓</strong> en la cabecera para abrir esta ayuda interactiva.</p>
-      <p>También puedes pulsar <kbd>?</kbd> en cualquier momento para volver a ver este tutorial.</p>
+      <p>También puedes pulsar <kbd>?</kbd> en cualquier momento para <strong>abrir o cerrar</strong> esta ayuda.</p>
     `,
     target: "[data-tour='help-button']",
     position: "bottom",
