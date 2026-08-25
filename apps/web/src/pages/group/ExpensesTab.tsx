@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../../lib/api";
-import { Button, EmptyState, Input, Money, Select, VerifiedBadge } from "../../components/ui";
-import type { ExpenseCommentDto, ExpenseDto, ModificationRequestDto } from "../../lib/types";
-import { fmtTime } from "./utils";
+import { Button, EmptyState, Input, Money, Select, VerifiedBadge, currencySymbol } from "../../components/ui";
+import type { ExpenseCommentDto, ExpenseDto, ModificationRequestDto, MemberInfo } from "../../lib/types";
+import { fmtTime, fmtDate } from "./utils";
+import { ExpenseDetailModal } from "../../components/ExpenseDetailModal";
+import { CATEGORIES } from "../../constants/categories";
+
+function categoryLabel(key?: string): string {
+  if (!key) return "General";
+  const cfg = (CATEGORIES as Record<string, { label: string } | undefined>)[key];
+  return cfg?.label ?? key.charAt(0).toUpperCase() + key.slice(1);
+}
+
 export function ExpensesTab({
   expenses,
   memberName,
@@ -23,6 +32,7 @@ export function ExpensesTab({
   hasMore,
   loadingMore,
   onLoadMore,
+  members,
 }: {
   expenses: ExpenseDto[];
   memberName: (id: string) => string;
@@ -43,39 +53,12 @@ export function ExpensesTab({
   hasMore?: boolean;
   loadingMore?: boolean;
   onLoadMore?: () => void;
+  members: MemberInfo[];
 }) {
   const pending = requests.filter((r) => r.status === "pending");
   const [viewReceipt, setViewReceipt] = useState<string | null>(null);
   const [receiptNotice, setReceiptNotice] = useState("");
-
-  useEffect(() => {
-    if (!receiptNotice) return;
-    const t = setTimeout(() => setReceiptNotice(""), 3500);
-    return () => clearTimeout(t);
-  }, [receiptNotice]);
-
-  // Abre el tique con una URL recién firmada (las de nube caducan en 1 h).
-  // Si la firma falla, avisamos al usuario en vez de abrir un enlace roto.
-  async function openReceipt(expenseId: string, fallback: string | null) {
-    try {
-      const r = await api.get<{ url: string | null }>(`/expenses/${expenseId}/receipt-url`);
-      if (r.url) {
-        setViewReceipt(r.url);
-        return;
-      }
-      setReceiptNotice("El tique no está disponible ahora mismo, inténtalo en un momento");
-    } catch (err) {
-      if (fallback && fallback.startsWith("data:")) {
-        setViewReceipt(fallback);
-        return;
-      }
-      setReceiptNotice(
-        err instanceof ApiError && err.status === 404
-          ? "Este gasto no tiene tique adjunto"
-          : "No se pudo abrir el tique"
-      );
-    }
-  }
+  const [selectedExpense, setSelectedExpense] = useState<ExpenseDto | null>(null);
 
   // Estado de filtros: multiselección categorías, booleano "Mi pagador", acordeón
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -109,6 +92,46 @@ export function ExpensesTab({
   }, [expenses, selectedCategories, onlyMyPayments, filters.q]);
 
   const activeFilterCount = selectedCategories.length + (onlyMyPayments ? 1 : 0) + (filters.from ? 1 : 0) + (filters.to ? 1 : 0) + (filters.q ? 1 : 0);
+
+  useEffect(() => {
+    if (!receiptNotice) return;
+    const t = setTimeout(() => setReceiptNotice(""), 3500);
+    return () => clearTimeout(t);
+  }, [receiptNotice]);
+
+  // Abre el tique con una URL recién firmada (las de nube caducan en 1 h).
+  async function openReceipt(expenseId: string, fallback: string | null) {
+    try {
+      const r = await api.get<{ url: string | null }>(`/expenses/${expenseId}/receipt-url`);
+      if (r.url) {
+        setViewReceipt(r.url);
+        return;
+      }
+      setReceiptNotice("El tique no está disponible ahora mismo, inténtalo en un momento");
+    } catch (err) {
+      if (fallback && fallback.startsWith("data:")) {
+        setViewReceipt(fallback);
+        return;
+      }
+      setReceiptNotice(
+        err instanceof ApiError && err.status === 404
+          ? "Este gasto no tiene tique adjunto"
+          : "No se pudo abrir el tique"
+      );
+    }
+  }
+
+  function handleRowClick(e: ExpenseDto) {
+    // No abrir modal si se clickeó en un botón de acción
+    // Note: This receives the expense object directly from onClick={() => handleRowClick(e)}
+    // The click filtering for buttons/links is handled in the JSX onClick
+    setSelectedExpense(e);
+  }
+
+  function formatAmount(amount: number, currency: string): string {
+    const sym = currencySymbol(currency);
+    return `${sym}${amount.toFixed(2).replace(".", ",")}`;
+  }
 
   return (
     <div className="space-y-4">
@@ -264,41 +287,45 @@ export function ExpensesTab({
           {filteredExpenses.map((e) => (
             <div
               key={e.id}
-              className={`rounded-2xl border border-slate-800 bg-slate-900 p-4 transition hover:border-slate-700 ${
+              onClick={() => handleRowClick(e)}
+              className={`rounded-2xl border border-slate-800 bg-slate-900 p-4 transition hover:border-slate-700 cursor-pointer ${
                 e.deleted ? "opacity-50 grayscale" : ""
               }`}
             >
               <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-100">
-                  {e.description}
-                  {e.paidFromPot ? (
-                    <span className="ml-2 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
-                      Bote común
-                    </span>
-                  ) : null}
-                  {e.deleted ? <span className="ml-2 rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] text-rose-400">eliminado</span> : null}
-                </p>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  {e.payerName} pagó{" · "}{e.participantsCount} participante{e.participantsCount !== 1 ? "s" : ""}
-                  {e.receiptUrl ? (
-                    <button
-                      type="button"
-                      onClick={() => void openReceipt(e.id, e.receiptUrl)}
-                      className="ml-2 inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300 transition hover:bg-slate-700 hover:text-indigo-200"
-                    >
-                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
-                        />
-                      </svg>
-                      tique
-                    </button>
-                  ) : null}
-                </p>
-              </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-100">
+                    {e.description}
+                    {e.paidFromPot ? (
+                      <span className="ml-2 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
+                        Bote común
+                      </span>
+                    ) : null}
+                    {e.deleted ? <span className="ml-2 rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] text-rose-400">eliminado</span> : null}
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {e.payerName} pagó{" · "}{e.participantsCount} participante{e.participantsCount !== 1 ? "s" : ""}
+                    {e.receiptUrl && !e.paidFromPot ? (
+                      <button
+                        type="button"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          openReceipt(e.id, e.receiptUrl);
+                        }}
+                        className="ml-2 inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300 transition hover:bg-slate-700 hover:text-indigo-200"
+                      >
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                          />
+                        </svg>
+                        tique
+                      </button>
+                    ) : null}
+                  </p>
+                </div>
                 <div className="text-right">
                   <p className="text-sm font-bold text-slate-100">
                     <Money amount={e.amount} currency={e.currency} />
@@ -318,40 +345,47 @@ export function ExpensesTab({
                 </div>
               </div>
               <div className="mt-3 flex items-center justify-between">
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-slate-500 truncate">
                   {e.participants.map(memberName).join(", ")}
                   {e.editable ? null : (
                     <span className="ml-2 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-amber-400">bloqueado</span>
                   )}
                 </p>
                 <div className="flex gap-1">
-                  <IconBtn
+                  <button
                     title="Editar"
-                    onClick={() => onEdit(e)}
-                    svg={
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      onEdit(e);
+                    }}
+                    className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-slate-200"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z"
                       />
-                    }
-                  />
-                  <IconBtn
+                    </svg>
+                  </button>
+                  <button
                     title="Eliminar"
-                    danger
-                    onClick={() => onDelete(e)}
-                    svg={
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      onDelete(e);
+                    }}
+                    className="rounded-lg p-1.5 text-slate-500 transition hover:bg-rose-500/10 hover:text-rose-400"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
                       />
-                    }
-                  />
-                  
+                    </svg>
+                  </button>
                 </div>
               </div>
-              <ExpenseComments expense={e} groupId={groupId} myUserId={myUserId} />
             </div>
           ))}
         </div>
@@ -403,159 +437,20 @@ export function ExpensesTab({
           {receiptNotice}
         </div>
       ) : null}
+
+      {/* Expense Detail Modal */}
+      <ExpenseDetailModal
+        open={!!selectedExpense}
+        onClose={() => setSelectedExpense(null)}
+        expense={selectedExpense}
+        groupId={groupId}
+        groupCurrency={groupCurrency}
+        members={members}
+        myUserId={myUserId}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onChanged={onReload}
+      />
     </div>
   );
 }
-
-function ExpenseComments({
-  expense,
-  groupId,
-  myUserId,
-}: {
-  expense: ExpenseDto;
-  groupId: string;
-  myUserId: string;
-}) {
-  const [open, setOpen] = useState((expense.comments?.length ?? 0) > 0);
-  const [comments, setComments] = useState<ExpenseCommentDto[]>(expense.comments ?? []);
-  const [text, setText] = useState("");
-  const [sending, setSending] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [error, setError] = useState("");
-
-  async function send() {
-    const body = text.trim();
-    if (!body) return;
-    setError("");
-    setSending(true);
-    try {
-      const res = await api.post<ExpenseCommentDto>(
-        `/groups/${groupId}/expenses/${expense.id}/comments`,
-        { body }
-      );
-      setComments((prev) => [...prev, res]);
-      setText("");
-      setOpen(true);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo enviar el comentario");
-    } finally {
-      setSending(false);
-    }
-  }
-
-  async function remove(id: string) {
-    setDeletingId(id);
-    try {
-      await api.delete(`/expenses/${expense.id}/comments/${id}`);
-      setComments((prev) => prev.filter((c) => c.id !== id));
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo eliminar el comentario");
-    } finally {
-      setDeletingId(null);
-    }
-  }
-
-  return (
-    <div className="mt-3 border-t border-slate-800 pt-3">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 transition hover:text-slate-200"
-      >
-        <svg
-          className={`h-3 w-3 transition ${open ? "rotate-180" : ""}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2.5}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-        </svg>
-        Comentarios ({comments.length})
-      </button>
-
-      {open ? (
-        <div className="mt-2 space-y-2">
-          {comments.length > 0 ? (
-            <div className="space-y-2">
-              {comments.map((c) => (
-                <div key={c.id} className="rounded-xl bg-slate-800/60 px-3 py-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="flex items-center gap-1 text-[11px] font-semibold text-slate-300">
-                      <span className="truncate">{c.authorName}</span>
-                      {c.authorVerified ? <VerifiedBadge size="xs" /> : null}
-                    </p>
-                    <span className="flex shrink-0 items-center gap-2">
-                      <span className="text-[10px] text-slate-500">{fmtTime(c.createdAt)}</span>
-                      {c.authorId === myUserId ? (
-                        <button
-                          type="button"
-                          onClick={() => remove(c.id)}
-                          disabled={deletingId === c.id}
-                          className="text-[10px] font-semibold text-slate-500 transition hover:text-rose-400"
-                        >
-                          {deletingId === c.id ? "..." : "Eliminar"}
-                        </button>
-                      ) : null}
-                    </span>
-                  </div>
-                  <p className="mt-1 whitespace-pre-wrap break-words text-xs text-slate-300">{c.body}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-[11px] text-slate-500">Sin comentarios todavía.</p>
-          )}
-          <div className="flex gap-2">
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void send();
-                }
-              }}
-              placeholder="Añade un comentario..."
-              maxLength={500}
-              className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
-            />
-            <Button variant="secondary" className="!px-3 !py-2 text-xs" onClick={() => void send()} loading={sending}>
-              Enviar
-            </Button>
-          </div>
-          {error ? <p className="text-[11px] font-medium text-rose-400">{error}</p> : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function IconBtn({
-  title,
-  onClick,
-  svg,
-  danger,
-}: {
-  title: string;
-  onClick: () => void;
-  svg: React.ReactNode;
-  danger?: boolean;
-}) {
-  return (
-    <button
-      title={title}
-      onClick={onClick}
-      className={`rounded-lg p-1.5 transition ${
-        danger ? "text-slate-500 hover:bg-rose-500/10 hover:text-rose-400" : "text-slate-500 hover:bg-slate-800 hover:text-slate-200"
-      }`}
-    >
-      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        {svg}
-      </svg>
-    </button>
-  );
-}
-
-// ---------- Miembros ----------
-

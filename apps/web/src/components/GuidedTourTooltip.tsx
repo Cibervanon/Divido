@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useLayoutEffect, useRef, useState, useCallback } from "react";
 import { TourStep } from "../hooks/useGuidedTour";
 import "../styles/guidedTour.css";
 
@@ -26,82 +26,80 @@ export function GuidedTourTooltip({
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [arrowPosition, setArrowPosition] = useState<"top" | "bottom" | "left" | "right">("bottom");
-  const [isVisible, setIsVisible] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const tooltip = tooltipRef.current;
-    if (!tooltip) return;
-
-    // Force reflow for animation
-    tooltip.style.opacity = "0";
-    tooltip.style.transform = "translateY(8px) scale(0.98)";
+    if (!tooltip || !targetRect) return;
 
     const tooltipRect = tooltip.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
+    const gap = 16;
+    const arrowSize = 12;
 
     let top = 0;
     let left = 0;
     let arrowPos: "top" | "bottom" | "left" | "right" = "bottom";
 
-    if (targetRect) {
-      // Try positions in order of preference based on step.position
-      const positions: Array<{ pos: "top" | "bottom" | "left" | "right"; calc: () => { top: number; left: number } }> = [
-        {
-          pos: "bottom",
-          calc: () => ({
-            top: targetRect.bottom + 12,
-            left: targetRect.left + targetRect.width / 2 - tooltipRect.width / 2,
-          }),
-        },
-        {
-          pos: "top",
-          calc: () => ({
-            top: targetRect.top - tooltipRect.height - 12,
-            left: targetRect.left + targetRect.width / 2 - tooltipRect.width / 2,
-          }),
-        },
-        {
-          pos: "right",
-          calc: () => ({
-            top: targetRect.top + targetRect.height / 2 - tooltipRect.height / 2,
-            left: targetRect.right + 12,
-          }),
-        },
-        {
-          pos: "left",
-          calc: () => ({
-            top: targetRect.top + targetRect.height / 2 - tooltipRect.height / 2,
-            left: targetRect.left - tooltipRect.width - 12,
-          }),
-        },
-      ];
+    const targetCenterX = targetRect.left + targetRect.width / 2;
+    const targetCenterY = targetRect.top + targetRect.height / 2;
 
-      // If step has a preferred position, try it first
-      const preferredIndex = positions.findIndex(p => p.pos === step.position);
-      if (preferredIndex > 0) {
-        const [preferred] = positions.splice(preferredIndex, 1);
-        positions.unshift(preferred);
-      }
+    // Try positions in order of preference based on step.position
+    const positions: Array<{ pos: "top" | "bottom" | "left" | "right"; calc: () => { top: number; left: number } }> = [
+      {
+        pos: "bottom",
+        calc: () => ({
+          top: targetRect.bottom + 12,
+          left: targetRect.left + targetRect.width / 2 - tooltipRect.width / 2,
+        }),
+      },
+      {
+        pos: "top",
+        calc: () => ({
+          top: targetRect.top - tooltipRect.height - 12,
+          left: targetRect.left + targetRect.width / 2 - tooltipRect.width / 2,
+        }),
+      },
+      {
+        pos: "right",
+        calc: () => ({
+          top: targetRect.top + targetRect.height / 2 - tooltipRect.height / 2,
+          left: targetRect.right + 12,
+        }),
+      },
+      {
+        pos: "left",
+        calc: () => ({
+          top: targetRect.top + targetRect.height / 2 - tooltipRect.height / 2,
+          left: targetRect.left - tooltipRect.width - 12,
+        }),
+      },
+    ];
 
-      for (const { pos, calc } of positions) {
-        const coords = calc();
-        const fits =
-          coords.top >= 8 &&
-          coords.left >= 8 &&
-          coords.top + tooltipRect.height <= viewportHeight - 8 &&
-          coords.left + tooltipRect.width <= viewportWidth - 8;
+    // If step has a preferred position, try it first
+    const preferredIndex = positions.findIndex(p => p.pos === step.position);
+    if (preferredIndex > 0) {
+      const [preferred] = positions.splice(preferredIndex, 1);
+      positions.unshift(preferred);
+    }
 
-        if (fits) {
-          top = coords.top;
-          left = coords.left;
-          arrowPos = pos;
-          break;
-        }
+    for (const { pos, calc } of positions) {
+      const coords = calc();
+      const fits =
+        coords.top >= 8 &&
+        coords.left >= 8 &&
+        coords.top + tooltipRect.height <= viewportHeight - 8 &&
+        coords.left + tooltipRect.width <= viewportWidth - 8;
+
+      if (fits) {
+        top = coords.top;
+        left = coords.left;
+        arrowPos = pos;
+        break;
       }
     }
 
-    // Fallback: center if no targetRect or nothing fits
+    // Fallback: center if nothing fits
     if (top === 0 && left === 0) {
       top = viewportHeight / 2 - tooltipRect.height / 2;
       left = viewportWidth / 2 - tooltipRect.width / 2;
@@ -114,11 +112,6 @@ export function GuidedTourTooltip({
 
     setPosition({ top, left });
     setArrowPosition(arrowPos);
-
-    // Animate in
-    requestAnimationFrame(() => {
-      setIsVisible(true);
-    });
   }, [targetRect, step.position]);
 
   const progress = ((currentIndex + 1) / totalSteps) * 100;
@@ -126,7 +119,8 @@ export function GuidedTourTooltip({
   return (
     <div
       ref={tooltipRef}
-      className={`guided-tour-tooltip ${arrowPosition} ${isVisible ? "visible" : ""}`}
+      key={step.id}
+      className={`guided-tour-tooltip ${arrowPosition}`}
       style={{ top: position.top, left: position.left }}
       role="dialog"
       aria-label={`Paso ${currentIndex + 1} de ${totalSteps}: ${step.title}`}
