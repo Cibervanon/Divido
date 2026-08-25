@@ -67,7 +67,7 @@ export const TOUR_STEPS: TourStep[] = [
         <li><strong>Rojo</strong>: debes dinero</li>
         <li><strong>Gris</strong>: al día</li>
       </ul>
-      <p>Divido calcula la <strong>liquidación óptima</strong> (mínimo de transferencias) para que paguéis lo justo.</    `,
+      <p>Divido calcula la <strong>liquidación óptima</strong> (mínimo de transferencias) para que paguéis lo justo.</      `,
     target: "[data-tour='balances-tab']",
     position: "left",
   },
@@ -100,7 +100,7 @@ export const TOUR_STEPS: TourStep[] = [
 ];
 
 // Conditional step getters
-export function getActiveSteps(context: { hasGroups: boolean; isPWA: boolean; inGroup: boolean; hasGroups: boolean }): typeof TOUR_STEPS {
+export function getActiveSteps(context: { hasGroups: boolean; isPWA: boolean; inGroup: boolean }): typeof TOUR_STEPS {
   const steps = [...TOUR_STEPS];
 
   // Filter based on context
@@ -118,12 +118,8 @@ export function getActiveSteps(context: { hasGroups: boolean; isPWA: boolean; in
         return !context.isPWA;
       default:
         return true;
-}
     }
-    default:
-      return true;
-    }
-  }
+  });
 }
 
 // Tour configuration

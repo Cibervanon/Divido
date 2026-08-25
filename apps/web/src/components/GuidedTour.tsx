@@ -6,7 +6,6 @@ import { GuidedTourTooltip } from "./GuidedTourTooltip";
 export function GuidedTour() {
   const {
     isOpen,
-    currentStep,
     currentStepIndex,
     activeSteps,
     nextStep,
@@ -18,6 +17,7 @@ export function GuidedTour() {
     setShowDebug,
   } = useGuidedTour();
 
+  const currentStep = activeSteps[currentStepIndex];
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const targetRef = useRef<HTMLElement | null>(null);
 
