@@ -18,6 +18,7 @@ import { DebtsTab, NewDebtModal } from "./group/DebtsTab";
 import { useExpenseFilters } from "./group/hooks/useExpenseFilters";
 import { useGroupChannel } from "../hooks/useRealtime";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
+import { useTourOptionsSetter } from "../components/GuidedTourPortal";
 import type {
   BreakdownItem,
   ExpenseDto,
@@ -108,6 +109,7 @@ export default function GroupPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { filters, setFilter, clearFilters, hasActiveFilters, debouncedQ } = useExpenseFilters();
+  const setTourOptions = useTourOptionsSetter();
 
   const [detail, setDetail] = useState<GroupDetail | null>(null);
   const [expenses, setExpenses] = useState<ExpenseDto[]>([]);
@@ -165,6 +167,14 @@ export default function GroupPage() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(""), 2200);
   }
+
+  useEffect(() => {
+    setTourOptions({
+      hasGroups: true,
+      isPWA: false,
+      inGroup: true,
+    });
+  }, [setTourOptions]);
 
   useKeyboardShortcuts([
     { key: "n", handler: () => openAddExpense(), description: "Nuevo gasto" },

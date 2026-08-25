@@ -13,6 +13,7 @@ import { AnalyticsConsentBanner } from "../components/AnalyticsConsentBanner";
 import { Logo } from "../components/Logo";
 import { ProfileModal } from "../components/ProfileModal";
 import { HelpButton } from "../components/HelpButton";
+import { useTourOptionsSetter } from "../components/GuidedTourPortal";
 import { blobToDataUrl, compressImageToJpeg, dataUrlToBlob, isHeavyDataUrl } from "../lib/compressImage";
 import { track } from "../lib/analytics";
 import type { GroupDetail, GroupSummary } from "../lib/types";
@@ -31,6 +32,7 @@ const migratedAvatars = new Set<string>();
 export default function DashboardPage() {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
+  const setTourOptions = useTourOptionsSetter();
   const [groups, setGroups] = useState<GroupSummary[]>([]);
   const [pinnedIds, setPinnedIds] = useState<string[]>(user?.pinnedGroupIds ?? []);
   const [sort, setSort] = useState<GroupSort>("activity");
@@ -63,6 +65,14 @@ export default function DashboardPage() {
   useEffect(() => {
     if (user) setPinnedIds(user.pinnedGroupIds ?? []);
   }, [user?.pinnedGroupIds]);
+
+  useEffect(() => {
+    setTourOptions({
+      hasGroups: groups.length > 0,
+      isPWA: false,
+      inGroup: false,
+    });
+  }, [groups.length, setTourOptions]);
 
   // Auto-migración del avatar propio si llegó como data-URL gigante legacy:
   // lo recomprimimos una vez y guardamos la versión ligera en el servidor,
