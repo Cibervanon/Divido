@@ -283,7 +283,7 @@ export function HistoryTab({
                     <>
                       <strong>{e.fromName}</strong> pagó a <strong>{e.toName}</strong>
                       {e.note ? ` · ${e.note}` : ""}
-                      {e.proofUrl ? (
+                      {e.proofUrl && e.toUserId === myUserId ? (
                         <button
                           type="button"
                           onClick={(ev) => {

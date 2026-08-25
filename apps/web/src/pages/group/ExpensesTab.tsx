@@ -133,8 +133,40 @@ export function ExpensesTab({
     return `${sym}${amount.toFixed(2).replace(".", ",")}`;
   }
 
+  // Resumen del grupo
+  const totalExpenses = expenses.filter(e => !e.deleted).length;
+  const totalAmount = expenses.filter(e => !e.deleted).reduce((sum, e) => sum + e.amountGroup, 0);
+  const myExpenses = expenses.filter(e => !e.deleted && e.payerId === myUserId).length;
+  const myTotal = expenses.filter(e => !e.deleted && e.payerId === myUserId).reduce((sum, e) => sum + e.amountGroup, 0);
+
   return (
     <div className="space-y-4">
+      {/* Resumen del grupo */}
+      <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/50 to-slate-900/30 p-4">
+        <div className="grid gap-3 sm:grid-cols-4">
+          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Gastos totales</p>
+            <p className="mt-1 text-2xl font-bold text-slate-100">{totalExpenses}</p>
+          </div>
+          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Total del grupo</p>
+            <p className="mt-1 text-2xl font-bold text-slate-100">
+              <Money amount={totalAmount} currency={groupCurrency} />
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Mis gastos</p>
+            <p className="mt-1 text-2xl font-bold text-slate-100">{myExpenses}</p>
+          </div>
+          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Mi total</p>
+            <p className="mt-1 text-2xl font-bold text-slate-100">
+              <Money amount={myTotal} currency={groupCurrency} />
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Filtros: botón único compacto */}
       <div className="flex items-center justify-between gap-2">
         <button
@@ -288,12 +320,10 @@ export function ExpensesTab({
             <div
               key={e.id}
               onClick={() => handleRowClick(e)}
-              className={`rounded-2xl border border-slate-800 bg-slate-900 p-4 transition hover:border-slate-700 cursor-pointer ${
-                e.deleted ? "opacity-50 grayscale" : ""
-              }`}
+              className={`rounded-2xl border border-slate-800 bg-slate-900 p-4 transition hover:border-slate-700 cursor-pointer ${e.deleted ? "opacity-50 grayscale" : ""}`}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-slate-100">
                     {e.description}
                     {e.paidFromPot ? (
@@ -315,18 +345,14 @@ export function ExpensesTab({
                         className="ml-2 inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300 transition hover:bg-slate-700 hover:text-indigo-200"
                       >
                         <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
-                          />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                         </svg>
                         tique
                       </button>
                     ) : null}
                   </p>
                 </div>
-                <div className="text-right">
+                <div className="text-right min-w-[100px]">
                   <p className="text-sm font-bold text-slate-100">
                     <Money amount={e.amount} currency={e.currency} />
                     {e.currency !== undefined && e.exchangeRate !== 1 ? (
@@ -361,11 +387,7 @@ export function ExpensesTab({
                     className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-slate-200"
                   >
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z"
-                      />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
                     </svg>
                   </button>
                   <button

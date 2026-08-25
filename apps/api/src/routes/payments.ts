@@ -15,7 +15,7 @@ import { createAndPushNotification } from "../push.js";
 import { EDIT_WINDOW_MS } from "../config.js";
 import { invalidateBalanceCache } from "../balanceCache.js";
 import { logAudit } from "../audit.js";
-import { publishGroupEvent } from "../lib/supabase.js";
+import { publishGroupEvent, resolveReceiptUrl } from "../lib/supabase.js";
 
 const HTTP_URL_RE = /^https?:\/\//i;
 const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
@@ -95,6 +95,16 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
         linkUrl: `/groups/${groupId}`,
       });
     }
+    // Notify sender that payment was sent (for pending payments)
+    if (status === "pending_confirmation") {
+      await createAndPushNotification(request.db, {
+        userId: user.id,
+        type: "PAYMENT_SETTLED",
+        title: `Pago enviado en ${group.name}`,
+        body: `Enviaste un pago de ${rounded.toFixed(2)} ${group.currency} a ${target.name} pendiente de confirmar.`,
+        linkUrl: `/groups/${groupId}`,
+      });
+    }
     invalidateBalanceCache(groupId);
     publishGroupEvent(groupId, "payment.changed");
     await logAudit(request.db, {
@@ -147,6 +157,20 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
       after: { status: next },
     });
     return { payment: updated };
+  });
+
+  app.get("/api/payments/:paymentId/receipt-url", async (request) => {
+    const { paymentId } = request.params as { paymentId: string };
+    const user = requireAuth(request);
+    const payment = await getPayment(request.db, paymentId);
+    if (!payment) throw notFound("Pago no encontrado");
+    await requireActiveMember(request, payment.group_id);
+    // Solo el destinatario del pago puede ver el comprobante
+    if (payment.to_user_id !== user.id) throw forbidden("Solo el destinatario del pago puede ver el comprobante");
+    if (!payment.proof_url) throw notFound("El pago no tiene comprobante");
+    const resolved = await resolveReceiptUrl(payment.proof_url);
+    if (!resolved) throw notFound("No se pudo generar el enlace del comprobante en este momento");
+    return { url: resolved };
   });
 
   app.delete("/api/payments/:paymentId", async (request) => {

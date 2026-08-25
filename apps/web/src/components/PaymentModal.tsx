@@ -17,6 +17,7 @@ export function PaymentModal({
   members,
   me,
   onCreated,
+  prefill,
 }: {
   open: boolean;
   onClose: () => void;
@@ -24,6 +25,7 @@ export function PaymentModal({
   members: MemberInfo[];
   me: string;
   onCreated: () => void;
+  prefill?: { toUserId: string; amount: number } | null;
 }) {
   const others = members.filter((m) => m.status === "active" && m.userId !== me);
   const [toUserId, setToUserId] = useState("");
@@ -56,8 +58,13 @@ export function PaymentModal({
 
   useEffect(() => {
     if (open) {
-      setToUserId(others[0]?.userId ?? "");
-      setAmount("");
+      if (prefill) {
+        setToUserId(prefill.toUserId);
+        setAmount(String(prefill.amount));
+      } else {
+        setToUserId(others[0]?.userId ?? "");
+        setAmount("");
+      }
       setNote("");
       setProofUrl(null);
       setProofError("");
@@ -66,7 +73,7 @@ export function PaymentModal({
       setPhaseBoth("idle");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, groupId]);
+  }, [open, groupId, prefill]);
 
   function readProofFile(file: File | undefined) {
     setProofError("");
