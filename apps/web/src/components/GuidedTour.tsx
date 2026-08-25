@@ -12,6 +12,7 @@ export function GuidedTour() {
     prevStep,
     skipTour,
     completeTour,
+    openTour,
     debugState,
     showDebug,
     setShowDebug,
@@ -68,6 +69,53 @@ export function GuidedTour() {
   const handlePrev = useCallback(() => prevStep(), [prevStep]);
   const handleSkip = useCallback(() => skipTour(), [skipTour]);
   const handleClose = useCallback(() => skipTour(), [skipTour]);
+
+  // Keyboard shortcuts: T to open tour, ? for help, arrows for navigation
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) {
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      switch (e.key) {
+        case 't':
+        case 'T':
+          if (!isOpen) {
+            e.preventDefault();
+            openTour();
+          }
+          break;
+        case '?':
+          if (!isOpen) {
+            e.preventDefault();
+            openTour();
+          }
+          break;
+        case 'ArrowRight':
+          if (isOpen) {
+            e.preventDefault();
+            handleNext();
+          }
+          break;
+        case 'ArrowLeft':
+          if (isOpen) {
+            e.preventDefault();
+            handlePrev();
+          }
+          break;
+        case 'Escape':
+          if (isOpen) {
+            e.preventDefault();
+            handleSkip();
+          }
+          break;
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isOpen, openTour, handleNext, handlePrev, handleSkip]);
 
   // Toggle debug with D key
   useEffect(() => {
