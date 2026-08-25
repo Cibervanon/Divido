@@ -453,6 +453,7 @@
       <li><a href="#sec-6">Gastos Fijos <span class="toc-desc">Cuotas semanales, mensuales y anuales automatizadas</span></a></li>
       <li><a href="#sec-exp">Exportar y Compartir <span class="toc-desc">CSV contable, PDF formal y resumen rápido para compartir</span></a></li>
       <li><a href="#sec-7">Notificaciones PWA <span class="toc-desc">Avisos in-app y notificaciones nativas en tu móvil</span></a></li>
+      <li><a href="#sec-tour">Tour Guiado Interactivo <span class="toc-desc">Aprende Divido paso a paso con el tutorial integrado</span></a></li>
       <li><a href="#sec-8">Preguntas Frecuentes <span class="toc-desc">Instalación, fantasmas, iconos y dudas habituales</span></a></li>
       <li><a href="#sec-9">Tiques en la nube <span class="toc-desc">Fotos privadas con enlace temporal y actualización en vivo</span></a></li>
     </ol>
@@ -1048,6 +1049,80 @@
           <li>Los avisos que ya existen en tu panel no se borran: solo se pausan los futuros.</li>
         </ul>
       </div></div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       SECCIÓN TOUR · TOUR GUIADO INTERACTIVO
+       ============================================================ -->
+  <section id="sec-tour" class="section">
+    <h2 class="sec-title">🧭 Tour Guiado Interactivo</h2>
+    <p>Divido incluye un <strong>tutorial interactivo de 7 pasos</strong> que te guía por las funciones principales la primera vez que entras. El tour se inicia automáticamente en tu primera visita y puedes volver a abrirlo cuando quieras.</p>
+
+    <h3>Cómo funciona</h3>
+    <ul>
+      <li>En tu <strong>primera visita</strong>, el tour aparece automáticamente tras 1 segundo.</li>
+      <li>Cada paso resalta un elemento de la interfaz con un <strong>foco</strong> y muestra una explicación contextual.</li>
+      <li>Usa las flechas <strong>◀ ▶</strong> del teclado o los botones «Anterior / Siguiente» para navegar.</li>
+      <li>Pulsa <strong>Escape</strong> o «Saltar» para cerrar el tour en cualquier momento.</li>
+      <li>Cuando llegas al final, el tour se marca como <strong>completado</strong> y no volverá a abrirse solo.</li>
+    </ul>
+
+    <h3>Los 7 pasos del tour</h3>
+    <div class="stepper">
+      <div class="cell sc"><div class="stepper-num">1</div><div class="stepper-name">Bienvenida</div><div class="stepper-sub">Dashboard y grupos</div></div>
+      <div class="cell sa"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
+      <div class="cell sc"><div class="stepper-num">2</div><div class="stepper-name">Crear grupo</div><div class="stepper-sub">Botón +</div></div>
+      <div class="cell sa"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
+      <div class="cell sc"><div class="stepper-num">3</div><div class="stepper-name">Añadir gasto</div><div class="stepper-sub">+ Gasto y repartos</div></div>
+      <div class="cell sa"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
+      <div class="cell sc"><div class="stepper-num">4</div><div class="stepper-name">Repartos</div><div class="stepper-sub">Iguales, %, exactos</div></div>
+      <div class="cell sa"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
+      <div class="cell sc"><div class="stepper-num">5</div><div class="stepper-name">Saldos</div><div class="stepper-sub">Liquidación óptima</div></div>
+      <div class="cell sa"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
+      <div class="cell sc"><div class="stepper-num">6</div><div class="stepper-name">Ayuda</div><div class="stepper-sub">Icono ❓ y tecla ?</div></div>
+      <div class="cell sa"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span></div>
+      <div class="cell sc"><div class="stepper-num">7</div><div class="stepper-name">PWA</div><div class="stepper-sub">Instalar como app nativa</div></div>
+    </div>
+
+    <h3>Atajos de teclado</h3>
+    <table class="data">
+      <thead><tr><th style="width:28%">Tecla</th><th>Acción</th></tr></thead>
+      <tbody>
+        <tr><td class="lbl"><kbd>T</kbd></td><td>Abrir el tour desde cualquier pantalla</td></tr>
+        <tr><td class="lbl"><kbd>?</kbd> (Shift + /)</td><td>Abrir ayuda / tour</td></tr>
+        <tr><td class="lbl"><kbd>→</kbd> / <kbd>←</kbd></td><td>Siguiente / Paso anterior</td></tr>
+        <tr><td class="lbl"><kbd>Escape</kbd></td><td>Saltar / cerrar tour</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Panel de depuración (debug)</h3>
+    <p>Para desarrolladores o usuarios avanzados, pulsa <strong>D</strong> durante el tour para ver el <strong>panel de debug</strong> con el estado interno: paso actual, pasos activos, IDs, lista completa de pasos, etc. Útil para verificar que los pasos condicionales (p. ej. «Crear grupo» solo si no tienes grupos) se evalúan correctamente.</p>
+
+    <h3>Reaparecer el tour</h3>
+    <p>Si completaste el tour y quieres volver a verlo, tienes dos opciones:</p>
+    <ul>
+      <li>Pulsa <strong>T</strong> en cualquier momento.</li>
+      <li>Pulsa el icono <strong>❓</strong> en la cabecera de la app.</li>
+    </ul>
+    <div class="callout tip"><span class="callout-label">Consejo</span><p>El tour es <strong>contextual</strong>: los pasos que no aplican a tu situación (p. ej. «Crear grupo» si ya tienes grupos) se ocultan automáticamente. Así siempre ves lo relevante.</p></div>
+
+    <div class="mockup">
+      <div class="mockup-bar"><span class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></span><span class="url">divido.app/ (tour activo)</span></div>
+      <div style="padding: 4mm; text-align: center;">
+        <div style="background:#161b22;border:2px solid #6366f1;border-radius:8pt;padding:8mm;display:inline-block;max-width:90%">
+          <div style="font-weight:800;color:#fff;font-size:11pt;margin-bottom:3mm">Paso 1 de 7 — Bienvenido a Divido</div>
+          <div style="color:#c9d1d9;font-size:9pt;text-align:left;line-height:1.6">
+            <p><strong>Bienvenido a Divido</strong>, la app para gestionar gastos en grupo y liquidar deudas sin fricción.</p>
+            <p>Desde aquí verás todos tus grupos y tu balance neto en cada uno.</p>
+          </div>
+          <div style="margin-top:5mm;display:flex;gap:3mm;justify-content:center">
+            <span style="background:#30363d;border:1px solid #484f58;border-radius:4pt;padding:1.5mm 4mm;font-size:8pt;color:#c9d1d9">Saltar</span>
+            <span style="background:#6366f1;border:1px solid #6366f1;border-radius:4pt;padding:1.5mm 4mm;font-size:8pt;color:#fff;font-weight:700">Siguiente →</span>
+          </div>
+        </div>
+        <div style="margin-top:3mm;font-size:7.5pt;color:#8b949e">Overlay de foco resaltando la primera tarjeta de grupo</div>
+      </div>
     </div>
   </section>
 
