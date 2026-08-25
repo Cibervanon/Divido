@@ -1,6 +1,5 @@
-import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy, useEffect, Component, ErrorInfo, ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import type { ReactNode } from "react";
 import { useAuth } from "./lib/auth";
 import { Spinner } from "./components/ui";
 import { analyticsEnabled, track } from "./lib/analytics";
@@ -9,6 +8,38 @@ import { PWAInstallBanner } from "./components/PWAInstallBanner";
 import { GuidedTourProviderWithSetter } from "./components/GuidedTourPortal";
 import { HelpProvider } from "./components/HelpButton";
 import { HelpModal } from "./components/HelpModal";
+
+class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
+  state = { hasError: false, error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("[ErrorBoundary] caught error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || (
+        <div className="flex h-screen items-center justify-center bg-slate-950 text-center px-4">
+          <div className="max-w-md">
+            <h2 className="text-xl font-semibold text-white mb-2">Algo salió mal</h2>
+            <p className="text-slate-400 mb-4">{this.state.error?.message || "Error inesperado"}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition"
+            >
+              Recargar la página
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
@@ -41,12 +72,11 @@ function Protected({ children }: { children: ReactNode }) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
   return (
-    <>
+    <GuidedTourProviderWithSetter>
       {children}
       {showOnboarding && <OnboardingModal />}
       <PWAInstallBanner />
-      <GuidedTourProviderWithSetter />
-    </>
+    </GuidedTourProviderWithSetter>
   );
 }
 
@@ -63,9 +93,10 @@ function PageviewTracker() {
 export default function App() {
   return (
     <HelpProvider>
-      <Suspense fallback={<FullScreenSpinner />}>
-        <PageviewTracker />
-        <Routes>
+      <ErrorBoundary>
+        <Suspense fallback={<FullScreenSpinner />}>
+          <PageviewTracker />
+          <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -94,7 +125,8 @@ export default function App() {
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </Suspense>
+        </Suspense>
+      </ErrorBoundary>
     </HelpProvider>
   );
 }
