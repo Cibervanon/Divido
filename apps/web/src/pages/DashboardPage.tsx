@@ -14,6 +14,7 @@ import { Logo } from "../components/Logo";
 import { ProfileModal } from "../components/ProfileModal";
 import { HelpButton } from "../components/HelpButton";
 import { useTourOptionsSetter } from "../components/GuidedTourPortal";
+import { useGuidedTourContext } from "../components/GuidedTourPortal";
 import { blobToDataUrl, compressImageToJpeg, dataUrlToBlob, isHeavyDataUrl } from "../lib/compressImage";
 import { track } from "../lib/analytics";
 import type { GroupDetail, GroupSummary } from "../lib/types";
@@ -612,17 +613,27 @@ function GroupCard({
 }) {
   const positive = group.myBalance > 0.004;
   const negative = group.myBalance < -0.004;
+  const { isOpen: tourOpen } = useGuidedTourContext();
+
+  const baseClasses = `group flex items-center gap-4 rounded-2xl border p-4 transition active:scale-[0.99] ${
+    negative
+      ? "border-rose-500/40 bg-rose-950/40"
+      : pinned
+      ? "border-indigo-500/50 bg-indigo-950/30"
+      : "border-slate-800/60 bg-slate-900"
+  }`;
+  const hoverClasses = tourOpen
+    ? negative
+      ? "hover:bg-rose-950/60"
+      : pinned
+      ? "hover:bg-indigo-950/50"
+      : "hover:bg-slate-800/80"
+    : "";
 
   return (
     <Link
       to={`/groups/${group.id}`}
-      className={`group flex items-center gap-4 rounded-2xl border p-4 transition active:scale-[0.99] ${
-        negative
-          ? "border-rose-500/40 bg-rose-950/40 hover:bg-rose-950/60"
-          : pinned
-          ? "border-indigo-500/50 bg-indigo-950/30 hover:bg-indigo-950/50"
-          : "border-slate-800/60 bg-slate-900 hover:bg-slate-800/80"
-      }`}
+      className={`${baseClasses} ${hoverClasses}`}
     >
       <SmartImage
         src={group.logoUrl && !isHeavyDataUrl(group.logoUrl) ? group.logoUrl : null}
