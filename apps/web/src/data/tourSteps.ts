@@ -85,7 +85,8 @@ export const TOUR_STEPS: TourStep[] = [
     id: "pwa-install",
     title: "Instala Divido como app nativa",
     content: `
-      <p>Divido es una <strong>PWA</strong>: puedes instalarla como app nativa en tu móvil u ordenador.</      <ul>
+      <p>Divido es una <strong>PWA</strong>: puedes instalarla como app nativa en tu móvil u ordenador.
+      <ul>
         <li><strong>Android/Chrome</strong>: Menú ▸ «Instalar Divido»</li>
         <li><strong>iOS/Safari</strong>: Compartir ▸ «Añadir a pantalla de inicio»</li>
         <li><strong>Escritorio</strong>: Icono ▸ «Instalar Divido»</li>
@@ -117,6 +118,10 @@ export function getActiveSteps(context: { hasGroups: boolean; isPWA: boolean; in
         return !context.isPWA;
       default:
         return true;
+}
+    }
+    default:
+      return true;
     }
   }
 }
