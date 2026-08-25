@@ -751,7 +751,6 @@ export default function GroupPage() {
         members={detail.members}
         me={user.id}
         onCreated={handleExpenseCreated}
-        prefill={null}
       />
 
       {editTarget ? (
