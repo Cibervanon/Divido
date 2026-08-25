@@ -29,11 +29,6 @@ export function GuidedTourTooltip({
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (!targetRect) {
-      setIsVisible(false);
-      return;
-    }
-
     const tooltip = tooltipRef.current;
     if (!tooltip) return;
 
@@ -44,72 +39,69 @@ export function GuidedTourTooltip({
     const tooltipRect = tooltip.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    const gap = 16;
-    const arrowSize = 12;
 
     let top = 0;
     let left = 0;
     let arrowPos: "top" | "bottom" | "left" | "right" = "bottom";
 
-    const targetCenterX = targetRect.left + targetRect.width / 2;
-    const targetCenterY = targetRect.top + targetRect.height / 2;
+    if (targetRect) {
+      // Try positions in order of preference based on step.position
+      const positions: Array<{ pos: "top" | "bottom" | "left" | "right"; calc: () => { top: number; left: number } }> = [
+        {
+          pos: "bottom",
+          calc: () => ({
+            top: targetRect.bottom + 12,
+            left: targetRect.left + targetRect.width / 2 - tooltipRect.width / 2,
+          }),
+        },
+        {
+          pos: "top",
+          calc: () => ({
+            top: targetRect.top - tooltipRect.height - 12,
+            left: targetRect.left + targetRect.width / 2 - tooltipRect.width / 2,
+          }),
+        },
+        {
+          pos: "right",
+          calc: () => ({
+            top: targetRect.top + targetRect.height / 2 - tooltipRect.height / 2,
+            left: targetRect.right + 12,
+          }),
+        },
+        {
+          pos: "left",
+          calc: () => ({
+            top: targetRect.top + targetRect.height / 2 - tooltipRect.height / 2,
+            left: targetRect.left - tooltipRect.width - 12,
+          }),
+        },
+      ];
 
-    // Try positions in order of preference based on step.position
-    const positions: Array<{ pos: "top" | "bottom" | "left" | "right"; calc: () => { top: number; left: number } }> = [
-      {
-        pos: "bottom",
-        calc: () => ({
-          top: targetRect.bottom + 12,
-          left: targetRect.left + targetRect.width / 2 - tooltipRect.width / 2,
-        }),
-      },
-      {
-        pos: "top",
-        calc: () => ({
-          top: targetRect.top - tooltipRect.height - 12,
-          left: targetRect.left + targetRect.width / 2 - tooltipRect.width / 2,
-        }),
-      },
-      {
-        pos: "right",
-        calc: () => ({
-          top: targetRect.top + targetRect.height / 2 - tooltipRect.height / 2,
-          left: targetRect.right + 12,
-        }),
-      },
-      {
-        pos: "left",
-        calc: () => ({
-          top: targetRect.top + targetRect.height / 2 - tooltipRect.height / 2,
-          left: targetRect.left - tooltipRect.width - 12,
-        }),
-      },
-    ];
+      // If step has a preferred position, try it first
+      const preferredIndex = positions.findIndex(p => p.pos === step.position);
+      if (preferredIndex > 0) {
+        const [preferred] = positions.splice(preferredIndex, 1);
+        positions.unshift(preferred);
+      }
 
-    // If step has a preferred position, try it first
-    const preferredIndex = positions.findIndex(p => p.pos === step.position);
-    if (preferredIndex > 0) {
-      const [preferred] = positions.splice(preferredIndex, 1);
-      positions.unshift(preferred);
-    }
+      for (const { pos, calc } of positions) {
+        const coords = calc();
+        const fits =
+          coords.top >= 8 &&
+          coords.left >= 8 &&
+          coords.top + tooltipRect.height <= viewportHeight - 8 &&
+          coords.left + tooltipRect.width <= viewportWidth - 8;
 
-    for (const { pos, calc } of positions) {
-      const coords = calc();
-      const fits =
-        coords.top >= 8 &&
-        coords.left >= 8 &&
-        coords.top + tooltipRect.height <= viewportHeight - 8 &&
-        coords.left + tooltipRect.width <= viewportWidth - 8;
-
-      if (fits) {
-        top = coords.top;
-        left = coords.left;
-        arrowPos = pos;
-        break;
+        if (fits) {
+          top = coords.top;
+          left = coords.left;
+          arrowPos = pos;
+          break;
+        }
       }
     }
 
-    // Fallback: center if nothing fits
+    // Fallback: center if no targetRect or nothing fits
     if (top === 0 && left === 0) {
       top = viewportHeight / 2 - tooltipRect.height / 2;
       left = viewportWidth / 2 - tooltipRect.width / 2;

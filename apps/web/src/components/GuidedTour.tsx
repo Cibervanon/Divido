@@ -70,7 +70,7 @@ export function GuidedTour() {
   const handleSkip = useCallback(() => skipTour(), [skipTour]);
   const handleClose = useCallback(() => skipTour(), [skipTour]);
 
-  // Keyboard shortcuts: T to open tour, ? for help, arrows for navigation
+  // Keyboard shortcuts: T to open tour, ? for help, arrows for navigation, R to reset
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       // Don't trigger if user is typing in an input
@@ -92,6 +92,14 @@ export function GuidedTour() {
             e.preventDefault();
             openTour();
           }
+          break;
+        case 'r':
+        case 'R':
+          // Reset tour: clear localStorage and reopen
+          e.preventDefault();
+          localStorage.removeItem("divido.tour_completed");
+          localStorage.removeItem("divido.tour_first_visit");
+          openTour();
           break;
         case 'ArrowRight':
           if (isOpen) {
@@ -170,18 +178,19 @@ export function GuidedTour() {
   // Render nothing if not ready
   if (!isOpen) return debugPanel;
   if (!currentStep) return debugPanel;
-  if (!targetRect) return debugPanel;
 
-  console.log('[Tour] Rendering step:', currentStep.id, 'at', targetRect);
+  console.log('[Tour] Rendering step:', currentStep.id, 'targetRect:', targetRect);
 
   return (
     <>
       {debugPanel}
       <div className="guided-tour-portal" role="dialog" aria-modal="true" aria-label="Tutorial guiado">
-        <SpotlightOverlay
-          targetRect={targetRect}
-          radius={10}
-        />
+        {targetRect && (
+          <SpotlightOverlay
+            targetRect={targetRect}
+            radius={10}
+          />
+        )}
 
         <GuidedTourTooltip
           step={currentStep}
