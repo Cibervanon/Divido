@@ -20,6 +20,7 @@ function HelpButtonInternal() {
       onClick={() => showHelpModal()}
       className="touch-manipulation rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
       aria-label="Ayuda"
+      data-tour="help-button"
     >
       <HelpCircle className="h-5 w-5" />
     </button>

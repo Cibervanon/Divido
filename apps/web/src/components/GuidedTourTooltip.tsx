@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { TourStep } from "../hooks/useGuidedTour";
 import "../styles/guidedTour.css";
 
@@ -26,12 +26,20 @@ export function GuidedTourTooltip({
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [arrowPosition, setArrowPosition] = useState<"top" | "bottom" | "left" | "right">("bottom");
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (!targetRect) return;
+    if (!targetRect) {
+      setIsVisible(false);
+      return;
+    }
 
     const tooltip = tooltipRef.current;
     if (!tooltip) return;
+
+    // Force reflow for animation
+    tooltip.style.opacity = "0";
+    tooltip.style.transform = "translateY(8px) scale(0.98)";
 
     const tooltipRect = tooltip.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
@@ -46,7 +54,7 @@ export function GuidedTourTooltip({
     const targetCenterX = targetRect.left + targetRect.width / 2;
     const targetCenterY = targetRect.top + targetRect.height / 2;
 
-    // Try positions in order of preference
+    // Try positions in order of preference based on step.position
     const positions: Array<{ pos: "top" | "bottom" | "left" | "right"; calc: () => { top: number; left: number } }> = [
       {
         pos: "bottom",
@@ -78,6 +86,13 @@ export function GuidedTourTooltip({
       },
     ];
 
+    // If step has a preferred position, try it first
+    const preferredIndex = positions.findIndex(p => p.pos === step.position);
+    if (preferredIndex > 0) {
+      const [preferred] = positions.splice(preferredIndex, 1);
+      positions.unshift(preferred);
+    }
+
     for (const { pos, calc } of positions) {
       const coords = calc();
       const fits =
@@ -107,7 +122,12 @@ export function GuidedTourTooltip({
 
     setPosition({ top, left });
     setArrowPosition(arrowPos);
-  }, [targetRect]);
+
+    // Animate in
+    requestAnimationFrame(() => {
+      setIsVisible(true);
+    });
+  }, [targetRect, step.position]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -120,62 +140,69 @@ export function GuidedTourTooltip({
     return () => document.removeEventListener("keydown", handleKey);
   }, [onNext, onPrev, onClose]);
 
+  const progress = ((currentIndex + 1) / totalSteps) * 100;
+
   return (
     <div
       ref={tooltipRef}
-      className={`guided-tour-tooltip ${position}`}
+      className={`guided-tour-tooltip ${arrowPosition} ${isVisible ? "visible" : ""}`}
       style={{ top: position.top, left: position.left }}
       role="dialog"
-      aria-label={`Paso ${step.id}`}
+      aria-label={`Paso ${currentIndex + 1} de ${totalSteps}: ${step.title}`}
       aria-describedby="guided-tour-content"
     >
-      <div id="guided-tour-content">
-        <h4>{step.title}</h4>
-        <p dangerouslySetInnerHTML={{ __html: step.content }} />
+      {/* Progress bar */}
+      <div className="guided-tour-progress" role="progressbar" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100}>
+        <div className="guided-tour-progress-fill" style={{ width: `${progress}%` }} />
+      </div>
+
+      <div id="guided-tour-content" className="guided-tour-content">
+        <div className="guided-tour-header">
+          <h4 className="guided-tour-title">{step.title}</h4>
+          <span className="guided-tour-step-counter">{currentIndex + 1} / {totalSteps}</span>
+        </div>
+        <div className="guided-tour-body" dangerouslySetInnerHTML={{ __html: step.content }} />
       </div>
 
       <div className="guided-tour-footer">
-        <div className="guided-tour-dots" aria-label="Progreso del tutorial">
-          {Array.from({ length: totalSteps }, (_, i) => (
-            <span
-              key={i}
-              aria-label={`Paso ${i + 1}`}
-              className={`guided-tour-dot ${i === currentIndex ? "active" : ""}`}
-            />
-          ))}
-        </div>
-
-        <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+        <div className="guided-tour-nav">
           {currentIndex > 0 && (
             <button
-              className="guided-tour-btn ghost"
+              className="guided-tour-btn guided-tour-btn-ghost"
               onClick={onPrev}
               aria-label="Paso anterior"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M15 18l-6-6 6-6" />
               </svg>
-              <span style={{ marginLeft: 6 }}>Atrás</span>
+              <span>Atrás</span>
             </button>
           )}
 
           <button
-            className="guided-tour-btn primary"
+            className={`guided-tour-btn guided-tour-btn-primary ${currentIndex === totalSteps - 1 ? "final-step" : ""}`}
             onClick={onNext}
             aria-label={currentIndex === totalSteps - 1 ? "Finalizar tutorial" : "Siguiente paso"}
           >
             {currentIndex === totalSteps - 1 ? "Finalizar" : "Siguiente"}
+            {currentIndex < totalSteps - 1 && (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            )}
           </button>
         </div>
+
+        <button
+          className="guided-tour-skip"
+          onClick={onClose}
+          aria-label="Saltar tutorial"
+        >
+          Saltar
+        </button>
       </div>
 
-      <button
-        className="guided-tour-skip"
-        onClick={onClose}
-        aria-label="Saltar tutorial"
-      >
-        Saltar
-      </button>
+      <div className="guided-tour-arrow" data-position={arrowPosition} />
     </div>
   );
 }
