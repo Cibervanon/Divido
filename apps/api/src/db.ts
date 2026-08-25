@@ -196,9 +196,10 @@ CREATE TABLE IF NOT EXISTS payments (
   amount REAL NOT NULL CHECK (amount > 0),
   note TEXT,
   proof_url TEXT,
-  status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed','pending_confirmation','rejected')),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','rejected')),
   created_by_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  auto_accept_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS modification_requests (
@@ -363,6 +364,7 @@ const MIGRATIONS = [
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS auto_confirm_payments INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE payments ADD COLUMN IF NOT EXISTS proof_url TEXT",
   "ALTER TABLE payments ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'confirmed'",
+  "ALTER TABLE payments ADD COLUMN IF NOT EXISTS auto_accept_at TEXT",
   "ALTER TABLE informal_debts ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'money'",
   "ALTER TABLE informal_debts ADD COLUMN IF NOT EXISTS prize TEXT",
   "ALTER TABLE informal_debts ADD COLUMN IF NOT EXISTS winner_ids TEXT",
@@ -375,10 +377,14 @@ const MIGRATIONS = [
   "DO $$ BEGIN ALTER TABLE expenses ADD CONSTRAINT chk_expense_amount_positive CHECK (amount > 0); EXCEPTION WHEN duplicate_object THEN END $$;",
   "DO $$ BEGIN ALTER TABLE expenses ADD CONSTRAINT chk_expense_amount_group_positive CHECK (amount_group > 0); EXCEPTION WHEN duplicate_object THEN END $$;",
   "DO $$ BEGIN ALTER TABLE payments ADD CONSTRAINT chk_payment_amount_positive CHECK (amount > 0); EXCEPTION WHEN duplicate_object THEN END $$;",
-  "DO $$ BEGIN ALTER TABLE payments ADD CONSTRAINT chk_payment_status CHECK (status IN ('confirmed','pending_confirmation','rejected')); EXCEPTION WHEN duplicate_object THEN END $$;",
+  "DO $$ BEGIN ALTER TABLE payments ADD CONSTRAINT chk_payment_status CHECK (status IN ('pending','accepted','rejected')); EXCEPTION WHEN duplicate_object THEN END $$;",
   "DO $$ BEGIN ALTER TABLE groups ADD CONSTRAINT chk_group_type CHECK (type IN ('open','closed')); EXCEPTION WHEN duplicate_object THEN END $$;",
   // Normalización: todo grupo existente debe tener estado 'open' por defecto
   "UPDATE groups SET type = 'open' WHERE type IS NULL OR type NOT IN ('open','closed')",
+  // Migrar estados de pagos antiguos al nuevo enum
+  "UPDATE payments SET status = CASE WHEN status = 'confirmed' THEN 'accepted' WHEN status = 'pending_confirmation' THEN 'pending' ELSE 'rejected' END WHERE status IN ('confirmed','pending_confirmation','rejected')",
+  // Establecer auto_accept_at para pagos pendientes existentes (3 días desde creación)
+  "UPDATE payments SET auto_accept_at = datetime(created_at, '+3 days') WHERE status = 'pending' AND auto_accept_at IS NULL",
   // Baja de cuenta (GDPR): marca al usuario como eliminado sin romper las FKs contables
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted INTEGER NOT NULL DEFAULT 0",
 ];

@@ -4,7 +4,7 @@ export type MemberStatus = "active" | "inactive" | "ex_member";
 export type RequestStatus = "pending" | "approved" | "rejected";
 export type InformalDebtStatus = "pending" | "accepted" | "settled" | "rejected";
 export type PiqueKind = "money" | "prize";
-export type PaymentStatus = "confirmed" | "pending_confirmation" | "rejected";
+export type PaymentStatus = "pending" | "accepted" | "rejected";
 
 export interface User {
   id: string;

@@ -124,7 +124,7 @@ export async function getGroupBalances(db: Db, groupId: string): Promise<GroupBa
     }
   }
   const payments = (await listPayments(db, groupId))
-    .filter((p) => p.status === "confirmed")
+    .filter((p) => p.status === "accepted")
     .map((p) => ({
       fromUserId: p.from_user_id,
       toUserId: p.to_user_id,

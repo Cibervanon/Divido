@@ -7,7 +7,7 @@ export async function logAudit(
     groupId: string;
     entityType: "expense" | "payment" | "informal_debt" | "modification_request";
     entityId: string;
-    action: "created" | "updated" | "deleted" | "approved" | "rejected";
+    action: "created" | "updated" | "deleted" | "approved" | "rejected" | "edited" | "cancelled" | "auto_accepted";
     actorId: string;
     actorName: string;
     before?: unknown;

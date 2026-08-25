@@ -120,7 +120,7 @@ export interface PaymentDto {
   amount: number;
   note: string | null;
   proofUrl: string | null;
-  status: "confirmed" | "pending_confirmation" | "rejected";
+  status: "pending" | "accepted" | "rejected";
   createdById: string;
   createdAt: string;
 }
@@ -160,7 +160,7 @@ export interface HistoryEvent {
   toName?: string;
   note?: string | null;
   proofUrl?: string | null;
-  paymentStatus?: "confirmed" | "pending_confirmation" | "rejected";
+  paymentStatus?: "pending" | "accepted" | "rejected";
   userId?: string;
   userName?: string;
 }

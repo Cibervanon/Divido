@@ -78,13 +78,13 @@ export function HistoryTab({
   memberName,
   myUserId,
   onChanged,
-  onViewProof,
   onOpenExpense,
   onAdd,
   hasMore,
   loadingMore,
   onLoadMore,
   members,
+  onToast,
 }: {
   events: HistoryEvent[];
   audit: any[];
@@ -93,25 +93,36 @@ export function HistoryTab({
   memberName: (id: string) => string;
   myUserId: string;
   onChanged: () => void;
-  onViewProof: (url: string) => void;
   onOpenExpense: (expenseId: string) => void;
   onAdd?: () => void;
   hasMore?: boolean;
   loadingMore?: boolean;
   onLoadMore?: () => void;
   members?: MemberInfo[];
+  onToast?: (msg: string, type?: "success" | "error") => void;
 }) {
   const [deciding, setDeciding] = useState(false);
+  const [viewingProof, setViewingProof] = useState<string | null>(null);
 
   async function confirmPayment(id: string, accepted: boolean) {
     setDeciding(true);
     try {
       await api.patch(`/payments/${id}/confirm`, { accepted });
       onChanged();
+      onToast?.(accepted ? "Pago confirmado" : "Pago rechazado");
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Error");
+      onToast?.(err instanceof ApiError ? err.message : "Error", "error");
     } finally {
       setDeciding(false);
+    }
+  }
+
+  async function viewPaymentProof(paymentId: string) {
+    try {
+      const data = await api.get<{ url: string }>(`/payments/${paymentId}/receipt-url`);
+      setViewingProof(data.url);
+    } catch (err) {
+      onToast?.(err instanceof ApiError ? err.message : "No se pudo abrir el comprobante", "error");
     }
   }
 
@@ -234,7 +245,7 @@ export function HistoryTab({
               }`}
               onClick={() => {
                 if (isExpense && !isAudit && e.id) onOpenExpense(e.id);
-                if (isPayment && !isAudit && e.id && e.proofUrl) onViewProof(e.proofUrl!);
+                if (isPayment && !isAudit && e.id && e.proofUrl) viewPaymentProof(e.id);
               }}
             >
               <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconColor}`}>
@@ -283,25 +294,37 @@ export function HistoryTab({
                     <>
                       <strong>{e.fromName}</strong> pagó a <strong>{e.toName}</strong>
                       {e.note ? ` · ${e.note}` : ""}
-                      {e.proofUrl && e.toUserId === myUserId ? (
-                        <button
-                          type="button"
-                          onClick={(ev) => {
-                            ev.stopPropagation();
-                            onViewProof(e.proofUrl!);
-                          }}
-                          title="Ver comprobante"
-                          className="ml-1.5 inline-flex items-center gap-0.5 rounded-md bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300 transition hover:bg-slate-700"
-                        >
-                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
-                          </svg>
-                          comprobante
-                        </button>
+                      {e.proofUrl ? (
+                        e.fromUserId === myUserId || e.toUserId === myUserId ? (
+                          <button
+                            type="button"
+                            onClick={(ev) => {
+                              ev.stopPropagation();
+                              viewPaymentProof(e.id);
+                            }}
+                            title="Ver comprobante"
+                            className="ml-1.5 inline-flex items-center gap-0.5 rounded-md bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300 transition hover:bg-slate-700"
+                          >
+                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+                            </svg>
+                            comprobante
+                          </button>
+                        ) : (
+                          <span className="ml-1.5 inline-flex items-center gap-0.5 rounded-md bg-slate-800/50 px-1.5 py-0.5 text-[10px] font-medium text-slate-500" title="Comprobante privado entre emisor y destinatario">
+                            <span className="h-3 w-3">🔒</span>
+                            Comprobante privado
+                          </span>
+                        )
                       ) : null}
-                      {e.paymentStatus === "pending_confirmation" ? (
+                      {e.paymentStatus === "pending" ? (
                         <span className="ml-1.5 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400">
-                          Pendiente de confirmar
+                          Pendiente
+                        </span>
+                      ) : null}
+                      {e.paymentStatus === "accepted" ? (
+                        <span className="ml-1.5 rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-400">
+                          Confirmado
                         </span>
                       ) : null}
                       {e.paymentStatus === "rejected" ? (
@@ -325,7 +348,7 @@ export function HistoryTab({
                   <span className={`shrink-0 text-sm font-bold ${isPayment ? "text-emerald-400" : "text-slate-100"}`}>
                     <Money amount={isPayment ? (e.amount ?? 0) : (e.amountGroup ?? 0)} currency={isPayment ? currency : (e.currency ?? currency)} />
                   </span>
-                  {isPayment && e.paymentStatus === "pending_confirmation" && e.toUserId === myUserId ? (
+                  {isPayment && e.paymentStatus === "pending" && e.toUserId === myUserId ? (
                     <div className="flex items-center gap-1.5">
                       <ConfirmPaymentButton
                         onConfirm={() => void confirmPayment(e.id, true)}
@@ -345,10 +368,37 @@ export function HistoryTab({
                   ) : null}
                 </div>
               ) : null}
+</div>
+              );
+            })
+          )}
+        {viewingProof ? (
+          <div
+            className="fixed inset-0 z-[70] flex flex-col bg-black/90"
+            onClick={() => setViewingProof(null)}
+          >
+            <div className="flex items-center justify-between px-4 py-3">
+              <p className="text-sm font-semibold text-slate-200">Comprobante del pago</p>
+              <button
+                type="button"
+                onClick={() => setViewingProof(null)}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-slate-300 transition hover:bg-slate-700"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-          );
-        })
-      )}
+            <div className="flex min-h-0 flex-1 items-center justify-center p-4">
+              <img
+                src={viewingProof}
+                alt="Comprobante"
+                className="max-h-full max-w-full rounded-xl object-contain shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          </div>
+        ) : null}
         {hasMore ? (
           <button
             type="button"

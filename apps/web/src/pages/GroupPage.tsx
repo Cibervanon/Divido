@@ -157,7 +157,6 @@ export default function GroupPage() {
   const [breakdownTarget, setBreakdownTarget] = useState<MemberInfo | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [memberDetail, setMemberDetail] = useState<{ member: MemberInfo; data: BreakdownItem[] } | null>(null);
-  const [viewProof, setViewProof] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   
@@ -656,10 +655,10 @@ export default function GroupPage() {
               hasMore={historyPaging.hasMore}
               loadingMore={loadingMoreHistory}
               onLoadMore={() => void loadMoreHistory()}
-              onViewProof={(url) => setViewProof(url)}
               onOpenExpense={(expenseId) => setEditTarget(expenses.find((e) => e.id === expenseId) ?? null)}
               onAdd={openAddExpense}
               members={detail.members}
+              onToast={showToast}
             />
           ) : null}
           {tab === "debts" && hasDebts ? (
@@ -858,34 +857,6 @@ export default function GroupPage() {
       />
 
       <Toast show={Boolean(toast)}>{toast}</Toast>
-
-      {viewProof ? (
-        <div
-          className="fixed inset-0 z-[70] flex flex-col bg-black/90"
-          onClick={() => setViewProof(null)}
-        >
-          <div className="flex items-center justify-between px-4 py-3">
-            <p className="text-sm font-semibold text-slate-200">Comprobante del pago</p>
-            <button
-              type="button"
-              onClick={() => setViewProof(null)}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-slate-300 transition hover:bg-slate-700"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          <div className="flex min-h-0 flex-1 items-center justify-center p-4">
-            <img
-              src={viewProof}
-              alt="Comprobante"
-              className="max-h-full max-w-full rounded-xl object-contain shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -1,12 +1,14 @@
 import type { FastifyPluginAsync } from "fastify";
 import type { PaymentStatus } from "@divido/shared";
 import {
+  autoAcceptPendingPayments,
   createPayment,
   deletePayment,
   findUserById,
   getMemberRow,
   getPayment,
   listPayments,
+  updatePayment,
   updatePaymentStatus,
 } from "../store.js";
 import { badRequest, conflict, forbidden, notFound } from "../errors.js";
@@ -20,6 +22,7 @@ import { publishGroupEvent, resolveReceiptUrl } from "../lib/supabase.js";
 const HTTP_URL_RE = /^https?:\/\//i;
 const DATA_IMAGE_RE = /^data:image\/[a-z+]+;base64,/i;
 const MAX_PROOF_BYTES = 5 * 1024 * 1024;
+const AUTO_ACCEPT_DAYS = 3;
 
 function parseProof(raw: unknown): string | null {
   if (raw === undefined || raw === null) return null;
@@ -32,6 +35,12 @@ function parseProof(raw: unknown): string | null {
     return url;
   }
   throw badRequest("Comprobante inválido");
+}
+
+function computeAutoAcceptAt(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + AUTO_ACCEPT_DAYS);
+  return d.toISOString();
 }
 
 export const paymentRoutes: FastifyPluginAsync = async (app) => {
@@ -64,14 +73,20 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
     const proof = parseProof(proofUrl);
     const rounded = round2(num);
 
-    // Flujo de estados:
-    //  - Con comprobante adjunto -> confirmado directamente.
-    //  - Sin comprobante -> si el receptor tiene "autoconfirmar" activado se
-    //    aprueba solo; si no, queda "pendiente_confirmation" y el destinatario
-    //    podrá aceptarlo o rechazarlo desde la app.
     const recipient = await findUserById(request.db, toUserId);
     const autoConfirm = recipient?.auto_confirm_payments === 1;
-    const status: PaymentStatus = proof ? "confirmed" : autoConfirm ? "confirmed" : "pending_confirmation";
+
+    let status: PaymentStatus = "pending";
+    let autoAcceptAt: string | null = null;
+
+    if (proof) {
+      status = "accepted";
+    } else if (autoConfirm) {
+      status = "accepted";
+    } else {
+      status = "pending";
+      autoAcceptAt = computeAutoAcceptAt();
+    }
 
     const payment = await createPayment(request.db, {
       groupId,
@@ -82,21 +97,23 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
       proofUrl: proof,
       status,
       createdById: user.id,
+      autoAcceptAt,
     });
+
     if (!target.is_ghost) {
       await createAndPushNotification(request.db, {
         userId: toUserId,
         type: "PAYMENT_SETTLED",
         title: `Pago recibido en ${group.name}`,
         body:
-          status === "confirmed"
+          status === "accepted"
             ? `${user.name} te pagó ${rounded.toFixed(2)} ${group.currency}.`
             : `${user.name} te ha enviado un pago de ${rounded.toFixed(2)} ${group.currency} pendiente de confirmar.`,
         linkUrl: `/groups/${groupId}`,
       });
     }
-    // Notify sender that payment was sent (for pending payments)
-    if (status === "pending_confirmation") {
+
+    if (status === "pending") {
       await createAndPushNotification(request.db, {
         userId: user.id,
         type: "PAYMENT_SETTLED",
@@ -105,6 +122,7 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
         linkUrl: `/groups/${groupId}`,
       });
     }
+
     invalidateBalanceCache(groupId);
     publishGroupEvent(groupId, "payment.changed");
     await logAudit(request.db, {
@@ -128,8 +146,8 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
     if (!payment) throw notFound("Pago no encontrado");
     const { group } = await requireActiveMember(request, payment.group_id);
     if (payment.to_user_id !== user.id) throw forbidden("Solo el destinatario del pago puede aceptarlo o rechazarlo");
-    if (payment.status !== "pending_confirmation") throw conflict("El pago ya fue confirmado o rechazado");
-    const next: PaymentStatus = accepted ? "confirmed" : "rejected";
+    if (payment.status !== "pending") throw conflict("El pago ya fue confirmado o rechazado");
+    const next: PaymentStatus = accepted ? "accepted" : "rejected";
     const updated = await updatePaymentStatus(request.db, paymentId, next);
     const payer = await findUserById(request.db, payment.from_user_id);
     if (payer && !payer.is_ghost) {
@@ -159,18 +177,42 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
     return { payment: updated };
   });
 
-  app.get("/api/payments/:paymentId/receipt-url", async (request) => {
+  app.patch("/api/payments/:paymentId", async (request) => {
     const { paymentId } = request.params as { paymentId: string };
     const user = requireAuth(request);
+    const { amount, note, proofUrl } = request.body as {
+      amount?: number;
+      note?: string;
+      proofUrl?: unknown;
+    };
     const payment = await getPayment(request.db, paymentId);
     if (!payment) throw notFound("Pago no encontrado");
-    await requireActiveMember(request, payment.group_id);
-    // Solo el destinatario del pago puede ver el comprobante
-    if (payment.to_user_id !== user.id) throw forbidden("Solo el destinatario del pago puede ver el comprobante");
-    if (!payment.proof_url) throw notFound("El pago no tiene comprobante");
-    const resolved = await resolveReceiptUrl(payment.proof_url);
-    if (!resolved) throw notFound("No se pudo generar el enlace del comprobante en este momento");
-    return { url: resolved };
+    const { group } = await requireActiveMember(request, payment.group_id);
+    if (payment.from_user_id !== user.id) throw forbidden("Solo el emisor del pago puede editarlo");
+    if (payment.status !== "pending") throw conflict("Solo se pueden editar pagos en estado pendiente");
+    const parsedProof = proofUrl === undefined ? undefined : parseProof(proofUrl);
+    const updated = await updatePayment(request.db, paymentId, {
+      amount: amount !== undefined ? round2(amount) : undefined,
+      note: note?.trim() || null,
+      proofUrl: parsedProof,
+    });
+    if (parsedProof && updated.status === "pending") {
+      const newStatus: PaymentStatus = "accepted";
+      await updatePaymentStatus(request.db, paymentId, newStatus);
+      invalidateBalanceCache(group.id);
+      publishGroupEvent(group.id, "payment.changed");
+    }
+    await logAudit(request.db, {
+      groupId: group.id,
+      entityType: "payment",
+      entityId: paymentId,
+      action: "edited",
+      actorId: user.id,
+      actorName: user.name,
+      before: { amount: payment.amount, note: payment.note, proof_url: payment.proof_url },
+      after: { amount: updated.amount, note: updated.note, proof_url: updated.proof_url },
+    });
+    return { payment: updated };
   });
 
   app.delete("/api/payments/:paymentId", async (request) => {
@@ -179,12 +221,14 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
     const payment = await getPayment(request.db, paymentId);
     if (!payment) throw notFound("Pago no encontrado");
     const { member } = await requireActiveMember(request, payment.group_id);
-    const editable =
-      payment.from_user_id === user.id || member.role === "admin";
+    const editable = payment.from_user_id === user.id || member.role === "admin";
     const withinWindow = Date.now() - new Date(payment.created_at).getTime() < EDIT_WINDOW_MS;
     if (!editable) throw forbidden("Solo puedes eliminar pagos que hayas marcado");
     if (!withinWindow && member.role !== "admin") {
       throw forbidden("Solo puedes eliminar un pago dentro de las primeras 24 horas");
+    }
+    if (payment.status !== "pending" && member.role !== "admin") {
+      throw forbidden("Solo se pueden cancelar pagos pendientes");
     }
     await deletePayment(request.db, paymentId);
     invalidateBalanceCache(payment.group_id);
@@ -193,12 +237,27 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
       groupId: payment.group_id,
       entityType: "payment",
       entityId: paymentId,
-      action: "deleted",
+      action: "cancelled",
       actorId: user.id,
       actorName: user.name,
-      before: { fromUserId: payment.from_user_id, toUserId: payment.to_user_id, amount: payment.amount },
+      before: { fromUserId: payment.from_user_id, toUserId: payment.to_user_id, amount: payment.amount, status: payment.status },
     });
     return { ok: true };
+  });
+
+  app.get("/api/payments/:paymentId/receipt-url", async (request) => {
+    const { paymentId } = request.params as { paymentId: string };
+    const user = requireAuth(request);
+    const payment = await getPayment(request.db, paymentId);
+    if (!payment) throw notFound("Pago no encontrado");
+    await requireActiveMember(request, payment.group_id);
+    const isSender = payment.from_user_id === user.id;
+    const isReceiver = payment.to_user_id === user.id;
+    if (!isSender && !isReceiver) throw forbidden("Solo el emisor y el destinatario pueden ver el comprobante");
+    if (!payment.proof_url) throw notFound("El pago no tiene comprobante");
+    const resolved = await resolveReceiptUrl(payment.proof_url);
+    if (!resolved) throw notFound("No se pudo generar el enlace del comprobante en este momento");
+    return { url: resolved };
   });
 };
 

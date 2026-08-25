@@ -5,6 +5,7 @@ import type { GroupDetail, MemberInfo, ExpenseDto } from "../../lib/types";
 import type { SettlementTransfer } from "@divido/shared";
 import { ExportSummary } from "./ExportSummary";
 import { CATEGORIES } from "../../constants/categories";
+import { PaymentModal } from "../../components/PaymentModal";
 
 function buildSummaryText(groupName: string, currency: string, transfers: SettlementTransfer[]): string {
   const sym = currencySymbol(currency);
@@ -126,6 +127,8 @@ export function BalancesTab({ detail, expenses, myUserId, onOpenMember, onToast 
   const [showExport, setShowExport] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exportingCsv, setExportingCsv] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentPrefill, setPaymentPrefill] = useState<{ toUserId: string; amount: number } | null>(null);
   const isAdmin = detail.myRole === "admin";
 
   const simplified = useMemo(
@@ -149,6 +152,19 @@ export function BalancesTab({ detail, expenses, myUserId, onOpenMember, onToast 
         }))
     : [];
   const displayTransfers = effectiveTransfers.length > 0 ? [...effectiveTransfers, ...fallbackTransfers] : fallbackTransfers;
+
+  function handleSuggestedPaymentClick(transfer: SettlementTransfer) {
+    // Only allow the debtor (fromUserId) to click to pay
+    if (transfer.fromUserId !== myUserId) {
+      onToast("Solo quien debe puede realizar este pago");
+      return;
+    }
+    setPaymentPrefill({
+      toUserId: transfer.toUserId,
+      amount: transfer.amount,
+    });
+    setShowPaymentModal(true);
+  }
 
   async function toggleSimplify() {
     const next = !simplifyEnabled;
@@ -535,18 +551,33 @@ export function BalancesTab({ detail, expenses, myUserId, onOpenMember, onToast 
               : `${displayTransfers.length} deuda${displayTransfers.length !== 1 ? "s" : ""} directa${displayTransfers.length !== 1 ? "s" : ""} entre miembros. Activa la simplificación para consolidarlas en menos pagos.`}
           </p>
           <div className="space-y-2">
-            {displayTransfers.map((t, i) => (
-              <div key={i} className="flex items-center gap-2 rounded-xl bg-slate-800/60 px-3 py-2.5 text-sm">
-                <span className="font-medium text-slate-200">{t.fromName}</span>
-                <svg className="h-4 w-4 shrink-0 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                </svg>
-                <span className="font-medium text-slate-200">{t.toName}</span>
-                <span className="ml-auto font-bold text-emerald-400">
-                  <Money amount={t.amount} currency={group.currency} />
-                </span>
-              </div>
-            ))}
+            {displayTransfers.map((t, i) => {
+              const isMyPayment = t.fromUserId === myUserId;
+              return (
+                <div
+                  key={i}
+                  className={`flex items-center gap-2 rounded-xl bg-slate-800/60 px-3 py-2.5 text-sm ${isMyPayment ? "cursor-pointer hover:bg-slate-800" : ""}`}
+                  onClick={isMyPayment ? () => handleSuggestedPaymentClick(t) : undefined}
+                  role={isMyPayment ? "button" : undefined}
+                  tabIndex={isMyPayment ? 0 : undefined}
+                  onKeyDown={isMyPayment ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSuggestedPaymentClick(t); } } : undefined}
+                >
+                  <span className="font-medium text-slate-200">{t.fromName}</span>
+                  <svg className="h-4 w-4 shrink-0 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                  </svg>
+                  <span className="font-medium text-slate-200">{t.toName}</span>
+                  <span className="ml-auto font-bold text-emerald-400">
+                    <Money amount={t.amount} currency={group.currency} />
+                  </span>
+                  {isMyPayment && (
+                    <span className="ml-2 rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-300">
+                      Pagar
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       ) : (
@@ -585,6 +616,24 @@ export function BalancesTab({ detail, expenses, myUserId, onOpenMember, onToast 
           onClose={() => setShowExport(false)}
         />
       )}
+
+      {/* Payment Modal for suggested payments */}
+      <PaymentModal
+        open={showPaymentModal}
+        onClose={() => {
+          setShowPaymentModal(false);
+          setPaymentPrefill(null);
+        }}
+        groupId={group.id}
+        members={detail.members}
+        me={myUserId}
+        onCreated={() => {
+          onToast("Pago registrado");
+          setShowPaymentModal(false);
+          setPaymentPrefill(null);
+        }}
+      />
+
     </div>
   );
 }

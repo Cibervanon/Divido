@@ -21,6 +21,7 @@ import { notificationRoutes } from "./routes/notifications.js";
 import { cronRoutes } from "./routes/cron.js";
 import { exportRoutes } from "./routes/exports.js";
 import { processRecurringExpenses } from "./recurring.js";
+import { startAutoAcceptScheduler } from "./jobs/autoAccept.js";
 
 const CRON_INTERVAL_MS = 15 * 60 * 1000;
 
@@ -96,6 +97,8 @@ app.register(exportRoutes);
     });
   }, CRON_INTERVAL_MS);
   recurringTimer.unref();
+
+  startAutoAcceptScheduler(config.databaseUrl);
 
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof HttpError) {

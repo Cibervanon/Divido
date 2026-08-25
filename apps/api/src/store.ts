@@ -103,6 +103,7 @@ export interface PaymentRow {
   status: string;
   created_by_id: string;
   created_at: string;
+  auto_accept_at: string | null;
   from_name: string;
   to_name: string;
 }
@@ -1682,13 +1683,14 @@ export async function createPayment(
     proofUrl?: string | null;
     status: PaymentStatus;
     createdById: string;
+    autoAcceptAt?: string | null;
   }
 ): Promise<PaymentRow> {
   const id = randomUUID();
   await db
     .prepare(
-      `INSERT INTO payments (id, group_id, from_user_id, to_user_id, amount, note, proof_url, status, created_by_id, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO payments (id, group_id, from_user_id, to_user_id, amount, note, proof_url, status, created_by_id, created_at, auto_accept_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       id,
@@ -1700,7 +1702,8 @@ export async function createPayment(
       input.proofUrl ?? null,
       input.status,
       input.createdById,
-      new Date().toISOString()
+      new Date().toISOString(),
+      input.autoAcceptAt ?? null
     );
   return (await getPayment(db, id))!;
 }
@@ -1737,6 +1740,46 @@ export async function deletePayment(db: Db, paymentId: string): Promise<void> {
 export async function updatePaymentStatus(db: Db, paymentId: string, status: PaymentStatus): Promise<PaymentRow> {
   await db.prepare("UPDATE payments SET status = ? WHERE id = ?").run(status, paymentId);
   return (await getPayment(db, paymentId))!;
+}
+
+export async function updatePayment(
+  db: Db,
+  paymentId: string,
+  input: { amount?: number; note?: string | null; proofUrl?: string | null }
+): Promise<PaymentRow> {
+  const sets: string[] = [];
+  const params: SqlValue[] = [];
+  if (input.amount !== undefined) {
+    sets.push("amount = ?");
+    params.push(input.amount);
+  }
+  if (input.note !== undefined) {
+    sets.push("note = ?");
+    params.push(input.note);
+  }
+  if (input.proofUrl !== undefined) {
+    sets.push("proof_url = ?");
+    params.push(input.proofUrl);
+  }
+  if (sets.length === 0) return (await getPayment(db, paymentId))!;
+  params.push(paymentId);
+  await db.prepare(`UPDATE payments SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+  return (await getPayment(db, paymentId))!;
+}
+
+export async function autoAcceptPendingPayments(db: Db): Promise<PaymentRow[]> {
+  const now = new Date().toISOString();
+  const payments = (await db
+    .prepare(
+      `SELECT id FROM payments WHERE status = 'pending' AND auto_accept_at IS NOT NULL AND auto_accept_at <= ?`
+    )
+    .all(now)) as { id: string }[];
+  const accepted: PaymentRow[] = [];
+  for (const p of payments) {
+    const updated = await updatePaymentStatus(db, p.id, "accepted");
+    accepted.push(updated);
+  }
+  return accepted;
 }
 
 // ---------- Comentarios de gasto ----------
