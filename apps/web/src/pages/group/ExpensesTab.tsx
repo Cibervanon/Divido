@@ -4,12 +4,131 @@ import { Button, EmptyState, Input, Money, Select, VerifiedBadge, currencySymbol
 import type { ExpenseCommentDto, ExpenseDto, ModificationRequestDto, MemberInfo } from "../../lib/types";
 import { fmtTime, fmtDate } from "./utils";
 import { ExpenseDetailModal } from "../../components/ExpenseDetailModal";
-import { CATEGORIES } from "../../constants/categories";
+import { CATEGORIES, getIconComponent } from "../../constants/categories";
+import { useNavigate } from "react-router-dom";
 
 function categoryLabel(key?: string): string {
   if (!key) return "General";
   const cfg = (CATEGORIES as Record<string, { label: string } | undefined>)[key];
   return cfg?.label ?? key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+function ExpenseRow({
+  e,
+  memberName,
+  groupCurrency,
+  onEdit,
+  onDelete,
+  openReceipt,
+}: {
+  e: ExpenseDto;
+  memberName: (id: string) => string;
+  groupCurrency: string;
+  onEdit: (e: ExpenseDto) => void;
+  onDelete: (e: ExpenseDto) => void;
+  openReceipt: (id: string, fallback: string | null) => void;
+}) {
+  const CatIcon = getIconComponent(e.iconName);
+  const catColor = CATEGORIES[e.category as keyof typeof CATEGORIES]?.color ?? "#94a3b8";
+  return (
+    <div
+      key={e.id}
+      onClick={() => {}}
+      className={`rounded-2xl border border-slate-800 bg-slate-900 p-4 transition hover:border-slate-700 cursor-pointer ${e.deleted ? "opacity-50 grayscale" : ""}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${catColor}20` }}>
+            <CatIcon className="h-5 w-5 shrink-0" style={{ color: catColor }} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-100">
+              {e.description}
+              {e.paidFromPot ? (
+                <span className="ml-2 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
+                  Bote común
+                </span>
+              ) : null}
+              {e.deleted ? <span className="ml-2 rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] text-rose-400">eliminado</span> : null}
+            </p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {e.payerName} pagó{" · "}{e.participantsCount} participante{e.participantsCount !== 1 ? "s" : ""}
+              {e.receiptUrl && !e.paidFromPot ? (
+                <button
+                  type="button"
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    openReceipt(e.id, e.receiptUrl);
+                  }}
+                  className="ml-2 inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300 transition hover:bg-slate-700 hover:text-indigo-200"
+                >
+                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                  tique
+                </button>
+              ) : null}
+            </p>
+          </div>
+        </div>
+        <div className="text-right min-w-[100px]">
+          <p className="text-sm font-bold text-slate-100">
+            <Money amount={e.amount} currency={e.currency} />
+            {e.currency !== undefined && e.exchangeRate !== 1 ? (
+              <span className="ml-1 text-[10px] font-normal text-slate-500">
+                ≈ <Money amount={e.amountGroup} currency={groupCurrency} />
+              </span>
+            ) : null}
+          </p>
+          <p className="mt-0.5 text-[11px] text-slate-500">
+            {e.shares ? (
+              <span className="text-indigo-300">reparto personalizado</span>
+            ) : (
+              <>cada uno {e.share.toFixed(2)}</>
+            )}
+          </p>
+        </div>
+      </div>
+      <div className="mt-3 flex items-center justify-between">
+        <p className="text-[11px] text-slate-500 truncate">
+          {e.participants.map(memberName).join(", ")}
+          {e.editable ? null : (
+            <span className="ml-2 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-amber-400">bloqueado</span>
+          )}
+        </p>
+        <div className="flex gap-1">
+          <button
+            title="Editar"
+            onClick={(ev) => {
+              ev.stopPropagation();
+              onEdit(e);
+            }}
+            className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-slate-200"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
+            </svg>
+          </button>
+          <button
+            title="Eliminar"
+            onClick={(ev) => {
+              ev.stopPropagation();
+              onDelete(e);
+            }}
+            className="rounded-lg p-1.5 text-slate-500 transition hover:bg-rose-500/10 hover:text-rose-400"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function ExpensesTab({
@@ -33,6 +152,8 @@ export function ExpensesTab({
   loadingMore,
   onLoadMore,
   members,
+  myBalance,
+  onSettle,
 }: {
   expenses: ExpenseDto[];
   memberName: (id: string) => string;
@@ -54,7 +175,10 @@ export function ExpensesTab({
   loadingMore?: boolean;
   onLoadMore?: () => void;
   members: MemberInfo[];
+  myBalance: number;
+  onSettle: () => void;
 }) {
+  const navigate = useNavigate();
   const pending = requests.filter((r) => r.status === "pending");
   const [viewReceipt, setViewReceipt] = useState<string | null>(null);
   const [receiptNotice, setReceiptNotice] = useState("");
@@ -139,28 +263,51 @@ export function ExpensesTab({
   const myExpenses = expenses.filter(e => !e.deleted && e.payerId === myUserId).length;
   const myTotal = expenses.filter(e => !e.deleted && e.payerId === myUserId).reduce((sum, e) => sum + e.amountGroup, 0);
 
+  const positive = myBalance > 0.004;
+  const negative = myBalance < -0.004;
+  const balanceColor = positive ? "text-emerald-400" : negative ? "text-rose-400" : "text-slate-400";
+
   return (
-    <div className="space-y-4">
-      {/* Resumen del grupo */}
-      <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/50 to-slate-900/30 p-4">
-        <div className="grid gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Gastos totales</p>
-            <p className="mt-1 text-2xl font-bold text-slate-100">{totalExpenses}</p>
+    <div className="space-y-3">
+      {/* Balance personal + stats en 2 columnas */}
+      <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/50 to-slate-900/30 p-3 space-y-3">
+        {/* Balance personal */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Tu balance</p>
+            <p className={`mt-0.5 text-2xl font-extrabold ${balanceColor}`}>
+              <Money amount={myBalance} currency={groupCurrency} />
+            </p>
           </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Total del grupo</p>
-            <p className="mt-1 text-2xl font-bold text-slate-100">
+          <Button
+            variant={positive || negative ? "primary" : "ghost"}
+            size="sm"
+            onClick={onSettle}
+            className="whitespace-nowrap"
+          >
+            {positive ? "Te deben" : negative ? "Saldar" : "Saldos"}
+          </Button>
+        </div>
+
+        {/* Stats compactas: 2 columnas siempre */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl bg-slate-900/50 p-2.5">
+            <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wide">Gastos</p>
+            <p className="mt-0.5 text-lg font-bold text-slate-100">{totalExpenses}</p>
+          </div>
+          <div className="rounded-xl bg-slate-900/50 p-2.5">
+            <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wide">Total</p>
+            <p className="mt-0.5 text-lg font-bold text-slate-100">
               <Money amount={totalAmount} currency={groupCurrency} />
             </p>
           </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Mis gastos</p>
-            <p className="mt-1 text-2xl font-bold text-slate-100">{myExpenses}</p>
+          <div className="rounded-xl bg-slate-900/50 p-2.5">
+            <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wide">Mis gastos</p>
+            <p className="mt-0.5 text-lg font-bold text-slate-100">{myExpenses}</p>
           </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Mi total</p>
-            <p className="mt-1 text-2xl font-bold text-slate-100">
+          <div className="rounded-xl bg-slate-900/50 p-2.5">
+            <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wide">Mi total</p>
+            <p className="mt-0.5 text-lg font-bold text-slate-100">
               <Money amount={myTotal} currency={groupCurrency} />
             </p>
           </div>
@@ -314,102 +461,111 @@ export function ExpensesTab({
             </Button>
           }
         />
-      ) : (
+) : (
         <div className="space-y-2">
-          {filteredExpenses.map((e) => (
-            <div
-              key={e.id}
-              onClick={() => handleRowClick(e)}
-              className={`rounded-2xl border border-slate-800 bg-slate-900 p-4 transition hover:border-slate-700 cursor-pointer ${e.deleted ? "opacity-50 grayscale" : ""}`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-slate-100">
-                    {e.description}
-                    {e.paidFromPot ? (
-                      <span className="ml-2 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
-                        Bote común
-                      </span>
-                    ) : null}
-                    {e.deleted ? <span className="ml-2 rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] text-rose-400">eliminado</span> : null}
-                  </p>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {e.payerName} pagó{" · "}{e.participantsCount} participante{e.participantsCount !== 1 ? "s" : ""}
-                    {e.receiptUrl && !e.paidFromPot ? (
-                      <button
-                        type="button"
-                        onClick={(ev) => {
-                          ev.stopPropagation();
-                          openReceipt(e.id, e.receiptUrl);
-                        }}
-                        className="ml-2 inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300 transition hover:bg-slate-700 hover:text-indigo-200"
-                      >
-                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                        </svg>
-                        tique
-                      </button>
-                    ) : null}
-                  </p>
+          {filteredExpenses.map((e) => {
+            const CatIcon = getIconComponent(e.iconName);
+            const catColor = CATEGORIES[e.category as keyof typeof CATEGORIES]?.color ?? "#94a3b8";
+            return (
+              <div
+                key={e.id}
+                onClick={() => handleRowClick(e)}
+                className={`rounded-2xl border border-slate-800 bg-slate-900 p-4 transition hover:border-slate-700 cursor-pointer ${e.deleted ? "opacity-50 grayscale" : ""}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${catColor}20` }}>
+                      <CatIcon className="h-5 w-5 shrink-0" style={{ color: catColor }} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-slate-100">
+                        {e.description}
+                        {e.paidFromPot ? (
+                          <span className="ml-2 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
+                            Bote común
+                          </span>
+                        ) : null}
+                        {e.deleted ? <span className="ml-2 rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] text-rose-400">eliminado</span> : null}
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {e.payerName} pagó{" · "}{e.participantsCount} participante{e.participantsCount !== 1 ? "s" : ""}
+                        {e.receiptUrl && !e.paidFromPot ? (
+                          <button
+                            type="button"
+                            onClick={(ev) => {
+                              ev.stopPropagation();
+                              openReceipt(e.id, e.receiptUrl);
+                            }}
+                            className="ml-2 inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300 transition hover:bg-slate-700 hover:text-indigo-200"
+                          >
+                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                            </svg>
+                            tique
+                          </button>
+                        ) : null}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right min-w-[100px]">
+                    <p className="text-sm font-bold text-slate-100">
+                      <Money amount={e.amount} currency={e.currency} />
+                      {e.currency !== undefined && e.exchangeRate !== 1 ? (
+                        <span className="ml-1 text-[10px] font-normal text-slate-500">
+                          ≈ <Money amount={e.amountGroup} currency={groupCurrency} />
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      {e.shares ? (
+                        <span className="text-indigo-300">reparto personalizado</span>
+                      ) : (
+                        <>cada uno {e.share.toFixed(2)}</>
+                      )}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-right min-w-[100px]">
-                  <p className="text-sm font-bold text-slate-100">
-                    <Money amount={e.amount} currency={e.currency} />
-                    {e.currency !== undefined && e.exchangeRate !== 1 ? (
-                      <span className="ml-1 text-[10px] font-normal text-slate-500">
-                        ≈ <Money amount={e.amountGroup} currency={groupCurrency} />
-                      </span>
-                    ) : null}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-slate-500">
-                    {e.shares ? (
-                      <span className="text-indigo-300">reparto personalizado</span>
-                    ) : (
-                      <>cada uno {e.share.toFixed(2)}</>
+                <div className="mt-3 flex items-center justify-between">
+                  <p className="text-[11px] text-slate-500 truncate">
+                    {e.participants.map(memberName).join(", ")}
+                    {e.editable ? null : (
+                      <span className="ml-2 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-amber-400">bloqueado</span>
                     )}
                   </p>
+                  <div className="flex gap-1">
+                    <button
+                      title="Editar"
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        onEdit(e);
+                      }}
+                      className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-slate-200"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
+                      </svg>
+                    </button>
+                    <button
+                      title="Eliminar"
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        onDelete(e);
+                      }}
+                      className="rounded-lg p-1.5 text-slate-500 transition hover:bg-rose-500/10 hover:text-rose-400"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div className="mt-3 flex items-center justify-between">
-                <p className="text-[11px] text-slate-500 truncate">
-                  {e.participants.map(memberName).join(", ")}
-                  {e.editable ? null : (
-                    <span className="ml-2 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-amber-400">bloqueado</span>
-                  )}
-                </p>
-                <div className="flex gap-1">
-                  <button
-                    title="Editar"
-                    onClick={(ev) => {
-                      ev.stopPropagation();
-                      onEdit(e);
-                    }}
-                    className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-800 hover:text-slate-200"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
-                    </svg>
-                  </button>
-                  <button
-                    title="Eliminar"
-                    onClick={(ev) => {
-                      ev.stopPropagation();
-                      onDelete(e);
-                    }}
-                    className="rounded-lg p-1.5 text-slate-500 transition hover:bg-rose-500/10 hover:text-rose-400"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

@@ -559,30 +559,6 @@ export default function GroupPage() {
       ) : null}
 
       <main className="mx-auto max-w-2xl px-4 pt-5 pb-32">
-        <div className="mb-5 rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-900/50 p-5">
-          <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Tu balance</p>
-          <p className={`mt-1 text-3xl font-extrabold ${balanceColor}`}>
-            <Money amount={myBalance} currency={group.currency} />
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            {positive ? (
-              <span className="rounded-lg bg-emerald-500/10 px-2.5 py-1 font-semibold text-emerald-400">
-                Te deben <Money amount={myBalance} currency={group.currency} />
-              </span>
-            ) : null}
-            {negative ? (
-              <span className="rounded-lg bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-400">
-                Debes <Money amount={myBalance} currency={group.currency} />
-              </span>
-            ) : null}
-            {!positive && !negative ? (
-              <span className="rounded-lg bg-emerald-500/10 px-2.5 py-1 font-semibold text-emerald-400">
-                Al día
-              </span>
-            ) : null}
-          </div>
-        </div>
-
         <Tabs
           tabs={[
             { key: "expenses", label: "Gastos" },
@@ -626,6 +602,8 @@ export default function GroupPage() {
                 q: debouncedQ,
               } })}
               members={detail.members}
+              myBalance={myBalance}
+              onSettle={() => setTab("balances")}
             />
           ) : null}
           {tab === "balances" ? (

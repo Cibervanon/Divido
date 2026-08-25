@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Banknote, CalendarClock, Check, Receipt, Settings, Zap } from "lucide-react";
 import { Spinner } from "./ui";
+import { createPortal } from "react-dom";
 import type { AppNotification } from "../lib/types";
 
 const TYPE_ICONS = {
@@ -61,7 +62,7 @@ export function NotificationDrawer({
 
   if (!open) return null;
 
-  return (
+  const content = (
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="absolute inset-0 touch-manipulation bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 flex max-h-[85vh] w-full max-w-lg touch-manipulation flex-col overflow-hidden rounded-t-2xl border border-slate-800 bg-slate-900 shadow-2xl sm:rounded-2xl">
@@ -161,4 +162,5 @@ export function NotificationDrawer({
       </div>
     </div>
   );
+  return createPortal(content, document.body);
 }

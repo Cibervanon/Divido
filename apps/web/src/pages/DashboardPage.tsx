@@ -618,10 +618,10 @@ function GroupCard({
       to={`/groups/${group.id}`}
       className={`group flex items-center gap-4 rounded-2xl border p-4 transition active:scale-[0.99] ${
         negative
-          ? "border-rose-500/40 bg-rose-950/40 hover:border-rose-500/60 hover:bg-rose-950/60"
+          ? "border-rose-500/40 bg-rose-950/40 hover:bg-rose-950/60"
           : pinned
-            ? "border-indigo-500/50 bg-indigo-950/30 hover:border-indigo-500/70 hover:bg-indigo-950/50"
-            : "border-slate-800/60 bg-slate-900 hover:border-slate-700 hover:bg-slate-800/60"
+          ? "border-indigo-500/50 bg-indigo-950/30 hover:bg-indigo-950/50"
+          : "border-slate-800/60 bg-slate-900 hover:bg-slate-800/80"
       }`}
     >
       <SmartImage
