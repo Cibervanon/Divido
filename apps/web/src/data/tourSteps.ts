@@ -1,105 +1,136 @@
+/**
+ * Tour Steps Definition
+ * 7 Steps aligned with the reference specification
+ */
 import type { TourStep } from "../hooks/useGuidedTour";
 
-// 6 pasos alineados con la referencia
-export const tourSteps: TourStep[] = [
-  // 1. Dashboard - Groups → Highlights anchored groups, explains balance colors
+export const TOUR_STEPS: TourStep[] = [
   {
     id: "dashboard-groups",
+    title: "Bienvenido a Divido",
+    content: `
+      <p>Bienvenido a <strong>Divido</strong>, la app para gestionar gastos en grupo y liquidar deudas sin fricción.</p>
+      <p>Desde aquí verás todos tus grupos y tu balance neto en cada uno.</p>
+    `,
     target: ".group:first-of-type",
-    title: "🏠 Tus grupos",
-    content: "Aquí ves todos tus grupos. Los <strong>anclados (📌)</strong> están arriba. <strong style='color:#3fb950'>Verde = te deben</strong>, <strong style='color:#f85149'>Rojo = debes</strong>. El neto total está en la tarjeta superior.",
-    position: "right",
-    skipIf: () => {
-      const cards = document.querySelectorAll(".group");
-      return cards.length === 0;
-    },
+    position: "bottom",
+    when: "hasGroups",
   },
-
-  // 2. Create Group → FAB button walkthrough (only shows if no groups exist)
   {
     id: "create-group",
+    title: "Crea tu primer grupo",
+    content: `
+      <p>Pulsa el botón <strong>+</strong> para crear tu primer grupo.</p>
+      <p>Elige nombre, moneda y tipo (abierto/cerrado).</p>
+    `,
     target: "[data-tour='create-group']",
-    title: "➕ Crear tu primer grupo",
-    content: "Pulsa el botón <strong>+</strong> para crear un grupo. Elige nombre, <strong>moneda</strong> (no se puede cambiar después) y tipo: <strong>Abierto</strong> (todos invitan) o <strong>Cerrado</strong> (solo admins).",
     position: "top",
-    skipIf: () => {
-      const cards = document.querySelectorAll(".group");
-      if (cards.length > 0) return true; // Solo si NO hay grupos
-      const btn = document.querySelector("[data-tour='create-group']");
-      return !btn;
-    },
+    when: "noGroups",
   },
-
-  // 3. Add Expense → FAB in group, explains fields & split types
   {
     id: "add-expense",
+    title: "Añade tu primer gasto",
+    content: `
+      <p>Dentro de un grupo, pulsa <strong>+ Gasto</strong> para registrar un gasto.</p>
+      <ul>
+        <li><strong>Quién pagó</strong>: tú u otro miembro</li>
+        <li><strong>Cuánto</strong>: importe y moneda</li>
+        <li><strong>Reparto</strong>: equitativo, porcentajes o importes exactos</li>
+        <li><strong>Categoría</strong>: se detecta automáticamente o elige manual</li>
+      </ul>
+    `,
     target: "[data-tour='add-expense']",
-    title: "🧾 Añadir un gasto",
-    content: "En el grupo, pulsa <strong>Nuevo gasto</strong> (FAB). Rellena: descripción, importe, <strong>quién pagó</strong> y elige cómo repartir: <strong>Iguales</strong>, <strong>%</strong>, <strong>€</strong> o <strong>Bote</strong>. Puedes adjuntar foto del tique.",
     position: "top",
-    skipIf: () => {
-      if (!window.location.pathname.includes("/groups/")) return true;
-      const btn = document.querySelector("[data-tour='add-expense']");
-      return !btn;
-    },
   },
-
-  // 4. Split Modes → Chips for Equal/Percent/Amount with explanations
   {
     id: "split-modes",
+    title: "Repartos flexibles",
+    content: `
+      <p>Divido ofrece <strong>3 modos de reparto</strong> para adaptarse a cualquier situación:</p>
+      <ul>
+        <li><strong>Iguales</strong>: todos pagan lo mismo (por defecto)</li>
+        <li><strong>Porcentajes</strong>: cada uno paga un % (ej. 60/40)</li>
+        <li><strong>Importes exactos</strong>: cada uno paga lo que debe exactamente</li>
+      </ul>
+      <p>El pagador <strong>no se reparte a sí mismo</strong> (solo los demás le deben).</p>
+    `,
     target: "[data-tour='split-modes']",
-    title: "⚖️ Modos de reparto",
-    content: "Al crear gasto, elige el reparto:\n• <strong>Iguales</strong> → a partes iguales\n• <strong>%</strong> → porcentajes (ej. 60/40)\n• <strong>€</strong> → importes exactos por persona\n• <strong>Bote</strong> → se paga desde el bote común\n\nPuedes combinar: algunos en iguales, otros personalizados.",
-    position: "right",
-    skipIf: () => {
-      if (!window.location.pathname.includes("/groups/")) return true;
-      const chips = document.querySelector("[data-tour='split-modes']");
-      return !chips;
-    },
+    position: "bottom",
   },
-
-  // 5. Balances Tab → Shows debt colors & simplification explanation
   {
     id: "balances-tab",
+    title: "Saldos y liquidación óptima",
+    content: `
+      <p>En la pestaña <strong>Saldos</strong> verás:</p>
+      <ul>
+        <li><strong>Verde</strong>: te deben dinero</li>
+        <li><strong>Rojo</strong>: debes dinero</li>
+        <li><strong>Gris</strong>: al día</li>
+      </ul>
+      <p>Divido calcula la <strong>liquidación óptima</strong> (mínimo de transferencias) para que paguéis lo justo.</    `,
     target: "[data-tour='balances-tab']",
-    title: "💰 Saldos y simplificación",
-    content: "Pestaña <strong>Saldos</strong> → ves <strong>quién debe a quién</strong>. <span style='color:#3fb950'>Verde</span> = te deben, <span style='color:#f85149'>Rojo</span> = debes. La <strong>Simplificación</strong> reduce pagos al mínimo (máx. n−1 transferencias). Pulsa <strong>Ver desglose</strong> para ver pagos exactos.",
     position: "left",
-    skipIf: () => {
-      if (!window.location.pathname.includes("/groups/")) return true;
-      const tab = document.querySelector("[data-tour='balances-tab']");
-      return !tab;
-    },
   },
-
-  // 6. Help → Before PWA install CTA
   {
     id: "help-section",
+    title: "Ayuda y tutorial interactivo",
+    content: `
+      <p>En cualquier momento, pulsa el icono <strong>❓</strong> en la cabecera para abrir esta ayuda interactiva.</p>
+      <p>También puedes pulsar <kbd>?</kbd> en cualquier momento para volver a ver este tutorial.</p>
+    `,
     target: "[data-tour='help-button']",
-    title: "❓ Ayuda y Soporte",
-    content: "¿Tienes dudas? Pulsa el icono <strong>❓</strong> en la cabecera para acceder a:\n• <strong>Temas</strong> guías paso a paso\n• <strong>Atajos</strong> de teclado\n• <strong>Iconos</strong> y su significado\n• <strong>Categorías</strong> de gasto con palabras clave\n• <strong>FAQ</strong> preguntas frecuentes\n\nBusca con <strong>?</strong> o <strong>Ctrl+K</strong>.",
     position: "bottom",
-    skipIf: () => {
-      const btn = document.querySelector("[data-tour='help-button']");
-      return !btn;
-    },
   },
-
-  // 7. PWA Install → Only shows if not installed & not dismissed
   {
     id: "pwa-install",
+    title: "Instala Divido como app nativa",
+    content: `
+      <p>Divido es una <strong>PWA</strong>: puedes instalarla como app nativa en tu móvil u ordenador.</      <ul>
+        <li><strong>Android/Chrome</strong>: Menú ▸ «Instalar Divido»</li>
+        <li><strong>iOS/Safari</strong>: Compartir ▸ «Añadir a pantalla de inicio»</li>
+        <li><strong>Escritorio</strong>: Icono ▸ «Instalar Divido»</li>
+      </ul>
+      <p>Funciona <strong>offline</strong> y recibe notificaciones push.</p>
+    `,
     target: "body",
-    title: "📱 Instala Divido como app nativa",
-    content: "Funciona <strong>offline</strong>, recibe <strong>push nativas</strong> y tiene icono en pantalla de inicio.\n\n<strong>iOS:</strong> Safari → <strong>Compartir → Añadir a pantalla de inicio</strong>\n<strong>Android / Escritorio:</strong> botón <strong>Instalar</strong> en barra de direcciones o menú ⋮\n\n¿Ya lo sabes todo? ¡Instala y llévalo a todas partes!",
-    position: "bottom",
-    skipIf: () => {
-      const isPWA = window.matchMedia("(display-mode: standalone)").matches;
-      const dismissed = localStorage.getItem("pwa_dismissed") === "true";
-      return isPWA || dismissed;
-    },
+    position: "center",
+    when: "notPWA",
   },
 ];
 
-export function getActiveSteps(): TourStep[] {
-  return tourSteps.filter((step) => !step.skipIf || !step.skipIf());
+// Conditional step getters
+export function getActiveSteps(context: { hasGroups: boolean; isPWA: boolean; inGroup: boolean; hasGroups: boolean }): typeof TOUR_STEPS {
+  const steps = [...TOUR_STEPS];
+
+  // Filter based on context
+  return steps.filter(step => {
+    if (!step.when) return true;
+    
+    switch (step.when) {
+      case "hasGroups":
+        return context.hasGroups;
+      case "noGroups":
+        return !context.hasGroups;
+      case "inGroup":
+        return context.inGroup;
+      case "notPWA":
+        return !context.isPWA;
+      default:
+        return true;
+    }
+  }
 }
+
+// Tour configuration
+export const TOUR_CONFIG = {
+  storageKey: "divido.tour_completed",
+  firstVisitKey: "divido.tour_first_visit",
+  autoStartDelay: 1000,
+  keyboardShortcuts: {
+    next: "ArrowRight",
+    previous: "ArrowLeft",
+    skip: "Escape",
+    open: "KeyT",
+    help: "Question",
+  },
+};

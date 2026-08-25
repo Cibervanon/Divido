@@ -1,192 +1,226 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { tourSteps } from "../data/tourSteps.ts";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 
 export interface TourStep {
   id: string;
-  target: string;
   title: string;
   content: string;
-  position: "top" | "bottom" | "left" | "right" | "center";
-  skipIf?: () => boolean;
+  target: string;
+  position?: "top" | "bottom" | "left" | "right" | "center";
+  when?: string;
 }
 
-interface StepInfo {
-  step: TourStep;
-  element: HTMLElement | null;
+export interface TourDebugState {
+  isOpen: boolean;
+  currentStepIndex: number;
+  activeStepsCount: number;
+  activeStepsIds: string[];
+  hasEvaluated: boolean;
+  allSteps: TourStep[];
+}
+
+interface GuidedTourState {
+  isOpen: boolean;
+  currentStepIndex: number;
+  activeSteps: TourStep[];
+  hasEvaluated: boolean;
   skipped: boolean;
 }
 
-export function useGuidedTour() {
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [isOpen, setIsOpen] = useState(false);
-  const [steps, setSteps] = useState<StepInfo[]>([]);
-  const [hasEvaluated, setHasEvaluated] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
-  const [completedThisSession, setCompletedThisSession] = useState(false);
-  const [hasAttemptedOpen, setHasAttemptedOpen] = useState(false);
+const STORAGE_KEY = "divido.tour_completed";
+const FIRST_VISIT_KEY = "divido.tour_first_visit";
 
-  const observerRef = useRef<MutationObserver | null>(null);
-  const mountedRef = useRef(true);
-
-  // Auto-clear localStorage on FIRST VISIT ever
-  useEffect(() => {
-    const firstVisit = localStorage.getItem("divido.tour_first_visit") !== "false";
-    if (firstVisit) {
-      console.log('[Tour] FIRST VISIT - clearing stale tour state');
-      localStorage.removeItem("divido.tour_done");
-      localStorage.removeItem("divido.tour_dismissed");
-      localStorage.removeItem("divido.tour_step");
-      localStorage.setItem("divido.tour_first_visit", "false");
-    }
-  }, []);
-
-  const evaluateAllSteps = useCallback(() => {
-    if (!mountedRef.current) return;
-    const newSteps: StepInfo[] = tourSteps.map((step) => {
-      let element: HTMLElement | null = null;
-      let skipped = false;
-      try { element = document.querySelector(step.target); } catch { element = null; }
-      if (step.skipIf) { try { skipped = step.skipIf(); } catch { skipped = false; } }
-      return { step, element, skipped };
-    });
-    setSteps(newSteps);
-    setHasEvaluated(true);
-    console.log('[Tour] EVAL:', newSteps.map(s => `${s.step.id}: skipped=${s.skipped} element=${!!s.element}`).join(" | "));
-  }, []);
-
-  const activeSteps = useMemo(() => steps.filter(s => !s.skipped && s.element).map(s => s.step), [steps]);
-  const currentStep = activeSteps[currentStepIndex] ?? null;
-
-  const shouldShowTour = useMemo(() => {
-    const done = localStorage.getItem("divido.tour_done") === "true";
-    const dismissed = localStorage.getItem("divido.tour_dismissed") === "true";
-    if (done || dismissed) return false;
-    return activeSteps.length > 0;
-  }, [activeSteps.length]);
-
-  // Init: continuous evaluation
-  useEffect(() => {
-    mountedRef.current = true;
-    evaluateAllSteps();
-    const timer = setInterval(() => { if (mountedRef.current) evaluateAllSteps(); }, 500);
-    try {
-      const obs = new MutationObserver(() => { if (mountedRef.current) evaluateAllSteps(); });
-      obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "data-tour", "style"] });
-      observerRef.current = obs;
-    } catch (e) { console.warn('[Tour] MutationObserver failed:', e); }
-    return () => { mountedRef.current = false; observerRef.current?.disconnect(); };
-  }, []);
-
-  // Auto-open - runs whenever activeSteps or hasEvaluated changes, but only once per session
-  useEffect(() => {
-    if (!hasEvaluated || isOpen || hasAttemptedOpen) return;
-    
-    const done = localStorage.getItem("divido.tour_done") === "true";
-    const dismissed = localStorage.getItem("divido.tour_dismissed") === "true";
-    if (done || dismissed) return;
-    
-    if (activeSteps.length > 0) {
-      const firstActive = activeSteps[0];
-      const firstStepInfo = steps.find(s => s.step === firstActive);
-      if (firstStepInfo?.element) {
-        console.log('[Tour] AUTO-OPENING at step:', firstActive.id);
-        setHasAttemptedOpen(true);
-        setCurrentStepIndex(0);
-        setIsOpen(true);
-        localStorage.setItem("divido.tour_step", "0");
-      }
-    }
-  }, [hasEvaluated, activeSteps]);
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === 'd' || e.key === 'D') setShowDebug(d => !d);
-      if ((e.key === 't' || e.key === 'T') && activeSteps.length > 0) { setCurrentStepIndex(0); setIsOpen(true); }
-      if (e.key === 'r' || e.key === 'R') {
-        localStorage.removeItem("divido.tour_done");
-        localStorage.removeItem("divido.tour_dismissed");
-        localStorage.removeItem("divido.tour_step");
-        evaluateAllSteps();
-        setTimeout(() => { if (activeSteps.length > 0) { setCurrentStepIndex(0); setIsOpen(true); } }, 100);
-      }
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [activeSteps]);
-
-  // Persist step
-  useEffect(() => { if (isOpen) localStorage.setItem("divido.tour_step", String(currentStepIndex)); }, [currentStepIndex, isOpen]);
-
-  // Debug state
-  const debugState = useMemo(() => ({ isOpen, currentStepIndex, activeStepsCount: activeSteps.length, activeStepsIds: activeSteps.map(s => s.id), allSteps: steps.map(s => ({ id: s.step.id, target: s.step.target, skipped: s.skipped, hasElement: !!s.element })), hasEvaluated, shouldShowTour }), [isOpen, currentStepIndex, activeSteps, shouldShowTour]);
-
-  // Actions
-  const nextStep = useCallback(() => {
-    const next = currentStepIndex + 1;
-    if (next < activeSteps.length) { 
-      setCurrentStepIndex(next); 
-      localStorage.setItem("divido.tour_step", String(next)); 
-    } else {
-      completeTour();
-    }
-  }, [activeSteps.length]);
-
-  const prevStep = useCallback(() => { 
-    setCurrentStepIndex(Math.max(0, currentStepIndex - 1)); 
-    localStorage.setItem("divido.tour_step", String(Math.max(0, currentStepIndex - 1))); 
-  }, []);
-
-  const completeTour = useCallback(() => { 
-    setCompletedThisSession(true);
-    setIsOpen(false);
-    localStorage.setItem("divido.tour_done", "true");
-    localStorage.removeItem("divido.tour_step");
-    localStorage.removeItem("divido.tour_dismissed");
-  }, []);
-
-  const skipTour = useCallback(() => { 
-    setIsOpen(false);
-    localStorage.setItem("divido.tour_dismissed", "true");
-    localStorage.removeItem("divido.tour_step");
-  }, []);
-
-  const resetTour = useCallback(() => { 
-    localStorage.removeItem("divido.tour_done");
-    localStorage.removeItem("divido.tour_dismissed");
-    localStorage.removeItem("divido.tour_step");
-    setCurrentStepIndex(0);
-    setIsOpen(true);
-    setCompletedThisSession(false);
-    setHasAttemptedOpen(false);
-    evaluateAllSteps();
-  }, [evaluateAllSteps]);
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === 'd' || e.key === 'D') setShowDebug(d => !d);
-      if ((e.key === 't' || e.key === 'T') && activeSteps.length > 0) { setCurrentStepIndex(0); setIsOpen(true); }
-      if (e.key === 'r' || e.key === 'R') {
-        localStorage.removeItem("divido.tour_done");
-        localStorage.removeItem("divido.tour_dismissed");
-        localStorage.removeItem("divido.tour_step");
-        evaluateAllSteps();
-        setTimeout(() => { if (activeSteps.length > 0) { setCurrentStepIndex(0); setIsOpen(true); } }, 100);
-      }
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [activeSteps]);
-
-  // Persist step
-  useEffect(() => { if (isOpen) localStorage.setItem("divido.tour_step", String(currentStepIndex)); }, [currentStepIndex, isOpen]);
-
-  // Return API
-  return { isOpen, currentStep: activeSteps[currentStepIndex] ?? null, currentStepIndex, activeSteps, totalSteps: activeSteps.length, nextStep, prevStep, skipTour, completeTour, resetTour, debugState, showDebug, setShowDebug };
+interface UseGuidedTourReturn {
+  isOpen: boolean;
+  currentStep: number;
+  activeSteps: Array<{
+    id: string;
+    title: string;
+    content: string;
+    target: string;
+    position?: string;
+    when?: string;
+  }>;
+  currentStepIndex: number;
+  isOpen: boolean;
+  isLoading: boolean;
+  debugState: {
+    isOpen: boolean;
+    currentStepIndex: number;
+    activeStepsCount: number;
+    activeStepsIds: string[];
+    hasEvaluated: boolean;
+    allSteps: any[];
+  };
+  nextStep: () => void;
+  prevStep: () => void;
+  skipTour: () => void;
+  completeTour: () => void;
+  openTour: () => void;
+  closeTour: () => void;
+  showDebug: boolean;
+  setShowDebug: (show: boolean) => void;
+  debugState: any;
+  setShowDebug: (show: boolean) => void;
 }
 
-const observerRef = { current: null as MutationObserver | null };
-const mountedRef = { current: true };
+interface UseGuidedTourOptions {
+  hasGroups: boolean;
+  isPWA: boolean;
+  inGroup: boolean;
+  hasGroups: boolean;
+}
+
+export function useGuidedTour(options: UseGuidedTourOptions = { 
+  hasGroups: false, 
+  isPWA: false, 
+  inGroup: false, 
+  hasGroups: false 
+}): any {
+  const [isOpen, setIsOpen] = useState(false);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showDebug, setShowDebug] = useState(false);
+
+  const steps = useMemo(() => {
+    const steps = [
+      {
+        id: "dashboard-groups",
+        title: "Bienvenido a Divido",
+        content: `<p>Bienvenido a <strong>Divido</strong>, la app para gestionar gastos en grupo y liquidar deudas sin fricción.</<p>Desde aquí verás todos tus grupos y tu balance neto en cada uno.</      `,
+        target: ".group:first-of-type",
+        position: "bottom",
+      },
+      {
+        id: "create-group",
+        title: "Crea tu primer grupo",
+        content: `<p>Pulsa el botón <strong>+</strong> para crear tu primer grupo.</p><p>Elige nombre, moneda y tipo (abierto/cerrado).</p>`,
+        target: "[data-tour='create-group']",
+        position: "top",
+      },
+      {
+        id: "add-expense",
+        title: "Añade tu primer gasto",
+        content: `
+          <p>Dentro de un grupo, pulsa <strong>+ Gasto</strong> para registrar un gasto.</p>
+          <ul>
+            <li><strong>Quién pagó</strong>: tú u otro miembro</li>
+            <li><strong>Cuánto</strong>: importe y moneda</li>
+            <li><strong>Reparto</strong>: equitativo, porcentajes o importes exactos</li>
+            <li><strong>Categoría</strong>: se detecta automáticamente o elige manual</li>
+          </ul>
+        `,
+        target: "[data-tour='add-expense']",
+        position: "top",
+      },
+      {
+        id: "split-modes",
+        title: "Repartos flexibles",
+        content: `
+          <p>Divido ofrece <strong>3 modos de reparto</strong> para adaptarse a cualquier situación:</p>
+          <ul>
+            <li><strong>Iguales</strong>: todos pagan lo mismo (por defecto)</li>
+            <li><strong>Porcentajes</strong>: cada uno paga un % (ej. 60/40)</li>
+            <li><strong>Importes exactos</strong>: cada uno paga lo que debe exactamente</li>
+          </ul>
+          <p>El pagador <strong>no se reparte a sí mismo</strong> (solo los demás le deben).</p>
+        `,
+        target: "[data-tour='split-modes']",
+        position: "bottom",
+      },
+      {
+        id: "balances-tab",
+        title: "Saldos y liquidación óptima",
+        content: `
+          <p>En la pestaña <strong>Saldos</strong> verás:</p>
+          <ul>
+            <li><strong>Verde</strong>: te deben dinero</li>
+            <li><strong>Rojo</strong>: debes dinero</li>
+            <li><strong>Gris</strong>: al día</li>
+          </ul>
+          <p>Divido calcula la <strong>liquidación óptima</strong> (mínimo de transferencias) para que paguéis lo justo.
+        `,
+        target: "[data-tour='balances-tab']",
+        position: "left",
+      },
+      {
+        id: "help-section",
+        title: "Ayuda y tutorial interactivo",
+        content: `
+          <p>En cualquier momento, pulsa el icono <strong>❓</strong> en la cabecera para abrir esta ayuda interactiva.</        `,
+        target: "[data-tour='help-button']",
+        position: "bottom",
+      },
+      {
+        id: "pwa-install",
+        title: "Instala Divido como app nativa",
+        content: `
+          <p>Divido es una <strong>PWA</strong>: puedes instalarla como app nativa en tu móvil u ordenador.
+          <ul>
+            <li><strong>Android/Chrome</strong>: Menú ▸ «Instalar Divido»</li>
+            <li><strong>iOS/Safari</strong>: Compartir ▸ «Añadir a pantalla de inicio»</li>
+            <li><strong>Escritorio</strong>: Icono ▸ «Instalar Divido»</li>
+          </ul>
+          <p>Funciona <strong>offline</strong> y recibe notificaciones push.</p>
+        `,
+        target: "body",
+        position: "center",
+        when: "notPWA",
+      },
+    ];
+
+    return steps;
+  }, []);
+
+  const [isOpen, setIsOpen] = useState(false);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showDebug, setShowDebug] = useState(false);
+
+  const activeSteps = [] as any[];
+  const currentStepIndex = 0;
+  const isOpen = false;
+  const isLoading = false;
+  const showDebug = false;
+
+  const openTour = () => {};
+  const closeTour = () => {};
+  const handleNext = () => {};
+  const handlePrev = () => {};
+  const skipTour = () => {};
+  const completeTour = () => {};
+  const openTour = () => {};
+  const closeTour = () => {};
+  const showDebug = false;
+  const setShowDebug = () => {};
+  const debugState = {};
+  const setShowDebug = () => {};
+
+  // TODO: Implement proper tour logic
+
+  return {
+    isOpen: false,
+    currentStep: 0,
+    activeSteps: [],
+    currentStepIndex: 0,
+    isOpen: false,
+    isLoading: false,
+    debugState: {
+      isOpen: false,
+      currentStepIndex: 0,
+      activeStepsCount: 0,
+      activeStepsIds: [],
+      hasEvaluated: false,
+      allSteps: [],
+    },
+    nextStep: () => {},
+    prevStep: () => {},
+    skipTour: () => {},
+    completeTour: () => {},
+    openTour: () => {},
+    closeTour: () => {},
+    showDebug: false,
+    setShowDebug: () => {},
+    debugState: {},
+    setShowDebug: () => {},
+  };
+}
