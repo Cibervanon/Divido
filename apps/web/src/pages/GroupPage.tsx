@@ -626,6 +626,7 @@ export default function GroupPage() {
                 to: filters.to,
                 q: debouncedQ,
               } })}
+              members={detail.members}
             />
           ) : null}
           {tab === "balances" ? (
@@ -658,6 +659,7 @@ export default function GroupPage() {
               onViewProof={(url) => setViewProof(url)}
               onOpenExpense={(expenseId) => setEditTarget(expenses.find((e) => e.id === expenseId) ?? null)}
               onAdd={openAddExpense}
+              members={detail.members}
             />
           ) : null}
           {tab === "debts" && hasDebts ? (
@@ -749,6 +751,7 @@ export default function GroupPage() {
         members={detail.members}
         me={user.id}
         onCreated={handleExpenseCreated}
+        prefill={null}
       />
 
       {editTarget ? (

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { api, ApiError } from "../../lib/api";
 import { Button, ConfirmPaymentButton, EmptyState, Money } from "../../components/ui";
-import type { HistoryEvent } from "../../lib/types";
+import type { HistoryEvent, MemberInfo } from "../../lib/types";
 import { downloadText, fmtDate } from "./utils";
 // ---------- Historial ----------
 
@@ -84,6 +84,7 @@ export function HistoryTab({
   hasMore,
   loadingMore,
   onLoadMore,
+  members,
 }: {
   events: HistoryEvent[];
   audit: any[];
@@ -98,6 +99,7 @@ export function HistoryTab({
   hasMore?: boolean;
   loadingMore?: boolean;
   onLoadMore?: () => void;
+  members?: MemberInfo[];
 }) {
   const [deciding, setDeciding] = useState(false);
 
