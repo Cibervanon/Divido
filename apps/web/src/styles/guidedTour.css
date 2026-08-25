@@ -12,15 +12,17 @@
 
 .spotlight-overlay {
   position: fixed;
-  inset: 0;
-  background: rgba(13, 17, 23, 0.85);
-  clip-path: inset(0);
-  transition: clip-path 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: var(--spotlight-radius, 10px);
+  box-shadow: 0 0 0 9999px rgba(13, 17, 23, 0.85);
+  transition: top 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              left 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              width 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              height 300ms cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
+  opacity: 0;
 }
-
 .spotlight-overlay.has-target {
-  clip-path: inset(var(--spotlight-top) var(--spotlight-right) var(--spotlight-bottom) var(--spotlight-left) round var(--spotlight-radius));
+  opacity: 1;
 }
 
 /* ============================================================
