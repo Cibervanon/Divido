@@ -121,17 +121,6 @@ export function GuidedTourTooltip({
     });
   }, [targetRect, step.position]);
 
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") onNext();
-      else if (e.key === "ArrowLeft") onPrev();
-      else if (e.key === "Escape") onClose();
-    };
-
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [onNext, onPrev, onClose]);
-
   const progress = ((currentIndex + 1) / totalSteps) * 100;
 
   return (

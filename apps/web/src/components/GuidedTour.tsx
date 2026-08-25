@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useContext } from "react";
+import { createPortal } from "react-dom";
 import { useGuidedTourContext } from "./GuidedTourPortal";
 import { SpotlightOverlay } from "./SpotlightOverlay";
 import { GuidedTourTooltip } from "./GuidedTourTooltip";
@@ -24,6 +25,11 @@ export function GuidedTour() {
 
   // Find target element for current step
   useEffect(() => {
+    // Clean up previous target
+    if (targetRef.current) {
+      targetRef.current.classList.remove("guided-tour-target");
+    }
+
     if (!currentStep) {
       setTargetRect(null);
       targetRef.current = null;
@@ -34,12 +40,17 @@ export function GuidedTour() {
     targetRef.current = el;
 
     if (el) {
+      el.classList.add("guided-tour-target");
       console.log('[Tour] Found target for step', currentStep.id, ':', currentStep.target, el);
       setTargetRect(el.getBoundingClientRect());
     } else {
       console.warn('[Tour] Target NOT found for step', currentStep.id, ':', currentStep.target);
       setTargetRect(null);
     }
+
+    return () => {
+      if (el) el.classList.remove("guided-tour-target");
+    };
   }, [currentStep]);
 
   // Update rect on scroll/resize
@@ -181,7 +192,7 @@ export function GuidedTour() {
 
   console.log('[Tour] Rendering step:', currentStep.id, 'targetRect:', targetRect);
 
-  return (
+  const content = (
     <>
       {debugPanel}
       <div className="guided-tour-portal" role="dialog" aria-modal="true" aria-label="Tutorial guiado">
@@ -202,7 +213,17 @@ export function GuidedTour() {
           totalSteps={activeSteps.length}
           onClose={handleClose}
         />
+
+        {/* Skip banner at bottom */}
+        <div className="guided-tour-skip-banner">
+          <span>¿Quieres saltar el tutorial?</span>
+          <button className="guided-tour-btn guided-tour-btn-ghost" onClick={handleSkip}>
+            Saltar
+          </button>
+        </div>
       </div>
     </>
   );
+
+  return createPortal(content, document.body);
 }

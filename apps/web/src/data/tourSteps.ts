@@ -67,7 +67,8 @@ export const TOUR_STEPS: TourStep[] = [
         <li><strong>Rojo</strong>: debes dinero</li>
         <li><strong>Gris</strong>: al día</li>
       </ul>
-      <p>Divido calcula la <strong>liquidación óptima</strong> (mínimo de transferencias) para que paguéis lo justo.</      `,
+      <p>Divido calcula la <strong>liquidación óptima</strong> (mínimo de transferencias) para que paguéis lo justo.</p>
+    `,
     target: "[data-tour='balances-tab']",
     position: "left",
   },

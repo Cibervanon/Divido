@@ -272,8 +272,8 @@
 
 /* Skip tour banner */
 .guided-tour-skip-banner {
-  position: fixed;
-  bottom: 100px;
+  position: absolute;
+  bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 9998;
@@ -344,14 +344,6 @@
     top: auto !important;
     bottom: 90px !important;
     border-radius: 20px 20px 16px 16px;
-  }
-
-  .guided-tour-tooltip::before {
-    display: none !important;
-  }
-
-  .spotlight-overlay.has-target {
-    clip-path: inset(0) !important;
   }
 
   .guided-tour-skip-banner {
