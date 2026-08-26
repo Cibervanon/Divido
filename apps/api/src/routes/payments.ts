@@ -222,11 +222,7 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
     if (!payment) throw notFound("Pago no encontrado");
     const { member } = await requireActiveMember(request, payment.group_id);
     const editable = payment.from_user_id === user.id || member.role === "admin";
-    const withinWindow = Date.now() - new Date(payment.created_at).getTime() < EDIT_WINDOW_MS;
     if (!editable) throw forbidden("Solo puedes eliminar pagos que hayas marcado");
-    if (!withinWindow && member.role !== "admin") {
-      throw forbidden("Solo puedes eliminar un pago dentro de las primeras 24 horas");
-    }
     if (payment.status !== "pending" && member.role !== "admin") {
       throw forbidden("Solo se pueden cancelar pagos pendientes");
     }

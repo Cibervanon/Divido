@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { api, ApiError } from "../../lib/api";
 import { Button, ConfirmPaymentButton, EmptyState, Money } from "../../components/ui";
+import { Lock } from "lucide-react";
 import type { HistoryEvent, MemberInfo } from "../../lib/types";
 import { downloadText, fmtDate } from "./utils";
 // ---------- Historial ----------
@@ -312,7 +313,7 @@ export function HistoryTab({
                           </button>
                         ) : (
                           <span className="ml-1.5 inline-flex items-center gap-0.5 rounded-md bg-slate-800/50 px-1.5 py-0.5 text-[10px] font-medium text-slate-500" title="Comprobante privado entre emisor y destinatario">
-                            <span className="h-3 w-3">🔒</span>
+                            <Lock className="h-3 w-3" />
                             Comprobante privado
                           </span>
                         )
