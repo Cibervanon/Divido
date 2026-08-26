@@ -30,7 +30,7 @@ export function GuidedTour() {
       targetRef.current.classList.remove("guided-tour-target");
     }
 
-    if (!currentStep) {
+    if (!isOpen || !currentStep) {
       setTargetRect(null);
       targetRef.current = null;
       return;
@@ -51,7 +51,7 @@ export function GuidedTour() {
     return () => {
       if (el) el.classList.remove("guided-tour-target");
     };
-  }, [currentStep]);
+  }, [currentStep, isOpen]);
 
   // Update rect on scroll/resize
   useEffect(() => {
@@ -65,6 +65,13 @@ export function GuidedTour() {
     return () => {
       window.removeEventListener("scroll", updateRect);
       window.removeEventListener("resize", updateRect);
+    };
+  }, []);
+
+  // Defensive cleanup on unmount: remove any leftover guided-tour-target classes
+  useEffect(() => {
+    return () => {
+      document.querySelectorAll(".guided-tour-target").forEach((el) => el.classList.remove("guided-tour-target"));
     };
   }, []);
 
