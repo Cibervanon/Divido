@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../../lib/api";
-import { Button, EmptyState, Input, Money, Select, VerifiedBadge, currencySymbol } from "../../components/ui";
+import { Button, EmptyState, Input, Money, Select, VerifiedBadge } from "../../components/ui";
 import type { ExpenseCommentDto, ExpenseDto, ModificationRequestDto, MemberInfo } from "../../lib/types";
 import { fmtTime, fmtDate } from "./utils";
 import { ExpenseDetailModal } from "../../components/ExpenseDetailModal";
@@ -152,8 +152,6 @@ export function ExpensesTab({
   loadingMore,
   onLoadMore,
   members,
-  myBalance,
-  onSettle,
 }: {
   expenses: ExpenseDto[];
   memberName: (id: string) => string;
@@ -175,8 +173,6 @@ export function ExpensesTab({
   loadingMore?: boolean;
   onLoadMore?: () => void;
   members: MemberInfo[];
-  myBalance: number;
-  onSettle: () => void;
 }) {
   const navigate = useNavigate();
   const pending = requests.filter((r) => r.status === "pending");
@@ -252,68 +248,8 @@ export function ExpensesTab({
     setSelectedExpense(e);
   }
 
-  function formatAmount(amount: number, currency: string): string {
-    const sym = currencySymbol(currency);
-    return `${sym}${amount.toFixed(2).replace(".", ",")}`;
-  }
-
-  // Resumen del grupo
-  const totalExpenses = expenses.filter(e => !e.deleted).length;
-  const totalAmount = expenses.filter(e => !e.deleted).reduce((sum, e) => sum + e.amountGroup, 0);
-  const myExpenses = expenses.filter(e => !e.deleted && e.payerId === myUserId).length;
-  const myTotal = expenses.filter(e => !e.deleted && e.payerId === myUserId).reduce((sum, e) => sum + e.amountGroup, 0);
-
-  const positive = myBalance > 0.004;
-  const negative = myBalance < -0.004;
-  const balanceColor = positive ? "text-emerald-400" : negative ? "text-rose-400" : "text-slate-400";
-
   return (
     <div className="space-y-3">
-      {/* Balance personal + stats en 2 columnas */}
-      <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/50 to-slate-900/30 p-3 space-y-3">
-        {/* Balance personal */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Tu balance</p>
-            <p className={`mt-0.5 text-2xl font-extrabold ${balanceColor}`}>
-              <Money amount={myBalance} currency={groupCurrency} />
-            </p>
-          </div>
-          <Button
-            variant={positive || negative ? "primary" : "ghost"}
-            size="sm"
-            onClick={onSettle}
-            className="whitespace-nowrap"
-          >
-            {positive ? "Te deben" : negative ? "Saldar" : "Saldos"}
-          </Button>
-        </div>
-
-        {/* Stats compactas: 2 columnas siempre */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-xl bg-slate-900/50 p-2.5">
-            <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wide">Gastos</p>
-            <p className="mt-0.5 text-lg font-bold text-slate-100">{totalExpenses}</p>
-          </div>
-          <div className="rounded-xl bg-slate-900/50 p-2.5">
-            <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wide">Total</p>
-            <p className="mt-0.5 text-lg font-bold text-slate-100">
-              <Money amount={totalAmount} currency={groupCurrency} />
-            </p>
-          </div>
-          <div className="rounded-xl bg-slate-900/50 p-2.5">
-            <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wide">Mis gastos</p>
-            <p className="mt-0.5 text-lg font-bold text-slate-100">{myExpenses}</p>
-          </div>
-          <div className="rounded-xl bg-slate-900/50 p-2.5">
-            <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wide">Mi total</p>
-            <p className="mt-0.5 text-lg font-bold text-slate-100">
-              <Money amount={myTotal} currency={groupCurrency} />
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Filtros: botón único compacto */}
       <div className="flex items-center justify-between gap-2">
         <button

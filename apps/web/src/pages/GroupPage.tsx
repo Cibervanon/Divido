@@ -412,10 +412,14 @@ export default function GroupPage() {
   const hasDebts = (detail.group.enabledExtras ?? []).includes("informal_debts");
   const hasPot = (detail.group.enabledExtras ?? []).includes("common_pot");
   const hasRecurring = (detail.group.enabledExtras ?? []).includes("recurring_expenses");
-  const myBalance = g.balances.find((b) => b.isMe)?.net ?? 0;
+  const me = g.balances.find((b) => b.isMe);
+  const myBalance = me?.net ?? 0;
+  const oweToMe = me?.paidForOthers ?? 0;
+  const oweByMe = me?.owesOthers ?? 0;
   const positive = myBalance > 0.004;
   const negative = myBalance < -0.004;
   const balanceColor = positive ? "text-emerald-400" : negative ? "text-rose-400" : "text-slate-400";
+  const settled = !positive && !negative && oweToMe <= 0.004 && oweByMe <= 0.004;
 
   async function copyInvite() {
     if (!g.inviteUrl) return;
@@ -559,6 +563,41 @@ export default function GroupPage() {
       ) : null}
 
       <main className="mx-auto max-w-2xl px-4 pt-5 pb-32">
+        <div className="mb-5 rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-900/50 p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Tu balance</p>
+              <p className={`mt-1 text-3xl font-extrabold ${balanceColor}`}>
+                {negative ? "-" : ""}
+                <Money amount={Math.abs(myBalance)} currency={group.currency} />
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                {oweToMe > 0.004 ? (
+                  <span className="rounded-lg bg-emerald-500/10 px-2.5 py-1 font-semibold text-emerald-400">
+                    Te deben <Money amount={oweToMe} currency={group.currency} />
+                  </span>
+                ) : null}
+                {oweByMe > 0.004 ? (
+                  <span className="rounded-lg bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-400">
+                    Debes <Money amount={oweByMe} currency={group.currency} />
+                  </span>
+                ) : null}
+                {settled ? (
+                  <span className="rounded-lg bg-emerald-500/10 px-2.5 py-1 font-semibold text-emerald-400">Todo saldado</span>
+                ) : null}
+              </div>
+            </div>
+            <Button
+              variant={positive || negative ? "primary" : "ghost"}
+              size="sm"
+              onClick={() => setTab("balances")}
+              className="shrink-0"
+            >
+              {positive ? "Te deben" : negative ? "Saldar" : "Saldos"}
+            </Button>
+          </div>
+        </div>
+
         <Tabs
           tabs={[
             { key: "expenses", label: "Gastos" },
@@ -602,8 +641,6 @@ export default function GroupPage() {
                 q: debouncedQ,
               } })}
               members={detail.members}
-              myBalance={myBalance}
-              onSettle={() => setTab("balances")}
             />
           ) : null}
           {tab === "balances" ? (
