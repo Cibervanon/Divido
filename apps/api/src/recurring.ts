@@ -7,6 +7,9 @@ import {
   type RecurringFrequency,
 } from "./store.js";
 import { createAndPushNotification } from "./push.js";
+import { invalidateBalanceCache } from "./balanceCache.js";
+import { invalidateAllCache } from "./cache.js";
+import { publishGroupEvent } from "./lib/supabase.js";
 import type { Db } from "./db.js";
 
 export function nextRun(fromIso: string, frequency: RecurringFrequency): string {
@@ -74,6 +77,9 @@ export async function processRecurringExpenses(db: Db): Promise<{ created: numbe
         }
       }
       await setRecurringExpenseNextRun(db, rec.id, nextRun(now, rec.frequency));
+      invalidateBalanceCache(rec.groupId);
+      invalidateAllCache("expenses", rec.groupId);
+      publishGroupEvent(rec.groupId, "expense.changed");
       created += 1;
     } catch {
       // Se avanza la fecha para no quedarse en bucle y seguir con el resto.

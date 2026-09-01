@@ -36,7 +36,8 @@ import { badRequest, conflict, forbidden, notFound } from "../errors.js";
 import { requireActiveMember, requireAdmin, requireAuth, requireGroup } from "../plugins.js";
 import { createAndPushNotification } from "../push.js";
 import { getGroupBalances } from "../services.js";
-import { getCachedBalances } from "../balanceCache.js";
+import { getCachedBalances, invalidateBalanceCache } from "../balanceCache.js";
+import { publishGroupEvent } from "../lib/supabase.js";
 import { config } from "../config.js";
 import { createGroupSchema, updateGroupSchema, type CreateGroupInput, type UpdateGroupInput } from "../schemas/index.js";
 import { parseBody } from "../validate.js";
@@ -149,6 +150,8 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
     if (body.simplifyDebts !== undefined) patch.simplifyDebts = body.simplifyDebts;
     if (Object.keys(patch).length === 0) throw badRequest("Sin cambios");
     const group = await updateGroup(request.db, groupId, patch);
+    invalidateBalanceCache(groupId);
+    publishGroupEvent(groupId, "group.changed");
     return { group: await groupDetail(request.db, group, requireAuth(request).id) };
   });
 
@@ -208,6 +211,7 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
       if (targetUser?.is_ghost) throw badRequest("Un miembro sin cuenta no puede ser administrador");
     }
     await setRole(request.db, groupId, userId, role);
+    publishGroupEvent(groupId, "group.changed");
     return { ok: true };
   });
 
@@ -231,6 +235,8 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
       userId: user.id,
       userName: user.name,
     });
+    invalidateBalanceCache(groupId);
+    publishGroupEvent(groupId, "group.changed");
     return {
       member: {
         userId: user.id,
@@ -265,6 +271,8 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
       userId,
       userName: target.name,
     });
+    invalidateBalanceCache(groupId);
+    publishGroupEvent(groupId, "group.changed");
     return { ok: true };
   });
 
@@ -284,6 +292,8 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
       userId: user.id,
       userName: user.name,
     });
+    invalidateBalanceCache(groupId);
+    publishGroupEvent(groupId, "group.changed");
     if (member.role === "admin" && admins.length === 0) {
       const remaining = (await listMembers(request.db, groupId)).filter((m) => m.status === "active");
       if (remaining.length > 0) {
@@ -412,6 +422,7 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
         });
       }
     }
+    publishGroupEvent(groupId, "pique.changed");
     return {
       debt: {
         ...debt,
@@ -440,6 +451,8 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
       throw badRequest("No se puede pasar a ese estado");
     }
     await updateInformalDebtStatus(request.db, debtId, next);
+    invalidateBalanceCache(groupId);
+    publishGroupEvent(groupId, "pique.changed");
     return { ok: true };
   });
 
@@ -477,6 +490,7 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
       amount: Math.round(amountNum * 100) / 100,
       note: cleanNote || null,
     });
+    publishGroupEvent(groupId, "pot.changed");
     return { contribution };
   });
 
@@ -494,6 +508,7 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
       throw forbidden("Solo puedes eliminar tus propias aportaciones");
     }
     await deletePotContribution(request.db, contributionId);
+    publishGroupEvent(groupId, "pot.changed");
     return { ok: true };
   });
 

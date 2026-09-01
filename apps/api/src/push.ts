@@ -80,6 +80,7 @@ export interface NotifyInput {
 const CATEGORY_BY_TYPE: Record<NotificationType, keyof import("./store.js").NotificationPreferences> = {
   EXPENSE_ADDED: "expense",
   PAYMENT_SETTLED: "payment",
+  PAYMENT_PENDING: "payment",
   PIQUE_CREATED: "pique",
   RECURRING_EXPENSE: "recurring",
 };

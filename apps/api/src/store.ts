@@ -660,6 +660,7 @@ export async function listGroupEvents(db: Db, groupId: string): Promise<GroupEve
 export type NotificationType =
   | "EXPENSE_ADDED"
   | "PAYMENT_SETTLED"
+  | "PAYMENT_PENDING"
   | "PIQUE_CREATED"
   | "RECURRING_EXPENSE";
 
@@ -1037,7 +1038,7 @@ export async function getPotLedger(db: Db, groupId: string): Promise<PotLedgerEn
     ...withdrawals.map((w: any) => ({
       id: w.id,
       type: "withdrawal" as const,
-      amount: -Number(w.amount), // negativo = salida
+      amount: Number(w.amount), // ya se almacena negativo = salida
       note: w.note,
       userId: w.user_id,
       userName: w.user_name,
@@ -1420,7 +1421,7 @@ export async function listExpensesFiltered(
   includeDeleted = false,
   opts: { limit?: number; offset?: number } = {}
 ): Promise<ExpenseDetailRow[]> {
-  const conditions = ["e.group_id = ?", "e.deleted = 0"];
+  const conditions = includeDeleted ? ["e.group_id = ?"] : ["e.group_id = ?", "e.deleted = 0"];
   const params: any[] = [groupId];
 
   if (filters.category) {
@@ -1519,8 +1520,7 @@ export async function countExpensesFiltered(
   filters: ExpenseFilters,
   includeDeleted = false
 ): Promise<number> {
-  void includeDeleted;
-  const conditions = ["e.group_id = ?", "e.deleted = 0"];
+  const conditions = includeDeleted ? ["e.group_id = ?"] : ["e.group_id = ?", "e.deleted = 0"];
   const params: any[] = [groupId];
   if (filters.category) {
     conditions.push("e.category = ?");

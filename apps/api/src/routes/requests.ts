@@ -19,6 +19,7 @@ import { badRequest, conflict, forbidden, notFound } from "../errors.js";
 import { requireActiveMember, requireAdmin, requireAuth } from "../plugins.js";
 import { EPS, round2 } from "@divido/shared";
 import { invalidateBalanceCache } from "../balanceCache.js";
+import { invalidateAllCache } from "../cache.js";
 import { logAudit } from "../audit.js";
 import { publishGroupEvent } from "../lib/supabase.js";
 
@@ -71,6 +72,7 @@ export const requestRoutes: FastifyPluginAsync = async (app) => {
     await applyRequest(request.db, req);
     await decideRequest(request.db, requestId, "approved", admin.user_id);
     invalidateBalanceCache(req.group_id);
+    invalidateAllCache("expenses", req.group_id);
     publishGroupEvent(req.group_id, "expense.changed");
     await logAudit(request.db, {
       groupId: req.group_id,
@@ -166,6 +168,7 @@ async function applyRequest(
     currency: string;
   };
   if (req.action === "delete") {
+    await deletePotExpenseWithdrawal(db, req.expense_id);
     await deleteExpense(db, req.expense_id);
     return;
   }

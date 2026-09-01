@@ -103,13 +103,16 @@ export const paymentRoutes: FastifyPluginAsync = async (app) => {
     if (!target.is_ghost) {
       await createAndPushNotification(request.db, {
         userId: toUserId,
-        type: "PAYMENT_SETTLED",
+        type: status === "pending" ? "PAYMENT_PENDING" : "PAYMENT_SETTLED",
         title: `Pago recibido en ${group.name}`,
         body:
           status === "accepted"
             ? `${user.name} te pagó ${rounded.toFixed(2)} ${group.currency}.`
             : `${user.name} te ha enviado un pago de ${rounded.toFixed(2)} ${group.currency} pendiente de confirmar.`,
-        linkUrl: `/groups/${groupId}`,
+        linkUrl:
+          status === "pending"
+            ? `/groups/${groupId}?payment=${payment.id}`
+            : `/groups/${groupId}`,
       });
     }
 

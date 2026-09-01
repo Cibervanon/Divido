@@ -219,7 +219,8 @@ function buildRawTransfers(
 
 export async function getPersonBreakdown(db: Db, groupId: string, userId: string): Promise<PersonBreakdownItem[]> {
   const members = (await listMembers(db, groupId)).filter(isActive);
-  const expenses = await expensePairs(db, groupId);
+  const expenses = (await expensePairs(db, groupId)).filter((e) => !e.paid_from_pot);
+  const piques = await listInformalDebts(db, groupId);
   const payments = (await listPayments(db, groupId)).filter((p) => p.status === "accepted");
 
   const others = members.filter((m) => m.user_id !== userId);
@@ -274,6 +275,26 @@ export async function getPersonBreakdown(db: Db, groupId: string, userId: string
         payerId: e.payer_id,
         paidByMe: false,
       });
+    }
+  }
+
+  // Los piques de dinero aceptados se integran igual que en los balances del
+  // grupo: cada ganador cobra su parte a cada perdedor (micro-gastos sintéticos).
+  for (const p of piques.filter((d) => d.kind === "money" && d.status === "accepted")) {
+    const pairs = p.winnerIds.length * p.loserIds.length;
+    if (pairs === 0) continue;
+    const share = p.amount / pairs;
+    for (const loser of p.loserIds) {
+      for (const winner of p.winnerIds) {
+        if (winner === userId) {
+          const item = index.get(loser);
+          if (item) item.net += share;
+        }
+        if (loser === userId) {
+          const item = index.get(winner);
+          if (item) item.net -= share;
+        }
+      }
     }
   }
 
