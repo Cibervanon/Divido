@@ -384,9 +384,13 @@ const MIGRATIONS = [
   // Migrar estados de pagos antiguos al nuevo enum
   "UPDATE payments SET status = CASE WHEN status = 'confirmed' THEN 'accepted' WHEN status = 'pending_confirmation' THEN 'pending' ELSE 'rejected' END WHERE status IN ('confirmed','pending_confirmation','rejected')",
   // Establecer auto_accept_at para pagos pendientes existentes (3 días desde creación)
-  "UPDATE payments SET auto_accept_at = datetime(created_at, '+3 days') WHERE status = 'pending' AND auto_accept_at IS NULL",
+  "UPDATE payments SET auto_accept_at = (created_at::timestamptz + interval '3 days')::text WHERE status = 'pending' AND auto_accept_at IS NULL",
   // Baja de cuenta (GDPR): marca al usuario como eliminado sin romper las FKs contables
   "ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted INTEGER NOT NULL DEFAULT 0",
+  // Seguridad: activa Row Level Security en todas las tablas públicas. La API
+  // accede con el rol superusuario/service (bypassa RLS), así que esto solo
+  // bloquea accesos directos no autorizados (PostgREST/anon). Idempotente.
+  "DO $$ BEGIN EXECUTE (SELECT string_agg('ALTER TABLE ' || quote_ident(t.tablename) || ' ENABLE ROW LEVEL SECURITY;', '') FROM pg_tables t WHERE t.schemaname = 'public'); END $$;",
 ];
 
 export async function initDb(db: Db, opts: { migrations?: boolean } = {}): Promise<void> {
