@@ -238,17 +238,23 @@ export function HistoryTab({
             : isPayment
               ? "bg-emerald-500/15 text-emerald-400"
               : "bg-indigo-500/15 text-indigo-400";
+          const pendingForMe = isPayment && !isAudit && e.paymentStatus === "pending" && e.toUserId === myUserId;
           return (
             <div
               key={`${e.type}-${e.id}-${i}`}
-              className={`flex items-center gap-3 rounded-xl px-3 py-3 ${
+              className={`${
+                pendingForMe
+                  ? "flex flex-col border border-amber-500/20 bg-amber-500/[0.04]"
+                  : "flex items-center"
+              } gap-3 rounded-xl px-3 py-3 ${
                 isMemberEvent ? "bg-slate-900/30 opacity-80" : "hover:bg-slate-900 cursor-pointer"
               }`}
               onClick={() => {
                 if (isExpense && !isAudit && e.id) onOpenExpense(e.id);
-                if (isPayment && !isAudit && e.id && e.proofUrl) viewPaymentProof(e.id);
+                if (isPayment && !isAudit && e.id && e.hasProofUrl) viewPaymentProof(e.id);
               }}
             >
+              <div className="flex min-w-0 flex-1 items-center gap-3">
               <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconColor}`}>
                 {isMemberEvent ? (
                   e.type === "member_joined" ? (
@@ -295,7 +301,7 @@ export function HistoryTab({
                     <>
                       <strong>{e.fromName}</strong> pagó a <strong>{e.toName}</strong>
                       {e.note ? ` · ${e.note}` : ""}
-                      {e.proofUrl ? (
+                      {e.hasProofUrl ? (
                         e.fromUserId === myUserId || e.toUserId === myUserId ? (
                           <button
                             type="button"
@@ -349,24 +355,25 @@ export function HistoryTab({
                   <span className={`shrink-0 text-sm font-bold ${isPayment ? "text-emerald-400" : "text-slate-100"}`}>
                     <Money amount={isPayment ? (e.amount ?? 0) : (e.amountGroup ?? 0)} currency={isPayment ? currency : (e.currency ?? currency)} />
                   </span>
-                  {isPayment && e.paymentStatus === "pending" && e.toUserId === myUserId ? (
-                    <div className="flex items-center gap-1.5">
-                      <ConfirmPaymentButton
-                        onConfirm={() => void confirmPayment(e.id, true)}
-                        loading={deciding}
-                        disabled={deciding}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-rose-400"
-                        disabled={deciding}
-                        onClick={() => void confirmPayment(e.id, false)}
-                      >
-                        Rechazar
-                      </Button>
-                    </div>
-                  ) : null}
+                </div>
+              ) : null}
+              </div>
+              {pendingForMe ? (
+                <div className="flex w-full items-center justify-center gap-2 border-t border-amber-500/15 pt-3">
+                  <ConfirmPaymentButton
+                    onConfirm={() => void confirmPayment(e.id, true)}
+                    loading={deciding}
+                    disabled={deciding}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-rose-400"
+                    disabled={deciding}
+                    onClick={() => void confirmPayment(e.id, false)}
+                  >
+                    Rechazar
+                  </Button>
                 </div>
               ) : null}
 </div>

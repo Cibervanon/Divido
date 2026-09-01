@@ -17,7 +17,7 @@ import { useTourOptionsSetter } from "../components/GuidedTourPortal";
 import { useGuidedTourContext } from "../components/GuidedTourPortal";
 import { blobToDataUrl, compressImageToJpeg, dataUrlToBlob, isHeavyDataUrl } from "../lib/compressImage";
 import { track } from "../lib/analytics";
-import type { GroupDetail, GroupSummary } from "../lib/types";
+import type { AppNotification, GroupDetail, GroupSummary } from "../lib/types";
 
 type GroupSort = "activity" | "name" | "amount";
 
@@ -55,7 +55,25 @@ export default function DashboardPage() {
   const [toast, setToast] = useState("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { notifications, unreadCount, initialized, markRead, markAllRead, refresh } = useNotifications();
+  const [decidingNotification, setDecidingNotification] = useState<string | null>(null);
   useUserChannel(user?.id ?? null, refresh);
+
+  async function decidePendingPayment(n: AppNotification, accepted: boolean) {
+    if (decidingNotification) return;
+    setDecidingNotification(n.id);
+    try {
+      const id = new URL(n.linkUrl, window.location.origin).searchParams.get("payment");
+      if (!id) return;
+      await api.patch(`/payments/${id}/confirm`, { accepted });
+      await markRead(n.id);
+      await refresh();
+      showToast(accepted ? "Pago confirmado" : "Pago rechazado");
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : "No se pudo procesar la decisión");
+    } finally {
+      setDecidingNotification(null);
+    }
+  }
 
   function showToast(msg: string) {
     setToast(msg);
@@ -596,6 +614,8 @@ export default function DashboardPage() {
           const url = safeNotificationUrl(n.linkUrl);
           if (url) navigate(url);
         }}
+        onDecidePayment={(n, accepted) => void decidePendingPayment(n, accepted)}
+        decidingPayment={decidingNotification}
       />
     <Toast show={Boolean(toast)}>{toast}</Toast>
     </div>

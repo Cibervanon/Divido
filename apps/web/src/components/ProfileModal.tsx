@@ -8,6 +8,68 @@ import { getStoredTheme, setStoredTheme, THEMES, type ThemeId } from "../lib/the
 import { Avatar, Button, Input, Modal, Spinner, VerifiedBadge } from "./ui";
 import type { NotificationPreferences } from "../lib/types";
 
+function SectionHeader({
+  icon,
+  title,
+  description,
+}: {
+  icon?: React.ReactNode;
+  title: string;
+  description?: string;
+}) {
+  return (
+    <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
+      {icon}
+      {title}
+      {description ? (
+        <span className="ml-auto hidden text-[10px] font-normal normal-case tracking-normal text-slate-500 sm:block">
+          {description}
+        </span>
+      ) : null}
+    </p>
+  );
+}
+
+function IconUser() {
+  return (
+    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+    </svg>
+  );
+}
+
+function IconWhatsApp() {
+  return (
+    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 002.25 19.5z" />
+    </svg>
+  );
+}
+
+function IconBell() {
+  return (
+    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0M3.124 7.5A8.969 8.969 0 015.292 3m13.416 0a8.969 8.969 0 012.168 4.5" />
+    </svg>
+  );
+}
+
+function IconShield() {
+  return (
+    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+    </svg>
+  );
+}
+
+function IconScale() {
+  return (
+    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971z" />
+    </svg>
+  );
+}
+
 function SwitchRow({
   label,
   description,
@@ -274,10 +336,10 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
         </>
       }
     >
-      <div className="space-y-6">
+      <div className="space-y-4">
         <section>
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Datos personales</p>
-          <div className="mt-3 flex items-center gap-4">
+          <SectionHeader icon={<IconUser />} title="Datos personales" description="Cómo te ven los demás en Divido" />
+          <div className="mt-2.5 flex items-center gap-4">
             <Avatar name={name || user.name} url={avatarUrl || null} size="lg" />
             <div className="flex flex-col gap-2">
               <Button variant="secondary" className="!px-3 !py-1.5 text-xs" onClick={() => fileRef.current?.click()}>
@@ -291,27 +353,27 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickFile} />
             </div>
           </div>
-          <div className="mt-4 space-y-3">
+          <div className="mt-3 space-y-2.5">
             <Input label="Nombre" value={name} onChange={(e) => setName(e.target.value)} />
-            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-              <p className="text-xs font-medium text-slate-400">Email</p>
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 px-3.5 py-3">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Email</p>
               <p className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-200">
                 <span className="truncate">{user.email}</span>
                 {user.emailVerified ? <VerifiedBadge /> : null}
               </p>
               {user.emailVerified ? (
-                <span className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400">
+                <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-400">
                   Verificado
                 </span>
               ) : (
-                <div className="mt-2 space-y-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-400">
+                <div className="mt-1.5 space-y-1.5">
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-400">
                     Sin verificar
                   </span>
                   <div>
                     <Button
                       variant="secondary"
-                      className="!px-3 !py-1.5 text-xs"
+                      className="!px-3 !py-1 text-xs"
                       onClick={sendVerification}
                       loading={verifying}
                     >
@@ -319,11 +381,11 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
                     </Button>
                   </div>
                   {sent ? (
-                    <p className="rounded-xl bg-emerald-500/10 p-3 text-xs text-emerald-300">
+                    <p className="rounded-xl bg-emerald-500/10 p-2.5 text-xs text-emerald-300">
                       Te hemos enviado un email con el enlace de verificación.
                     </p>
                   ) : verificationUrl ? (
-                    <div className="rounded-xl bg-slate-950 p-3 text-xs">
+                    <div className="rounded-xl bg-slate-950 p-2.5 text-xs">
                       <p className="text-slate-400">
                         (Demo: no se pudo enviar el email. Haz clic para verificar):
                       </p>
@@ -341,12 +403,13 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
           </div>
         </section>
 
-        <div className="border-t border-slate-800 pt-5">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Métodos de pago</p>
-          <p className="mb-3 mt-0.5 text-[11px] text-slate-500">
-            Así los demás podrán pagarte al instante desde la vista de saldos del grupo.
-          </p>
-          <div className="space-y-3">
+        <div className="border-t border-slate-800 pt-4">
+          <SectionHeader
+            icon={<IconWhatsApp />}
+            title="Métodos de pago"
+            description="Para que te paguen al instante"
+          />
+          <div className="mt-2.5 space-y-2.5">
             <Input
               label="Teléfono (Bizum)"
               placeholder="600 000 000"
@@ -369,12 +432,9 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
           </div>
         </div>
 
-        <div className="border-t border-slate-800 pt-5">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Pagos</p>
-          <p className="mb-1 mt-0.5 text-[11px] text-slate-500">
-            Controla cómo se confirman los pagos que recibes.
-          </p>
-          <div className="divide-y divide-slate-800">
+        <div className="border-t border-slate-800 pt-4">
+          <SectionHeader icon={<IconShield />} title="Pagos" description="Cómo confirmas lo que recibes" />
+          <div className="mt-1 divide-y divide-slate-800">
             <SwitchRow
               label="Autoconfirmar pagos recibidos sin comprobante"
               description="Si alguien registra un pago hacia ti sin adjuntar foto, se aprobará automáticamente. Si lo desactivas, tendrás que aceptarlo o rechazarlo manualmente."
@@ -386,18 +446,21 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
           {autoConfirmError ? <p className="mt-1 text-xs text-rose-400">{autoConfirmError}</p> : null}
         </div>
 
-        <div className="border-t border-slate-800 pt-5">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 0c0 3.314-2.017 6-4.5 6S3 6.314 3 9a9 9 0 009 9c2.76 0 5-1.79 5-4 0-2.21-2.24-4-5-4s-5-1.79-5-4 2.24-4 5-4z"
-              />
-            </svg>
-            Tema visual
-          </p>
-          <div className="grid grid-cols-3 gap-2">
+        <div className="border-t border-slate-800 pt-4">
+          <SectionHeader
+            icon={
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 0c0 3.314-2.017 6-4.5 6S3 6.314 3 9a9 9 0 009 9c2.76 0 5-1.79 5-4 0-2.21-2.24-4-5-4s-5-1.79-5-4 2.24-4 5-4z"
+                />
+              </svg>
+            }
+            title="Tema visual"
+            description="Se guarda en este dispositivo"
+          />
+          <div className="mt-2.5 grid grid-cols-3 gap-2">
             {THEMES.map((t) => {
               const active = t.id === theme;
               return (
@@ -435,16 +498,14 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
               );
             })}
           </div>
-          <p className="mt-2 text-[11px] text-slate-500">
-            El tema se guarda en este dispositivo y se aplica en toda la app.
-          </p>
         </div>
 
-        <div className="border-t border-slate-800 pt-5">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Notificaciones</p>
-          <p className="mb-1 mt-0.5 text-[11px] text-slate-500">
-            Elige qué avisos quieres recibir en la campana y en las notificaciones del sistema.
-          </p>
+        <div className="border-t border-slate-800 pt-4">
+          <SectionHeader
+            icon={<IconBell />}
+            title="Notificaciones"
+            description="Campana y avisos del sistema"
+          />
           {prefsLoading ? (
             <div className="flex items-center justify-center py-8">
               <Spinner />
@@ -488,9 +549,9 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
           {prefsError && prefs ? <p className="mt-2 text-xs text-rose-400">{prefsError}</p> : null}
         </div>
 
-        <div className="border-t border-slate-800 pt-5">
-          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Cuenta</p>
-          <div className="space-y-2">
+        <div className="border-t border-slate-800 pt-4">
+          <SectionHeader icon={<IconShield />} title="Cuenta" />
+          <div className="mt-2.5 space-y-2">
             <Button variant="secondary" className="w-full" onClick={() => void exportData()} loading={exporting}>
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -521,7 +582,7 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
          </div>
 
 <div className="border-t border-slate-800 pt-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Legal</p>
+            <SectionHeader icon={<IconScale />} title="Legal" />
             <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-400">
               <Link to="/privacy" className="hover:text-indigo-400 underline">Política de privacidad</Link>
               <Link to="/terms" className="hover:text-indigo-400 underline">Términos de uso</Link>

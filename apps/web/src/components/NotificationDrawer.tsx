@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Banknote, CalendarClock, Check, Receipt, Settings, Zap } from "lucide-react";
+import { Banknote, CalendarClock, Check, Receipt, Settings, X, Zap } from "lucide-react";
 import { Spinner } from "./ui";
 import { createPortal } from "react-dom";
 import type { AppNotification } from "../lib/types";
@@ -7,9 +7,19 @@ import type { AppNotification } from "../lib/types";
 const TYPE_ICONS = {
   EXPENSE_ADDED: Receipt,
   PAYMENT_SETTLED: Banknote,
+  PAYMENT_PENDING: Banknote,
   PIQUE_CREATED: Zap,
   RECURRING_EXPENSE: CalendarClock,
 };
+
+function paymentIdFromNotification(n: AppNotification): string | null {
+  if (n.type !== "PAYMENT_PENDING") return null;
+  try {
+    return new URL(n.linkUrl, window.location.origin).searchParams.get("payment");
+  } catch {
+    return null;
+  }
+}
 
 export function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -35,6 +45,8 @@ export function NotificationDrawer({
   onMarkRead,
   onOpen,
   onOpenSettings,
+  onDecidePayment,
+  decidingPayment,
 }: {
   open: boolean;
   onClose: () => void;
@@ -45,6 +57,8 @@ export function NotificationDrawer({
   onMarkRead: (id: string) => void;
   onOpen: (n: AppNotification) => void;
   onOpenSettings: () => void;
+  onDecidePayment?: (n: AppNotification, accepted: boolean) => void;
+  decidingPayment?: string | null;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -107,6 +121,8 @@ export function NotificationDrawer({
             <ul>
               {notifications.map((n) => {
                 const Icon = TYPE_ICONS[n.type] ?? Receipt;
+                const isPendingPayment = n.type === "PAYMENT_PENDING" && Boolean(onDecidePayment !== undefined && paymentIdFromNotification(n));
+                const deciding = decidingPayment === n.id;
                 return (
                   <li key={n.id}>
                     <div
@@ -130,15 +146,54 @@ export function NotificationDrawer({
                       >
                         <Icon className="h-4 w-4" />
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center justify-between gap-2">
-                          <span className={`truncate text-sm font-semibold ${n.read ? "text-slate-300" : "text-slate-100"}`}>
-                            {n.title}
+                      {isPendingPayment ? (
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center justify-between gap-2">
+                            <span className={`truncate text-sm font-semibold ${n.read ? "text-slate-300" : "text-slate-100"}`}>
+                              {n.title}
+                            </span>
+                            <span className="shrink-0 text-[11px] text-slate-500">{timeAgo(n.createdAt)}</span>
                           </span>
-                          <span className="shrink-0 text-[11px] text-slate-500">{timeAgo(n.createdAt)}</span>
+                          <span className="mt-0.5 block text-sm leading-snug text-slate-400">{n.body}</span>
+                          <span className="mt-2.5 flex items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={deciding}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDecidePayment?.(n, true);
+                              }}
+                              className="touch-manipulation inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400 transition hover:bg-emerald-500/25 disabled:opacity-50"
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                              Confirmar
+                            </button>
+                            <button
+                              type="button"
+                              disabled={deciding}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDecidePayment?.(n, false);
+                              }}
+                              className="touch-manipulation inline-flex items-center gap-1.5 rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-400 transition hover:bg-rose-500/20 disabled:opacity-50"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                              Rechazar
+                            </button>
+                            {deciding ? <Spinner /> : null}
+                          </span>
                         </span>
-                        <span className="mt-0.5 block text-sm leading-snug text-slate-400">{n.body}</span>
-                      </span>
+                      ) : (
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center justify-between gap-2">
+                            <span className={`truncate text-sm font-semibold ${n.read ? "text-slate-300" : "text-slate-100"}`}>
+                              {n.title}
+                            </span>
+                            <span className="shrink-0 text-[11px] text-slate-500">{timeAgo(n.createdAt)}</span>
+                          </span>
+                          <span className="mt-0.5 block text-sm leading-snug text-slate-400">{n.body}</span>
+                        </span>
+                      )}
                       {!n.read ? (
                         <button
                           type="button"

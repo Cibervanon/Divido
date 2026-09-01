@@ -159,7 +159,7 @@ export interface HistoryEvent {
   toUserId?: string;
   toName?: string;
   note?: string | null;
-  proofUrl?: string | null;
+  hasProofUrl?: boolean;
   paymentStatus?: "pending" | "accepted" | "rejected";
   userId?: string;
   userName?: string;
@@ -237,7 +237,7 @@ export interface RecurringExpenseDto {
   autoCreate: boolean;
 }
 
-export type NotificationType = "EXPENSE_ADDED" | "PAYMENT_SETTLED" | "PIQUE_CREATED" | "RECURRING_EXPENSE";
+export type NotificationType = "EXPENSE_ADDED" | "PAYMENT_SETTLED" | "PAYMENT_PENDING" | "PIQUE_CREATED" | "RECURRING_EXPENSE";
 
 export interface AppNotification {
   id: string;
