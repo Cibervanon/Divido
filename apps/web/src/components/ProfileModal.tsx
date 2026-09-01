@@ -550,6 +550,36 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
         </div>
 
         <div className="border-t border-slate-800 pt-4">
+            <SectionHeader icon={<IconScale />} title="Legal" />
+            <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-400">
+              <Link to="/privacy" className="hover:text-indigo-400 underline">Política de privacidad</Link>
+              <Link to="/terms" className="hover:text-indigo-400 underline">Términos de uso</Link>
+              <Link to="/cookies" className="hover:text-indigo-400 underline">Política de cookies</Link>
+            </div>
+            {analyticsEnabled ? (
+              <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950 p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-slate-200">Analítica anónima</p>
+                  <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
+                    {analyticsChoice === "yes"
+                      ? "Activada: nos ayudas a entender cómo se usa Divido. Puedes desactivarla cuando quieras."
+                      : analyticsChoice === "no"
+                        ? "Desactivada: no se envía ningún dato de uso."
+                        : "Todavía no has decidido."}
+                  </p>
+                </div>
+                <Button
+                  variant={analyticsChoice === "yes" ? "secondary" : "primary"}
+                  className="shrink-0 !px-3 !py-1.5 text-xs"
+                  onClick={toggleAnalytics}
+                >
+                  {analyticsChoice === "yes" ? "Desactivar" : "Activar"}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+
+        <div className="border-t border-slate-800 pt-4">
           <SectionHeader icon={<IconShield />} title="Cuenta" />
           <div className="mt-2.5 space-y-2">
             <Button variant="secondary" className="w-full" onClick={() => void exportData()} loading={exporting}>
@@ -580,36 +610,6 @@ export function ProfileModal({ open, onClose }: { open: boolean; onClose: () => 
             </Button>
 </div>
          </div>
-
-<div className="border-t border-slate-800 pt-4">
-            <SectionHeader icon={<IconScale />} title="Legal" />
-            <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-400">
-              <Link to="/privacy" className="hover:text-indigo-400 underline">Política de privacidad</Link>
-              <Link to="/terms" className="hover:text-indigo-400 underline">Términos de uso</Link>
-              <Link to="/cookies" className="hover:text-indigo-400 underline">Política de cookies</Link>
-            </div>
-            {analyticsEnabled ? (
-              <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950 p-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold text-slate-200">Analítica anónima</p>
-                  <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
-                    {analyticsChoice === "yes"
-                      ? "Activada: nos ayudas a entender cómo se usa Divido. Puedes desactivarla cuando quieras."
-                      : analyticsChoice === "no"
-                        ? "Desactivada: no se envía ningún dato de uso."
-                        : "Todavía no has decidido."}
-                  </p>
-                </div>
-                <Button
-                  variant={analyticsChoice === "yes" ? "secondary" : "primary"}
-                  className="shrink-0 !px-3 !py-1.5 text-xs"
-                  onClick={toggleAnalytics}
-                >
-                  {analyticsChoice === "yes" ? "Desactivar" : "Activar"}
-                </Button>
-              </div>
-            ) : null}
-          </div>
 
          {error ? <p className="text-xs text-rose-400">{error}</p> : null}
       </div>
