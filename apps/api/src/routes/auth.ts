@@ -24,6 +24,14 @@ import { config } from "../config.js";
 import { sendPasswordResetEmail, sendVerificationEmail } from "../email.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_RE = /^(?=.*[A-Z])(?=.*\d).{6,}$/;
+
+function validatePassword(password: string): { valid: boolean; message: string } {
+  if (password.length < 6) return { valid: false, message: "La contraseña debe tener al menos 6 caracteres" };
+  if (!/[A-Z]/.test(password)) return { valid: false, message: "La contraseña debe contener al menos una mayúscula" };
+  if (!/\d/.test(password)) return { valid: false, message: "La contraseña debe contener al menos un número" };
+  return { valid: true, message: "" };
+}
 
 export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post("/api/auth/register", async (request) => {
@@ -33,7 +41,9 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       name?: string;
     };
     if (!email || !EMAIL_RE.test(email)) throw badRequest("Email inválido");
-    if (!password || password.length < 6) throw badRequest("La contraseña debe tener al menos 6 caracteres");
+    if (!password) throw badRequest("La contraseña es obligatoria");
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) throw badRequest(passwordValidation.message);
     if (!name?.trim()) throw badRequest("El nombre es obligatorio");
     const normalized = email.toLowerCase().trim();
     if (await findUserByEmail(request.db, normalized)) throw conflict("Ya existe una cuenta con ese email");
@@ -75,9 +85,9 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post("/api/auth/reset-password", async (request) => {
     const { token, password } = request.body as { token?: string; password?: string };
     if (!token) throw badRequest("Falta el token de restablecimiento");
-    if (!password || password.length < 6) {
-      throw badRequest("La contraseña debe tener al menos 6 caracteres");
-    }
+    if (!password) throw badRequest("La contraseña es obligatoria");
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) throw badRequest(passwordValidation.message);
     const user = await findUserByResetToken(request.db, token);
     if (!user || !user.reset_token_expires || new Date(user.reset_token_expires).getTime() < Date.now()) {
       throw badRequest("Enlace de restablecimiento inválido o expirado");

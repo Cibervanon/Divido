@@ -79,13 +79,33 @@ export default function ResetPasswordPage() {
             <form onSubmit={onSubmit} className="space-y-4">
               <PasswordField
                 label="Nueva contraseña"
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Mín. 6 caracteres, 1 mayúscula, 1 número"
                 value={password}
                 onChange={setPassword}
                 required
                 minLength={6}
                 autoComplete="new-password"
               />
+              <div className="text-xs text-slate-500 space-y-1">
+                <p className="flex items-center gap-1.5 text-slate-500">
+                  <svg className="h-3 w-3 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                  <span>Mínimo 6 caracteres</span>
+                </p>
+                <p className="flex items-center gap-1.5 text-slate-500">
+                  <svg className="h-3 w-3 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                  <span>Al menos 1 mayúscula</span>
+                </p>
+                <p className="flex items-center gap-1.5 text-slate-500">
+                  <svg className="h-3 w-3 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                  <span>Al menos 1 número</span>
+                </p>
+              </div>
               <PasswordField
                 label="Confirmar contraseña"
                 placeholder="Repite la contraseña"
@@ -95,14 +115,6 @@ export default function ResetPasswordPage() {
                 minLength={6}
                 autoComplete="new-password"
               />
-              {error ? (
-                <p className="rounded-lg bg-rose-500/10 px-3 py-2 text-xs font-medium text-rose-400">
-                  {error}
-                </p>
-              ) : null}
-              <Button type="submit" className="w-full" loading={loading}>
-                Restablecer contraseña
-              </Button>
               <div className="text-center">
                 <Link
                   to="/login"
