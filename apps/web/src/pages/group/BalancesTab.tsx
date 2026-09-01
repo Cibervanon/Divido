@@ -627,6 +627,7 @@ export function BalancesTab({ detail, expenses, myUserId, onOpenMember, onToast 
         groupId={group.id}
         members={detail.members}
         me={myUserId}
+        prefill={paymentPrefill}
         onCreated={() => {
           onToast("Pago registrado");
           setShowPaymentModal(false);

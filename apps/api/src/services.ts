@@ -220,7 +220,7 @@ function buildRawTransfers(
 export async function getPersonBreakdown(db: Db, groupId: string, userId: string): Promise<PersonBreakdownItem[]> {
   const members = (await listMembers(db, groupId)).filter(isActive);
   const expenses = await expensePairs(db, groupId);
-  const payments = await listPayments(db, groupId);
+  const payments = (await listPayments(db, groupId)).filter((p) => p.status === "accepted");
 
   const others = members.filter((m) => m.user_id !== userId);
   const result: PersonBreakdownItem[] = others.map((m) => ({
