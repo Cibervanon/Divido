@@ -110,8 +110,10 @@ export const groupRoutes: FastifyPluginAsync = async (app) => {
   app.get("/api/groups/:groupId", async (request, reply) => {
     const user = requireAuth(request);
     const { groupId } = request.params as { groupId: string };
-    const group = await requireGroup(request, groupId);
-    const membership = await getMemberRow(request.db, groupId, user.id);
+    const [group, membership] = await Promise.all([
+      requireGroup(request, groupId),
+      getMemberRow(request.db, groupId, user.id),
+    ]);
     if (!membership) {
       return reply.code(200).send({
         group: groupToPublic(group),

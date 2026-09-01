@@ -58,9 +58,11 @@ export async function requireActiveMember(
   request: FastifyRequest,
   groupId: string
 ): Promise<{ member: MemberRow; group: Group }> {
-  const group = await requireGroup(request, groupId);
   const user = requireAuth(request);
-  const member = await getMemberRow(request.db, groupId, user.id);
+  const [group, member] = await Promise.all([
+    requireGroup(request, groupId),
+    getMemberRow(request.db, groupId, user.id),
+  ]);
   if (!member) throw notFound("No eres miembro de este grupo");
   if (member.status !== "active") throw forbidden("Tu membresía en este grupo está inactiva");
   return { member, group };

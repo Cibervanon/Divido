@@ -10,7 +10,6 @@ import {
   expenseParticipantShares,
   getExpense,
   getExpenseComment,
-  getMemberRow,
   getPotBalance,
   getPotExpenseWithdrawal,
   listExpenseComments,
@@ -47,10 +46,9 @@ const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
 export const expenseRoutes: FastifyPluginAsync = async (app) => {
   app.get("/api/groups/:groupId/expenses", async (request) => {
     const { groupId } = request.params as { groupId: string };
-    await requireActiveMember(request, groupId);
+    const member = (await requireActiveMember(request, groupId)).member;
     const user = requireAuth(request);
-    const member = await getMemberRow(request.db, groupId, user.id);
-    const includeDeleted = member?.role === "admin";
+    const includeDeleted = member.role === "admin";
 
     // Filtros opcionales via query string
     const query = request.query as {
