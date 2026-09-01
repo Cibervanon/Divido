@@ -6,7 +6,16 @@ import type { Db, PreparedStatement, SqlValue } from "../../db.js";
  * El esquema y las consultas del proyecto usan sintaxis portable (TEXT, REAL,
  * placeholders "?"), por lo que funcionan tal cual sobre node:sqlite.
  * Las transacciones anidadas reutilizan la externa, igual que el adaptador pg.
+ *
+ * Las consultas de gastos usan funciones de Postgres (json_agg + json_build_object)
+ * que node:sqlite no tiene; se traducen por sus equivalentes de SQLite
+ * (json_group_array + json_object) aquí abajo, solo en entorno de prueba.
  */
+function toSqliteJson(sql: string): string {
+  return sql
+    .replace(/json_agg\(json_build_object\(/g, "json_group_array(json_object(")
+    .replace(/::text/gi, "");
+}
 export function createTestDb(): Db {
   const raw = new DatabaseSync(":memory:");
   raw.exec("PRAGMA foreign_keys = ON");
@@ -44,7 +53,8 @@ export function createTestDb(): Db {
 
   const db: Db = {
     prepare(sqlBase: string): PreparedStatement {
-      const statements = splitStatements(sqlBase);
+      const sql = toSqliteJson(sqlBase);
+      const statements = splitStatements(sql);
       if (statements.length > 1) {
         // Solo initDb usa scripts multi-sentencia, siempre vía run().
         return {
@@ -61,7 +71,7 @@ export function createTestDb(): Db {
           },
         };
       }
-      const stmt = raw.prepare(sqlBase);
+      const stmt = raw.prepare(sql);
       return {
         async get(...params: SqlValue[]) {
           return stmt.get(...(params as never[])) as Record<string, unknown> | undefined;
