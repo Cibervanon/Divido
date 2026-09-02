@@ -377,6 +377,7 @@ const MIGRATIONS = [
   "DO $$ BEGIN ALTER TABLE expenses ADD CONSTRAINT chk_expense_amount_positive CHECK (amount > 0); EXCEPTION WHEN duplicate_object THEN END $$;",
   "DO $$ BEGIN ALTER TABLE expenses ADD CONSTRAINT chk_expense_amount_group_positive CHECK (amount_group > 0); EXCEPTION WHEN duplicate_object THEN END $$;",
   "DO $$ BEGIN ALTER TABLE payments ADD CONSTRAINT chk_payment_amount_positive CHECK (amount > 0); EXCEPTION WHEN duplicate_object THEN END $$;",
+  "ALTER TABLE payments DROP CONSTRAINT IF EXISTS chk_payment_status",
   "DO $$ BEGIN ALTER TABLE payments ADD CONSTRAINT chk_payment_status CHECK (status IN ('pending','accepted','rejected')); EXCEPTION WHEN duplicate_object THEN END $$;",
   "DO $$ BEGIN ALTER TABLE groups ADD CONSTRAINT chk_group_type CHECK (type IN ('open','closed')); EXCEPTION WHEN duplicate_object THEN END $$;",
   // Normalización: todo grupo existente debe tener estado 'open' por defecto
