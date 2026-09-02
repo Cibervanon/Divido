@@ -161,6 +161,7 @@ export interface HistoryEvent {
   note?: string | null;
   hasProofUrl?: boolean;
   paymentStatus?: "pending" | "accepted" | "rejected";
+  status?: "pending" | "accepted" | "rejected";
   userId?: string;
   userName?: string;
 }

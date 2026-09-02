@@ -7,6 +7,7 @@ import { blobToDataUrl, compressImageToJpeg, dataUrlToBlob, isHeavyDataUrl } fro
 import { Avatar, Button, GhostBadge, Modal, Money, Spinner, Tabs, Toast, VerifiedBadge } from "../components/ui";
 import { ExpenseModal } from "../components/ExpenseModal";
 import { PaymentModal } from "../components/PaymentModal";
+import { PendingPaymentsCard } from "../components/PendingPaymentsCard";
 import { BalancesTab } from "./group/BalancesTab";
 import { HistoryTab } from "./group/HistoryTab";
 import { MembersTab } from "./group/MembersTab";
@@ -161,7 +162,7 @@ export default function GroupPage() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   
 
-  function showToast(msg: string) {
+  function showToast(msg: string, _type?: "success" | "error") {
     setToast(msg);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(""), 2200);
@@ -563,7 +564,15 @@ export default function GroupPage() {
       ) : null}
 
       <main className="mx-auto max-w-2xl px-4 pt-5 pb-32">
-        <div className="mb-5 rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-900/50 p-5">
+        <PendingPaymentsCard
+          events={history}
+          myUserId={user.id}
+          currency={group.currency}
+          members={detail.members}
+          onChanged={load}
+          onToast={showToast}
+        />
+        <div className="mb-5 mt-4 rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-900/50 p-5">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Tu balance</p>
@@ -644,7 +653,7 @@ export default function GroupPage() {
             />
           ) : null}
           {tab === "balances" ? (
-            <BalancesTab detail={detail} expenses={expenses} myUserId={user.id} onOpenMember={openBreakdown} onToast={showToast} />
+            <BalancesTab detail={detail} expenses={expenses} history={history} myUserId={user.id} onOpenMember={openBreakdown} onToast={showToast} onChanged={load} />
           ) : null}
           {tab === "members" ? (
             <MembersTab

@@ -238,7 +238,7 @@ export function HistoryTab({
             : isPayment
               ? "bg-emerald-500/15 text-emerald-400"
               : "bg-indigo-500/15 text-indigo-400";
-          const pendingForMe = isPayment && !isAudit && e.paymentStatus === "pending" && e.toUserId === myUserId;
+          const pendingForMe = isPayment && !isAudit && e.status === "pending" && e.toUserId === myUserId;
           return (
             <div
               key={`${e.type}-${e.id}-${i}`}
@@ -324,17 +324,23 @@ export function HistoryTab({
                           </span>
                         )
                       ) : null}
-                      {e.paymentStatus === "pending" ? (
-                        <span className="ml-1.5 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-400">
-                          Pendiente
+                      {e.status === "pending" ? (
+                        <span
+                          className={`ml-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                            e.fromUserId === myUserId
+                              ? "bg-sky-500/10 text-sky-400"
+                              : "bg-amber-500/10 text-amber-400"
+                          }`}
+                        >
+                          {e.fromUserId === myUserId ? "Enviando" : "Recibiendo"}
                         </span>
                       ) : null}
-                      {e.paymentStatus === "accepted" ? (
+                      {e.status === "accepted" ? (
                         <span className="ml-1.5 rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-400">
                           Confirmado
                         </span>
                       ) : null}
-                      {e.paymentStatus === "rejected" ? (
+                      {e.status === "rejected" ? (
                         <span className="ml-1.5 rounded-md bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-400">
                           Rechazado
                         </span>

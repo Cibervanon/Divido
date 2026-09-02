@@ -200,6 +200,7 @@
   .badge.green  { background: rgba(63,185,80,.14);  color: #3fb950; border-color: rgba(63,185,80,.45); }
   .badge.amber  { background: rgba(210,153,34,.14); color: #d29922; border-color: rgba(210,153,34,.45); }
   .badge.indigo { background: rgba(99,102,241,.15); color: #a5b4fc; border-color: rgba(99,102,241,.45); }
+  .badge.blue   { background: rgba(56,189,248,.14); color: #38bdf8; border-color: rgba(56,189,248,.45); }
   .badge.red    { background: rgba(248,81,73,.14);  color: #f85149; border-color: rgba(248,81,73,.45); }
   .badge.muted  { background: rgba(139,148,158,.12); color: #8b949e; border-color: rgba(139,148,158,.4); }
   .badge.tiny { font-size: 7pt; padding: 0 4pt; }
@@ -698,11 +699,19 @@
         <tr><td class="lbl">Ver estado «Pendiente»</td><td>Sí</td><td>Sí</td></tr>
         <tr><td class="lbl"><strong>Editar</strong> importe, nota o comprobante</td><td>Sí (mientras esté pendiente)</td><td>No</td></tr>
         <tr><td class="lbl"><strong>Cancelar</strong> la solicitud</td><td>Sí (mientras esté pendiente)</td><td>No</td></tr>
-        <tr><td class="lbl"><strong>Aceptar</strong> el pago</td><td>No</td><td>Sí (botón directo en notificación/feed)</td></tr>
-        <tr><td class="lbl"><strong>Rechazar</strong> el pago</td><td>No</td><td>Sí (botón directo en notificación/feed)</td></tr>
+        <tr><td class="lbl"><strong>Aceptar</strong> el pago</td><td>No</td><td>Sí (tarjeta «Recibiendo» al abrir el grupo)</td></tr>
+        <tr><td class="lbl"><strong>Rechazar</strong> el pago</td><td>No</td><td>Sí (tarjeta «Recibiendo» al abrir el grupo)</td></tr>
         <tr><td class="lbl">Ver/descargar comprobante</td><td>Sí</td><td>Sí</td></tr>
       </tbody>
     </table>
+
+    <h3>Pagos pendientes al entrar al grupo</h3>
+    <p>Cada vez que abres un grupo, Divido comprueba si tienes <strong>pagos pendientes de resolver</strong> y, si los hay, muestra una tarjeta <span class="badge tiny amber">Ámbar</span> en la parte superior (por encima de tu balance). En ella distinguimos a quién afecta el pago:</p>
+    <ul>
+      <li><span class="badge tiny amber">Recibiendo</span> — Alguien te ha enviado dinero y falta tu confirmación para aplicarlo a tu saldo. La tarjeta trae botones <span class="badge tiny green">Confirmar</span> y <span class="badge tiny red">Rechazar</span>; confirma para que el pago actualice los saldos del grupo.</li>
+      <li><span class="badge tiny blue">Enviando</span> — Tú enviaste el dinero y estás a la espera de que el destinatario lo confirme. No requiere acción, solo información.</li>
+    </ul>
+    <p>Estos mismos avisos aparecen también en el epígrafe <strong>«Pagos pendientes de confirmar»</strong> de la pestaña <strong>Saldos</strong>, separados del balance neto para que no parezca que sigues debiendo lo que ya enviaste. Un pago pendiente <strong>no varía tu saldo</strong> hasta que el receptor lo confirme (o pasen los 3 días de auto-aprobación).</p>
 
     <h3>Autoconfirmación de pagos recibidos</h3>
     <p>En <strong>Perfil → Ajustes → Autoconfirmar pagos</strong> puedes activar un interruptor que hace que <strong>cualquier pago que recibas se marque automáticamente como <span class="badge tiny green">Aceptado</span></strong> sin esperar a que tú lo apruebes manualmente.</p>
