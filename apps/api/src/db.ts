@@ -378,12 +378,14 @@ const MIGRATIONS = [
   "DO $$ BEGIN ALTER TABLE expenses ADD CONSTRAINT chk_expense_amount_group_positive CHECK (amount_group > 0); EXCEPTION WHEN duplicate_object THEN END $$;",
   "DO $$ BEGIN ALTER TABLE payments ADD CONSTRAINT chk_payment_amount_positive CHECK (amount > 0); EXCEPTION WHEN duplicate_object THEN END $$;",
   "ALTER TABLE payments DROP CONSTRAINT IF EXISTS chk_payment_status",
+  // Normalizar TODO pago a un estado válido ANTES de volver a crear la
+  // constraint: cubre valores legados ('confirmed','pending_confirmation'),
+  // quedan como pending/'accepted'/'rejected' coherentes con su significado.
+  "UPDATE payments SET status = CASE WHEN status = 'confirmed' THEN 'accepted' WHEN status = 'pending_confirmation' THEN 'pending' WHEN status = 'rejected' THEN 'rejected' WHEN status = 'accepted' THEN 'accepted' ELSE 'pending' END",
   "DO $$ BEGIN ALTER TABLE payments ADD CONSTRAINT chk_payment_status CHECK (status IN ('pending','accepted','rejected')); EXCEPTION WHEN duplicate_object THEN END $$;",
   "DO $$ BEGIN ALTER TABLE groups ADD CONSTRAINT chk_group_type CHECK (type IN ('open','closed')); EXCEPTION WHEN duplicate_object THEN END $$;",
   // Normalización: todo grupo existente debe tener estado 'open' por defecto
   "UPDATE groups SET type = 'open' WHERE type IS NULL OR type NOT IN ('open','closed')",
-  // Migrar estados de pagos antiguos al nuevo enum
-  "UPDATE payments SET status = CASE WHEN status = 'confirmed' THEN 'accepted' WHEN status = 'pending_confirmation' THEN 'pending' ELSE 'rejected' END WHERE status IN ('confirmed','pending_confirmation','rejected')",
   // Establecer auto_accept_at para pagos pendientes existentes (3 días desde creación)
   "UPDATE payments SET auto_accept_at = (created_at::timestamptz + interval '3 days')::text WHERE status = 'pending' AND auto_accept_at IS NULL",
   // Baja de cuenta (GDPR): marca al usuario como eliminado sin romper las FKs contables
