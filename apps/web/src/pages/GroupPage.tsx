@@ -588,7 +588,7 @@ export default function GroupPage() {
                 ) : null}
                 {negative ? (
                   <span className="rounded-lg bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-400">
-                    Debes <Money amount={oweByMe} currency={group.currency} />
+                    Debes <Money amount={-oweByMe} currency={group.currency} />
                   </span>
                 ) : null}
                 {settled ? (

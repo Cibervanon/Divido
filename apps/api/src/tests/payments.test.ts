@@ -109,3 +109,58 @@ describe("Flujo de pago pendiente (create → pending → confirmar → accepted
     expect(res.json<{ payment: { status: string } }>().payment.status).toBe("accepted");
   });
 });
+
+describe("El balance refleja la aceptación de un pago (deuda → liquidación)", () => {
+  const BG = "g-balance-1";
+  let payId = "";
+
+  beforeAll(async () => {
+    const now = new Date().toISOString();
+    await db.prepare("INSERT INTO groups (id, name, invite_token, creator_id, created_at) VALUES (?, 'B', 'tok-bal-01', 'u1', ?)").run(BG, now);
+    await db.prepare("INSERT INTO group_members (group_id, user_id, role, status, joined_at) VALUES (?, 'u1', 'admin', 'active', ?)").run(BG, now);
+    await db.prepare("INSERT INTO group_members (group_id, user_id, role, status, joined_at) VALUES (?, 'u2', 'member', 'active', ?)").run(BG, now);
+    // u1 pagó un gasto de 10 que comparte con u2 a medias ⇒ u2 debe 5 a u1.
+    await db.prepare(
+      `INSERT INTO expenses (id, group_id, payer_id, description, amount, currency, exchange_rate, amount_group, created_by_id, created_at, updated_at)
+       VALUES ('be1', ?, 'u1', 'Cena', 10, 'EUR', 1, 10, 'u1', ?, ?)`
+    ).run(BG, now, now);
+    await db.prepare("INSERT INTO expense_participants (expense_id, user_id) VALUES ('be1', 'u1')").run();
+    await db.prepare("INSERT INTO expense_participants (expense_id, user_id) VALUES ('be1', 'u2')").run();
+  });
+
+  it("u2 debe 5 antes del pago", async () => {
+    const res = await app.inject({ method: "GET", url: `/api/groups/${BG}/balances`, headers: token("u1") });
+    const b = res.json<{ balances: Array<{ userId: string; net: number }> }>().balances;
+    const me = b.find((x) => x.userId === "u2");
+    expect(me!.net).toBe(-5);
+  });
+
+  it("u2 paga 5 a u1 (pending) y el balance NO cambia hasta aceptar", async () => {
+    const created = await app.inject({
+      method: "POST",
+      url: `/api/groups/${BG}/payments`,
+      headers: token("u2"),
+      payload: { toUserId: "u1", amount: 5, note: "Liquidar" },
+    });
+    expect(created.statusCode).toBe(200);
+    payId = created.json<{ payment: { id: string } }>().payment.id;
+
+    const res = await app.inject({ method: "GET", url: `/api/groups/${BG}/balances`, headers: token("u1") });
+    const b = res.json<{ balances: Array<{ userId: string; net: number }> }>().balances;
+    expect(b.find((x) => x.userId === "u2")!.net).toBe(-5);
+  });
+
+  it("al aceptar u1, la deuda de u2 se liquida (net pasa a 0)", async () => {
+    const ok = await app.inject({
+      method: "PATCH",
+      url: `/api/payments/${payId}/confirm`,
+      headers: token("u1"),
+      payload: { accepted: true },
+    });
+    expect(ok.statusCode).toBe(200);
+
+    const res = await app.inject({ method: "GET", url: `/api/groups/${BG}/balances`, headers: token("u1") });
+    const b = res.json<{ balances: Array<{ userId: string; net: number }> }>().balances;
+    expect(b.find((x) => x.userId === "u2")!.net).toBe(0);
+  });
+});
