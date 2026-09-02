@@ -577,16 +577,16 @@ export default function GroupPage() {
             <div className="min-w-0">
               <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Tu balance</p>
               <p className={`mt-1 text-3xl font-extrabold ${balanceColor}`}>
-                {negative ? "-" : ""}
-                <Money amount={Math.abs(myBalance)} currency={group.currency} />
+                {positive ? "+" : ""}
+                <Money amount={myBalance} currency={group.currency} />
               </p>
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                {oweToMe > 0.004 ? (
+                {positive ? (
                   <span className="rounded-lg bg-emerald-500/10 px-2.5 py-1 font-semibold text-emerald-400">
                     Te deben <Money amount={oweToMe} currency={group.currency} />
                   </span>
                 ) : null}
-                {oweByMe > 0.004 ? (
+                {negative ? (
                   <span className="rounded-lg bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-400">
                     Debes <Money amount={oweByMe} currency={group.currency} />
                   </span>
