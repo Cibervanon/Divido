@@ -78,7 +78,8 @@ export function CopyLinkButton({
   );
 }
 
-/** Botón confirmar/cobrar pago con estado de carga explícito */
+/** Botón aceptar/cobrar pago recibido. Verde/primario, con UN solo spinner
+ *  mientras la petición HTTP esté activa (no duplica el indicador de carga). */
 export function ConfirmPaymentButton({
   onConfirm,
   loading = false,
@@ -90,13 +91,14 @@ export function ConfirmPaymentButton({
 }) {
   return (
     <Button
-      variant="secondary"
+      variant="primary"
       size="sm"
+      className="bg-emerald-600 text-white hover:bg-emerald-500 shadow-emerald-900/30"
       loading={loading}
       disabled={disabled}
       onClick={onConfirm}
     >
-      {loading ? <Spinner /> : "Confirmar"}
+      {loading ? "Aceptando…" : "Aceptar"}
     </Button>
   );
 }
