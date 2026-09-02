@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, Component, ErrorInfo, ReactNode } from "react";
+import { Suspense, useEffect, Component, ErrorInfo, ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./lib/auth";
 import { Spinner } from "./components/ui";
@@ -8,6 +8,10 @@ import { PWAInstallBanner } from "./components/PWAInstallBanner";
 import { GuidedTourProviderWithSetter } from "./components/GuidedTourPortal";
 import { HelpProvider } from "./components/HelpButton";
 import { HelpModal } from "./components/HelpModal";
+import {
+  pageChunks,
+  prefetchRouteChunks,
+} from "./lib/routeChunks";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -41,18 +45,18 @@ class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNod
   }
 }
 
-const LoginPage = lazy(() => import("./pages/LoginPage"));
-const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
-const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
-const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
-const TermsPage = lazy(() => import("./pages/TermsPage"));
-const CookiesPage = lazy(() => import("./pages/CookiesPage"));
-const DashboardPage = lazy(() => import("./pages/DashboardPage"));
-const GroupPage = lazy(() => import("./pages/GroupPage"));
-const JoinPage = lazy(() => import("./pages/JoinPage"));
-const ClaimPage = lazy(() => import("./pages/ClaimPage"));
-const GoogleCallbackPage = lazy(() => import("./pages/GoogleCallbackPage"));
-const VerifyEmailPage = lazy(() => import("./pages/VerifyEmailPage"));
+const LoginPage = pageChunks.LoginPage;
+const ForgotPasswordPage = pageChunks.ForgotPasswordPage;
+const ResetPasswordPage = pageChunks.ResetPasswordPage;
+const PrivacyPage = pageChunks.PrivacyPage;
+const TermsPage = pageChunks.TermsPage;
+const CookiesPage = pageChunks.CookiesPage;
+const DashboardPage = pageChunks.DashboardPage;
+const GroupPage = pageChunks.GroupPage;
+const JoinPage = pageChunks.JoinPage;
+const ClaimPage = pageChunks.ClaimPage;
+const GoogleCallbackPage = pageChunks.GoogleCallbackPage;
+const VerifyEmailPage = pageChunks.VerifyEmailPage;
 
 function FullScreenSpinner() {
   return (
@@ -90,11 +94,19 @@ function PageviewTracker() {
   return null;
 }
 
+function ChunkPrefetcher() {
+  useEffect(() => {
+    prefetchRouteChunks();
+  }, []);
+  return null;
+}
+
 export default function App() {
   return (
     <HelpProvider>
       <ErrorBoundary>
         <Suspense fallback={<FullScreenSpinner />}>
+          <ChunkPrefetcher />
           <PageviewTracker />
           <Routes>
           <Route path="/login" element={<LoginPage />} />
