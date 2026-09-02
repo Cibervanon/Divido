@@ -351,13 +351,27 @@ export function GhostBadge({ className = "", showLabel = true }: { className?: s
   );
 }
 
-export function Money({ amount, currency, className = "" }: { amount: number; currency: string; className?: string }) {
+export function Money({
+  amount,
+  currency,
+  className = "",
+  tone,
+}: {
+  amount: number;
+  currency: string;
+  className?: string;
+  /** Color fijo del texto; sobrescribe el semántico automático por signo. */
+  tone?: "emerald" | "rose" | "inherit";
+}) {
   const sym = currencySymbol(currency);
   const abs = Math.abs(amount).toFixed(2);
-  const semanticColor = amount > 0.004 ? "text-success-500" : amount < -0.004 ? "text-danger-500" : "";
+  const autoColor = amount > 0.004 ? "text-success-500" : amount < -0.004 ? "text-danger-500" : "";
+  const toneColor =
+    tone === "emerald" ? "text-success-500" : tone === "rose" ? "text-danger-500" : "";
+  const semanticColor = tone ? toneColor : autoColor;
   return (
     <span className={`${semanticColor} ${className}`}>
-      {amount < 0 ? "-" : ""}
+      {tone ? "" : amount < 0 ? "-" : ""}
       {sym}
       {abs}
     </span>

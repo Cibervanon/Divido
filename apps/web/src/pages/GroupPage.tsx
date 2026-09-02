@@ -415,12 +415,12 @@ export default function GroupPage() {
   const hasRecurring = (detail.group.enabledExtras ?? []).includes("recurring_expenses");
   const me = g.balances.find((b) => b.isMe);
   const myBalance = me?.net ?? 0;
-  const oweToMe = me?.paidForOthers ?? 0;
-  const oweByMe = me?.owesOthers ?? 0;
+  const resolved = Math.max(0, me?.net ?? 0);
+  const debt = Math.max(0, -(me?.net ?? 0));
   const positive = myBalance > 0.004;
   const negative = myBalance < -0.004;
   const balanceColor = positive ? "text-emerald-400" : negative ? "text-rose-400" : "text-slate-400";
-  const settled = !positive && !negative && oweToMe <= 0.004 && oweByMe <= 0.004;
+  const settled = !positive && !negative;
 
   async function copyInvite() {
     if (!g.inviteUrl) return;
@@ -583,12 +583,12 @@ export default function GroupPage() {
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 {positive ? (
                   <span className="rounded-lg bg-emerald-500/10 px-2.5 py-1 font-semibold text-emerald-400">
-                    Te deben <Money amount={oweToMe} currency={group.currency} />
+                    Te deben <Money amount={resolved} currency={group.currency} tone="emerald" />
                   </span>
                 ) : null}
                 {negative ? (
                   <span className="rounded-lg bg-rose-500/10 px-2.5 py-1 font-semibold text-rose-400">
-                    Debes <Money amount={-oweByMe} currency={group.currency} />
+                    Debes <Money amount={debt} currency={group.currency} tone="rose" />
                   </span>
                 ) : null}
                 {settled ? (
