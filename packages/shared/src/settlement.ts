@@ -97,14 +97,19 @@ export function computeNetBalances(
  *     lo que garantiza a lo sumo n-1 transferencias.
  */
 export function simplifyDebts(balances: MemberBalance[]): SettlementTransfer[] {
-  // Normaliza el residuo de redondeo: al repartir un importe no divisible entre
-  // varios participantes (p. ej. 10.01 / 3), los saldos redondeados no suman 0
-  // y un deudor puede quedarse sin acreedor para el céntimo sobrante. Se ajusta
-  // el balance de mayor magnitud para que la suma sea exactamente 0 y así todo
-  // deudor tenga su acreedor.
+  // Normaliza el residuo de redondeo SOLO cuando es plausible: cada saldo se
+  // redondea a 2 decimales, así que la suma de un grupo coherente se desvía de 0
+  // como mucho ~0,005 € por miembro. Si el desfase supera ese margen, los datos
+  // están desbalanceados (p. ej. un gasto del bote común con payerId null resta
+  // a todos sin sumar el crédito a nadie) y NO se inventa liquidez ajustando un
+  // saldo: eso fabricaría pagos fantasma entre miembros. Con un residuo pequeño
+  // (10.01 / 3 = 3.34, 3.34, 3.33) un deudor podría quedarse sin acreedor para
+  // el céntimo sobrante, así que se ajusta el balance de mayor magnitud para que
+  // la suma sea exactamente 0 y todo deudor tenga su acreedor.
   const normalized = balances.map((b) => ({ ...b }));
   const sum = normalized.reduce((s, b) => s + b.net, 0);
-  if (Math.abs(sum) > EPS) {
+  const roundingResidue = 0.005 * normalized.length + 0.001;
+  if (Math.abs(sum) > EPS && Math.abs(sum) <= roundingResidue) {
     const target = normalized.reduce((a, b) => (Math.abs(b.net) > Math.abs(a.net) ? b : a));
     target.net = round2(target.net - sum);
   }

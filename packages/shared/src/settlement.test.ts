@@ -182,6 +182,40 @@ describe("simplifyDebts", () => {
     expect(transfers[0].amount).toBe(50);
   });
 
+  it("desfase grande sin deudores: no inventa pagos fantasma", () => {
+    const balances: MemberBalance[] = [
+      makeBalance({ userId: "a", name: "A", net: 10, paidForOthers: 10 }),
+      makeBalance({ userId: "b", name: "B", net: 20, paidForOthers: 20 }),
+      makeBalance({ userId: "c", name: "C", net: 30, paidForOthers: 30 }),
+    ];
+    const transfers = simplifyDebts(balances);
+    expect(transfers).toEqual([]);
+  });
+
+  it("desfase grande sin acreedores: no inventa pagos fantasma", () => {
+    const balances: MemberBalance[] = [
+      makeBalance({ userId: "a", name: "A", net: -10, owesOthers: 10 }),
+      makeBalance({ userId: "b", name: "B", net: -20, owesOthers: 20 }),
+      makeBalance({ userId: "c", name: "C", net: -30, owesOthers: 30 }),
+    ];
+    const transfers = simplifyDebts(balances);
+    expect(transfers).toEqual([]);
+  });
+
+  it("residuo de redondeo dentro del umbral se normaliza y todos cobran exacto", () => {
+    // Suma = -70.1 -30.05 +100.16 = 0.01 (residuo plausible: <= 0.005*n + 0.001).
+    // Al normalizar, el crédito de mayor magnitud baja a 100.15 para casar con
+    // las deudas (70.1 + 30.05 = 100.15) y así todo deudor paga completo.
+    const balances: MemberBalance[] = [
+      makeBalance({ userId: "a", name: "A", net: -70.1, owesOthers: 70.1 }),
+      makeBalance({ userId: "b", name: "B", net: -30.05, owesOthers: 30.05 }),
+      makeBalance({ userId: "c", name: "C", net: 100.16, paidForOthers: 100.16 }),
+    ];
+    const transfers = simplifyDebts(balances);
+    const received = transfers.reduce((s, t) => s + t.amount, 0);
+    expect(received).toBeCloseTo(100.15, 2);
+  });
+
   describe("propiedades (escenarios aleatorios deterministas)", () => {
     // RNG con semilla fija: mismos escenarios en cada ejecución, sin dependencias.
     function mulberry32(seed: number) {
