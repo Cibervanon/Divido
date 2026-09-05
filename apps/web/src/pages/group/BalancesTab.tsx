@@ -1,12 +1,11 @@
 import { useMemo, useState } from "react";
 import { Avatar, Button, EmptyState, GhostBadge, Money, VerifiedBadge, currencySymbol } from "../../components/ui";
 import { simplifyDebts, type SimplifyResult } from "../../lib/debtSimplifier";
-import type { GroupDetail, MemberInfo, ExpenseDto, HistoryEvent } from "../../lib/types";
+import type { GroupDetail, MemberInfo, ExpenseDto } from "../../lib/types";
 import type { SettlementTransfer } from "@divido/shared";
 import { ExportSummary } from "./ExportSummary";
 import { CATEGORIES } from "../../constants/categories";
 import { PaymentModal } from "../../components/PaymentModal";
-import { PendingPaymentsCard } from "../../components/PendingPaymentsCard";
 
 function buildSummaryText(groupName: string, currency: string, transfers: SettlementTransfer[]): string {
   const sym = currencySymbol(currency);
@@ -30,11 +29,9 @@ async function copyText(text: string): Promise<boolean> {
 interface BalancesTabProps {
   detail: GroupDetail;
   expenses: ExpenseDto[];
-  history?: HistoryEvent[];
   myUserId: string;
   onOpenMember: (m: MemberInfo) => void;
   onToast: (msg: string, type?: "success" | "error") => void;
-  onChanged?: () => void;
 }
 
 function SimplifyBreakdownModal({
@@ -121,7 +118,7 @@ function csvEscape(value: string): string {
   return /[",\n;]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
-export function BalancesTab({ detail, expenses, history, myUserId, onOpenMember, onToast, onChanged }: BalancesTabProps) {
+export function BalancesTab({ detail, expenses, myUserId, onOpenMember, onToast }: BalancesTabProps) {
   const { group, balances, rawTransfers, exMembers } = detail;
   const memberById = new Map(detail.members.map((m) => [m.userId, m]));
 
@@ -404,18 +401,6 @@ export function BalancesTab({ detail, expenses, history, myUserId, onOpenMember,
           </>
         ) : null}
       </div>
-
-      {history && onChanged ? (
-        <PendingPaymentsCard
-          events={history}
-          myUserId={myUserId}
-          currency={group.currency}
-          members={detail.members}
-          onToast={onToast}
-          onChanged={onChanged}
-          title="Pagos pendientes de confirmar"
-        />
-      ) : null}
 
       {hasSavings ? (
         <div

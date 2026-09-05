@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { api, ApiError } from "../../lib/api";
-import { Button, ConfirmPaymentButton, EmptyState, Money } from "../../components/ui";
+import { Button, EmptyState, Money } from "../../components/ui";
 import { Lock } from "lucide-react";
 import type { HistoryEvent, MemberInfo } from "../../lib/types";
 import { downloadText, fmtDate } from "./utils";
@@ -78,7 +78,6 @@ export function HistoryTab({
   groupName,
   memberName,
   myUserId,
-  onChanged,
   onOpenExpense,
   onAdd,
   hasMore,
@@ -93,7 +92,6 @@ export function HistoryTab({
   groupName: string;
   memberName: (id: string) => string;
   myUserId: string;
-  onChanged: () => void;
   onOpenExpense: (expenseId: string) => void;
   onAdd?: () => void;
   hasMore?: boolean;
@@ -102,21 +100,7 @@ export function HistoryTab({
   members?: MemberInfo[];
   onToast?: (msg: string, type?: "success" | "error") => void;
 }) {
-  const [deciding, setDeciding] = useState(false);
   const [viewingProof, setViewingProof] = useState<string | null>(null);
-
-  async function confirmPayment(id: string, accepted: boolean) {
-    setDeciding(true);
-    try {
-      await api.patch(`/payments/${id}/confirm`, { accepted });
-      onChanged();
-      onToast?.(accepted ? "Pago confirmado" : "Pago rechazado");
-    } catch (err) {
-      onToast?.(err instanceof ApiError ? err.message : "Error", "error");
-    } finally {
-      setDeciding(false);
-    }
-  }
 
   async function viewPaymentProof(paymentId: string) {
     try {
@@ -364,25 +348,7 @@ export function HistoryTab({
                 </div>
               ) : null}
               </div>
-              {pendingForMe ? (
-                <div className="flex w-full items-center justify-center gap-2 border-t border-amber-500/15 pt-3">
-                  <ConfirmPaymentButton
-                    onConfirm={() => void confirmPayment(e.id, true)}
-                    loading={deciding}
-                    disabled={deciding}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-rose-400"
-                    disabled={deciding}
-                    onClick={() => void confirmPayment(e.id, false)}
-                  >
-                    Rechazar
-                  </Button>
-                </div>
-              ) : null}
-</div>
+            </div>
               );
             })
           )}

@@ -653,7 +653,7 @@ export default function GroupPage() {
             />
           ) : null}
           {tab === "balances" ? (
-            <BalancesTab detail={detail} expenses={expenses} history={history} myUserId={user.id} onOpenMember={openBreakdown} onToast={showToast} onChanged={load} />
+            <BalancesTab detail={detail} expenses={expenses} myUserId={user.id} onOpenMember={openBreakdown} onToast={showToast} />
           ) : null}
           {tab === "members" ? (
             <MembersTab
@@ -675,7 +675,6 @@ export default function GroupPage() {
               groupName={group.name}
               memberName={memberName}
               myUserId={user.id}
-              onChanged={load}
               hasMore={historyPaging.hasMore}
               loadingMore={loadingMoreHistory}
               onLoadMore={() => void loadMoreHistory()}
